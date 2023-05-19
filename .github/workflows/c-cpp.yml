@@ -13,5 +13,7 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+    - name: install mandoc
+      run: sudo apt install mandoc
     - name: make
       run: make
