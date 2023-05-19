@@ -116,8 +116,11 @@ asn1time_to_time(const ASN1_TIME *at, time_t *t)
 	struct tm tm;
 
 	*t = 0;
+	/* Error instead of silently falling back to current time. */
+	if (at == NULL)
+		return 0;
 	memset(&tm, 0, sizeof(tm));
-	if (ASN1_time_parse(at->data, at->length, &tm, 0) == -1)
+	if (!ASN1_TIME_to_tm(at, &tm))
 		return 0;
 	if ((*t = timegm(&tm)) == -1)
 		errx(1, "timegm failed");
@@ -161,14 +164,15 @@ cms_get_signtime(const char *fn)
 	CMS_SignerInfo *si;
 	const ASN1_OBJECT *obj;
 	const unsigned char *der, *oder;
+	unsigned char *content;
 	int i, has_st = 0, nattrs;
 	size_t len;
 	time_t time = 0;
 
-	if ((der = load_file(fn, &len)) == NULL)
+	if ((content = load_file(fn, &len)) == NULL)
 		goto out;
 
-	oder = der;
+	oder = der = content;
 	if ((cms = d2i_CMS_ContentInfo(NULL, &der, len)) == NULL) {
 		warnx("%s: d2i_CMS_ContentInfo failed", fn);
 		goto out;
@@ -222,6 +226,7 @@ cms_get_signtime(const char *fn)
 	}
 
  out:
+	free(content);
 	CMS_ContentInfo_free(cms);
 	return time;
 }
@@ -232,13 +237,14 @@ get_cert_notbefore(const char *fn)
 	X509 *x = NULL;
 	const ASN1_TIME *at;
 	const unsigned char *der, *oder;
+	unsigned char *content;
 	size_t len;
 	time_t time = 0;
 
-	if ((der = load_file(fn, &len)) == NULL)
+	if ((content = load_file(fn, &len)) == NULL)
 		goto out;
 
-	oder = der;
+	oder = der = content;
 	if ((x = d2i_X509(NULL, &der, len)) == NULL) {
 		warnx("%s: d2i_X509 failed", fn);
 		goto out;
@@ -259,6 +265,7 @@ get_cert_notbefore(const char *fn)
 	}
 
  out:
+	free(content);
 	X509_free(x);
 	return time;
 }
@@ -269,13 +276,14 @@ get_crl_lastupdate(const char *fn)
 	X509_CRL *x = NULL;
 	const ASN1_TIME *at;
 	const unsigned char *der, *oder;
+	unsigned char *content;
 	size_t len;
 	time_t time = 0;
 
-	if ((der = load_file(fn, &len)) == NULL)
+	if ((content = load_file(fn, &len)) == NULL)
 		goto out;
 
-	oder = der;
+	oder = der = content;
 	if ((x = d2i_X509_CRL(NULL, &der, len)) == NULL) {
 		warnx("%s: d2i_X509_CRL failed", fn);
 		goto out;
@@ -296,6 +304,7 @@ get_crl_lastupdate(const char *fn)
 	}
 
  out:
+	free(content);
 	X509_CRL_free(x);
 	return time;
 }
@@ -395,7 +404,7 @@ main(int argc, char *argv[])
 		if (!set_mtime(fn, time))
 			rc = 1;
 		else if (verbose)
-			printf("%s: mtime set to %lld\n", fn, time);
+			printf("%s: mtime set to %lld\n", fn, (long long)time);
 	}
 
 	return rc;
