@@ -97,6 +97,15 @@ The options are as follows:
 
 The **rpkitouch** utility exits&#160;0 on success, and&#160;&gt;0 if an error occurs.
 
+# EXAMPLES
+
+Recursively set all data modification times of all files in a given directory
+hierarchy to their respective
+*RPKI*
+derived timestamps:
+
+	$ find . -type f | xargs rpkitouch
+
 # SEE ALSO
 
 openrsync(1),

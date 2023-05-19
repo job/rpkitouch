@@ -101,6 +101,13 @@ Display the version number and exit.
 Verbose operation.
 .Sh EXIT STATUS
 .Ex -std rpkitouch
+.Sh EXAMPLES
+Recursively set all data modification times of all files in a given directory
+hierarchy to their respective
+.Em RPKI
+derived timestamps:
+.Pp
+.Dl $ find \&. -type f | xargs rpkitouch
 .Sh SEE ALSO
 .Xr openrsync 1 ,
 .Xr rpki-client 8
