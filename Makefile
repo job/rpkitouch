@@ -7,9 +7,9 @@ install:
 	install -c -o root -g bin -m 444 rpkitouch.8 /usr/share/man/man8/rpkitouch.8
 
 test:
-	touch tests/*.{roa,cer,crl,gbr,asa,mft}
-	./rpkitouch tests/*.{roa,cer,crl,gbr,asa,mft}
-	cd tests && ls -rl *.roa *.cer *.gbr *.asa *.crl *.mft | awk '{ print $$5, $$6, $$7, $$8, $$9 }' | sort > outcome.txt
+	cd tests && touch 40SlM-M4frFfmZ2HaMH0tlCageA.gbr FjSf5hX1GmGhKMu9AG7WVIl8m1M.asa t7xg6ZtXdcYhy-YGTMk_ONTD31E.cer yqgF26w2R0m5sRVZCrbvD5cM29g.mft 5EjPZ8Kw2_h5hRqKpwmjdnq7Tq8.roa yqgF26w2R0m5sRVZCrbvD5cM29g.crl
+	./rpkitouch tests/40SlM-M4frFfmZ2HaMH0tlCageA.gbr tests/FjSf5hX1GmGhKMu9AG7WVIl8m1M.asa tests/t7xg6ZtXdcYhy-YGTMk_ONTD31E.cer tests/yqgF26w2R0m5sRVZCrbvD5cM29g.mft tests/5EjPZ8Kw2_h5hRqKpwmjdnq7Tq8.roa tests/yqgF26w2R0m5sRVZCrbvD5cM29g.crl
+	cd tests && ls -rl 40SlM-M4frFfmZ2HaMH0tlCageA.gbr FjSf5hX1GmGhKMu9AG7WVIl8m1M.asa t7xg6ZtXdcYhy-YGTMk_ONTD31E.cer yqgF26w2R0m5sRVZCrbvD5cM29g.mft 5EjPZ8Kw2_h5hRqKpwmjdnq7Tq8.roa yqgF26w2R0m5sRVZCrbvD5cM29g.crl | awk '{ print $$5, $$6, $$7, $$8, $$9 }' | sort > outcome.txt
 	diff tests/outcome.txt tests/expected_outcome.txt
 
 clean:
