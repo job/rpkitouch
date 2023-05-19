@@ -164,14 +164,15 @@ cms_get_signtime(const char *fn)
 	CMS_SignerInfo *si;
 	const ASN1_OBJECT *obj;
 	const unsigned char *der, *oder;
+	unsigned char *content;
 	int i, has_st = 0, nattrs;
 	size_t len;
 	time_t time = 0;
 
-	if ((der = load_file(fn, &len)) == NULL)
+	if ((content = load_file(fn, &len)) == NULL)
 		goto out;
 
-	oder = der;
+	oder = der = content;
 	if ((cms = d2i_CMS_ContentInfo(NULL, &der, len)) == NULL) {
 		warnx("%s: d2i_CMS_ContentInfo failed", fn);
 		goto out;
@@ -225,6 +226,7 @@ cms_get_signtime(const char *fn)
 	}
 
  out:
+	free(content);
 	CMS_ContentInfo_free(cms);
 	return time;
 }
@@ -235,13 +237,14 @@ get_cert_notbefore(const char *fn)
 	X509 *x = NULL;
 	const ASN1_TIME *at;
 	const unsigned char *der, *oder;
+	unsigned char *content;
 	size_t len;
 	time_t time = 0;
 
-	if ((der = load_file(fn, &len)) == NULL)
+	if ((content = load_file(fn, &len)) == NULL)
 		goto out;
 
-	oder = der;
+	oder = der = content;
 	if ((x = d2i_X509(NULL, &der, len)) == NULL) {
 		warnx("%s: d2i_X509 failed", fn);
 		goto out;
@@ -262,6 +265,7 @@ get_cert_notbefore(const char *fn)
 	}
 
  out:
+	free(content);
 	X509_free(x);
 	return time;
 }
@@ -272,13 +276,14 @@ get_crl_lastupdate(const char *fn)
 	X509_CRL *x = NULL;
 	const ASN1_TIME *at;
 	const unsigned char *der, *oder;
+	unsigned char *content;
 	size_t len;
 	time_t time = 0;
 
-	if ((der = load_file(fn, &len)) == NULL)
+	if ((content = load_file(fn, &len)) == NULL)
 		goto out;
 
-	oder = der;
+	oder = der = content;
 	if ((x = d2i_X509_CRL(NULL, &der, len)) == NULL) {
 		warnx("%s: d2i_X509_CRL failed", fn);
 		goto out;
@@ -299,6 +304,7 @@ get_crl_lastupdate(const char *fn)
 	}
 
  out:
+	free(content);
 	X509_CRL_free(x);
 	return time;
 }
