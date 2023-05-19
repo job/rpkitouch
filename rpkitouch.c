@@ -116,8 +116,11 @@ asn1time_to_time(const ASN1_TIME *at, time_t *t)
 	struct tm tm;
 
 	*t = 0;
+	/* Error instead of silently falling back to current time. */
+	if (at == NULL)
+		return 0;
 	memset(&tm, 0, sizeof(tm));
-	if (ASN1_time_parse(at->data, at->length, &tm, 0) == -1)
+	if (!ASN1_TIME_to_tm(at, &tm))
 		return 0;
 	if ((*t = timegm(&tm)) == -1)
 		errx(1, "timegm failed");
