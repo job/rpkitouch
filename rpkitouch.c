@@ -395,7 +395,7 @@ main(int argc, char *argv[])
 		if (!set_mtime(fn, time))
 			rc = 1;
 		else if (verbose)
-			printf("%s: mtime set to %lld\n", fn, time);
+			printf("%s: mtime set to %lld\n", fn, (long long)time);
 	}
 
 	return rc;
