@@ -1,0 +1,261 @@
+An extension proposal for OpenBSD rpki-client(8) to set the mtime
+of files obtained through RRDP to innate RPKI timestamps such as
+X.509 notBefore or the CMS signing-time.
+
+Index: aspa.c
+===================================================================
+RCS file: /cvs/src/usr.sbin/rpki-client/aspa.c,v
+retrieving revision 1.17
+diff -u -p -r1.17 aspa.c
+--- aspa.c	26 Apr 2023 16:32:41 -0000	1.17
++++ aspa.c	19 May 2023 01:28:13 -0000
+@@ -285,6 +285,7 @@ aspa_buffer(struct ibuf *b, const struct
+ 	io_simple_buffer(b, &p->custasid, sizeof(p->custasid));
+ 	io_simple_buffer(b, &p->talid, sizeof(p->talid));
+ 	io_simple_buffer(b, &p->expires, sizeof(p->expires));
++	io_simple_buffer(b, &p->signtime, sizeof(p->signtime));
+ 
+ 	io_simple_buffer(b, &p->providersz, sizeof(size_t));
+ 	io_simple_buffer(b, p->providers,
+@@ -312,6 +313,7 @@ aspa_read(struct ibuf *b)
+ 	io_read_buf(b, &p->custasid, sizeof(p->custasid));
+ 	io_read_buf(b, &p->talid, sizeof(p->talid));
+ 	io_read_buf(b, &p->expires, sizeof(p->expires));
++	io_read_buf(b, &p->signtime, sizeof(p->signtime));
+ 
+ 	io_read_buf(b, &p->providersz, sizeof(size_t));
+ 	if ((p->providers = calloc(p->providersz,
+Index: cert.c
+===================================================================
+RCS file: /cvs/src/usr.sbin/rpki-client/cert.c,v
+retrieving revision 1.108
+diff -u -p -r1.108 cert.c
+--- cert.c	9 May 2023 10:34:32 -0000	1.108
++++ cert.c	19 May 2023 01:28:13 -0000
+@@ -984,6 +984,7 @@ cert_free(struct cert *p)
+ void
+ cert_buffer(struct ibuf *b, const struct cert *p)
+ {
++	io_simple_buffer(b, &p->notbefore, sizeof(p->notbefore));
+ 	io_simple_buffer(b, &p->notafter, sizeof(p->notafter));
+ 	io_simple_buffer(b, &p->purpose, sizeof(p->purpose));
+ 	io_simple_buffer(b, &p->talid, sizeof(p->talid));
+@@ -1017,6 +1018,7 @@ cert_read(struct ibuf *b)
+ 	if ((p = calloc(1, sizeof(struct cert))) == NULL)
+ 		err(1, NULL);
+ 
++	io_read_buf(b, &p->notbefore, sizeof(p->notbefore));
+ 	io_read_buf(b, &p->notafter, sizeof(p->notafter));
+ 	io_read_buf(b, &p->purpose, sizeof(p->purpose));
+ 	io_read_buf(b, &p->talid, sizeof(p->talid));
+Index: extern.h
+===================================================================
+RCS file: /cvs/src/usr.sbin/rpki-client/extern.h,v
+retrieving revision 1.181
+diff -u -p -r1.181 extern.h
+--- extern.h	9 May 2023 10:34:32 -0000	1.181
++++ extern.h	19 May 2023 01:28:13 -0000
+@@ -536,7 +536,13 @@ enum stype {
+ };
+ 
+ struct repo;
+-struct filepath;
++
++struct filepath {
++	RB_ENTRY(filepath)	 entry;
++	time_t			 mtime;
++	char			*file;
++};
++
+ RB_HEAD(filepath_tree, filepath);
+ 
+ 
+@@ -756,6 +762,7 @@ void		 proc_rrdp(int) __attribute__((nor
+ 
+ /* Repository handling */
+ int		 filepath_add(struct filepath_tree *, char *);
++struct filepath	*filepath_find(struct filepath_tree *, char *);
+ void		 rrdp_clear(unsigned int);
+ void		 rrdp_save_state(unsigned int, struct rrdp_session *);
+ int		 rrdp_handle_file(unsigned int, enum publish_type, char *,
+Index: main.c
+===================================================================
+RCS file: /cvs/src/usr.sbin/rpki-client/main.c,v
+retrieving revision 1.236
+diff -u -p -r1.236 main.c
+--- main.c	27 Apr 2023 08:37:53 -0000	1.236
++++ main.c	19 May 2023 01:28:13 -0000
+@@ -550,6 +550,7 @@ entity_process(struct ibuf *b, struct st
+ 	struct roa	*roa;
+ 	struct aspa	*aspa;
+ 	struct repo	*rp;
++	struct filepath	*fp;
+ 	char		*file;
+ 	unsigned int	 id;
+ 	int		 talid;
+@@ -575,6 +576,11 @@ entity_process(struct ibuf *b, struct st
+ 		goto done;
+ 	}
+ 
++	if ((fp = filepath_find(&fpt, file)) == NULL) {
++		warnx("%s: sudden memory loss", file);
++		goto done;
++	}
++
+ 	rp = repo_byid(id);
+ 	repo_stat_inc(rp, talid, type, STYPE_OK);
+ 	switch (type) {
+@@ -591,6 +597,7 @@ entity_process(struct ibuf *b, struct st
+ 			break;
+ 		}
+ 		cert = cert_read(b);
++		fp->mtime = cert->notbefore;
+ 		switch (cert->purpose) {
+ 		case CERT_PURPOSE_CA:
+ 			queue_add_from_cert(cert);
+@@ -612,6 +619,7 @@ entity_process(struct ibuf *b, struct st
+ 			break;
+ 		}
+ 		mft = mft_read(b);
++		fp->mtime = mft->signtime;
+ 		if (!mft->stale)
+ 			queue_add_from_mft(mft);
+ 		else
+@@ -629,6 +637,7 @@ entity_process(struct ibuf *b, struct st
+ 			break;
+ 		}
+ 		roa = roa_read(b);
++		fp->mtime = roa->signtime;
+ 		if (roa->valid)
+ 			roa_insert_vrps(tree, roa, rp);
+ 		else
+@@ -644,6 +653,7 @@ entity_process(struct ibuf *b, struct st
+ 			break;
+ 		}
+ 		aspa = aspa_read(b);
++		fp->mtime = aspa->signtime;
+ 		if (aspa->valid)
+ 			aspa_insert_vaps(vaptree, aspa, rp);
+ 		else
+Index: mft.c
+===================================================================
+RCS file: /cvs/src/usr.sbin/rpki-client/mft.c,v
+retrieving revision 1.91
+diff -u -p -r1.91 mft.c
+--- mft.c	26 Apr 2023 16:32:41 -0000	1.91
++++ mft.c	19 May 2023 01:28:13 -0000
+@@ -471,6 +471,7 @@ mft_buffer(struct ibuf *b, const struct 
+ 	io_simple_buffer(b, &p->stale, sizeof(p->stale));
+ 	io_simple_buffer(b, &p->repoid, sizeof(p->repoid));
+ 	io_simple_buffer(b, &p->talid, sizeof(p->talid));
++	io_simple_buffer(b, &p->signtime, sizeof(p->signtime));
+ 	io_str_buffer(b, p->path);
+ 
+ 	io_str_buffer(b, p->aia);
+@@ -504,6 +505,7 @@ mft_read(struct ibuf *b)
+ 	io_read_buf(b, &p->stale, sizeof(p->stale));
+ 	io_read_buf(b, &p->repoid, sizeof(p->repoid));
+ 	io_read_buf(b, &p->talid, sizeof(p->talid));
++	io_read_buf(b, &p->signtime, sizeof(p->signtime));
+ 	io_read_str(b, &p->path);
+ 
+ 	io_read_str(b, &p->aia);
+Index: repo.c
+===================================================================
+RCS file: /cvs/src/usr.sbin/rpki-client/repo.c,v
+retrieving revision 1.45
+diff -u -p -r1.45 repo.c
+--- repo.c	16 May 2023 17:01:31 -0000	1.45
++++ repo.c	19 May 2023 01:28:13 -0000
+@@ -16,9 +16,10 @@
+  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+  */
+ 
++#include <sys/types.h>
+ #include <sys/queue.h>
++#include <sys/time.h>
+ #include <sys/tree.h>
+-#include <sys/types.h>
+ #include <sys/stat.h>
+ 
+ #include <assert.h>
+@@ -113,14 +114,6 @@ unsigned int		repoid;
+ static struct rsyncrepo	*rsync_get(const char *, const char *);
+ static void		 remove_contents(char *);
+ 
+-/*
+- * Database of all file path accessed during a run.
+- */
+-struct filepath {
+-	RB_ENTRY(filepath)	entry;
+-	char			*file;
+-};
+-
+ static inline int
+ filepathcmp(struct filepath *a, struct filepath *b)
+ {
+@@ -139,6 +132,7 @@ filepath_add(struct filepath_tree *tree,
+ 
+ 	if ((fp = malloc(sizeof(*fp))) == NULL)
+ 		err(1, NULL);
++	fp->mtime = 0;
+ 	if ((fp->file = strdup(file)) == NULL)
+ 		err(1, NULL);
+ 
+@@ -155,7 +149,7 @@ filepath_add(struct filepath_tree *tree,
+ /*
+  * Lookup a file path in the tree and return the object if found or NULL.
+  */
+-static struct filepath *
++struct filepath *
+ filepath_find(struct filepath_tree *tree, char *file)
+ {
+ 	struct filepath needle = { .file = file };
+@@ -1540,6 +1534,24 @@ repo_move_valid(struct filepath_tree *tr
+ 
+ 		if (repo_mkpath(AT_FDCWD, fn) == -1)
+ 			continue;
++
++		/*
++		 * If the file came via RRDP, set the file's modified time
++		 * to the CMS signing-time, which helps reduce the burden of
++		 * synchronization should fallback to RSYNC be necessary.
++		 */
++		if (fp->mtime != 0 &&
++		    strncmp(fp->file, ".rrdp/", rrdpsz) == 0) {
++			struct timespec ts[2];
++
++			ts[0].tv_nsec = UTIME_OMIT;
++			ts[1].tv_sec = fp->mtime;
++			ts[1].tv_nsec = 0;
++			if (utimensat(AT_FDCWD, fp->file, ts, 0) == -1) {
++				warn("utimensat %s", fp->file);
++				continue;
++			}
++		}
+ 
+ 		if (rename(fp->file, fn) == -1) {
+ 			warn("rename %s", fp->file);
+Index: roa.c
+===================================================================
+RCS file: /cvs/src/usr.sbin/rpki-client/roa.c,v
+retrieving revision 1.66
+diff -u -p -r1.66 roa.c
+--- roa.c	26 Apr 2023 16:32:41 -0000	1.66
++++ roa.c	19 May 2023 01:28:13 -0000
+@@ -311,6 +311,7 @@ roa_buffer(struct ibuf *b, const struct 
+ 	io_simple_buffer(b, &p->talid, sizeof(p->talid));
+ 	io_simple_buffer(b, &p->ipsz, sizeof(p->ipsz));
+ 	io_simple_buffer(b, &p->expires, sizeof(p->expires));
++	io_simple_buffer(b, &p->signtime, sizeof(p->signtime));
+ 
+ 	io_simple_buffer(b, p->ips, p->ipsz * sizeof(p->ips[0]));
+ 
+@@ -337,6 +338,7 @@ roa_read(struct ibuf *b)
+ 	io_read_buf(b, &p->talid, sizeof(p->talid));
+ 	io_read_buf(b, &p->ipsz, sizeof(p->ipsz));
+ 	io_read_buf(b, &p->expires, sizeof(p->expires));
++	io_read_buf(b, &p->signtime, sizeof(p->signtime));
+ 
+ 	if ((p->ips = calloc(p->ipsz, sizeof(struct roa_ip))) == NULL)
+ 		err(1, NULL);
