@@ -33,6 +33,8 @@
 #include <openssl/asn1.h>
 #include <openssl/cms.h>
 
+int verbose;
+
 enum filetype {
 	TYPE_ASPA,
 	TYPE_CER,
@@ -324,7 +326,8 @@ set_mtime(const char *fn, time_t mtime)
 	if (utimensat(AT_FDCWD, fn, ts, 0) == -1) {
 		warn("%s: utimensat failed", fn);
 		rc = 1;
-	}
+	} else if (verbose)
+		printf("%s: mtime set to %lld\n", fn, (long long)mtime);
 
 	return rc;
 }
@@ -332,7 +335,7 @@ set_mtime(const char *fn, time_t mtime)
 int
 main(int argc, char *argv[])
 {
-	int c, i, rc, verbose = 0;
+	int c, i, rc;
 
 	while ((c = getopt(argc, argv, "hVv")) != -1)
 		switch (c) {
@@ -401,8 +404,6 @@ main(int argc, char *argv[])
 
 		if (!set_mtime(fn, time))
 			rc = 1;
-		else if (verbose)
-			printf("%s: mtime set to %lld\n", fn, (long long)time);
 	}
 
 	return rc;
