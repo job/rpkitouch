@@ -105,12 +105,7 @@ hierarchy to their respective
 derived timestamps:
 
 	$ cd /usr/share/rpki/publication/
-	$ find . -type f -exec rpkitouch {} +
-
-# SEE ALSO
-
-openrsync(1),
-rpki-client(8)
+	$ find . -type f -exec rpkitouch {} \+
 
 # STANDARDS
 
