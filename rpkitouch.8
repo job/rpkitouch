@@ -1,0 +1,124 @@
+.\" Copyright (c) 2023 Job Snijders <job@fastly.com>
+.\"
+.\" Permission to use, copy, modify, and distribute this software for any
+.\" purpose with or without fee is hereby granted, provided that the above
+.\" copyright notice and this permission notice appear in all copies.
+.\"
+.\" THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+.\" WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+.\" MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+.\" ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+.\" WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+.\" ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+.\" OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+.\"
+.Dd $Mdocdate$
+.Dt RPKITOUCH 8
+.Os
+.Sh NAME
+.Nm rpkitouch
+.Nd set file modification times to innate RPKI timestamps
+.Sh SYNOPSIS
+.Nm rpkitouch
+.Op Fl hVv
+.Ar
+.Sh DESCRIPTION
+The
+.Nm
+utility sets the last data modification time of
+.Ar file
+to the timestamp innate to the contained
+.Em RPKI
+object.
+.Pp
+.Nm
+is useful for
+.Em RPKI
+Publication Point operators who serialize
+.Em RPKI
+objects from data sources lacking file modification times (such as
+.Em RRDP )
+to a disk hierachy for public consumption via
+.Em RSYNC .
+.Pp
+For
+.Em Autonomous System Provider Authorization Pq ASPA ,
+.Em Ghostbuster Records Pq GBR ,
+.Em Manifests Pq MFT ,
+.Em Route Origin Authorization Pq ROA
+and
+.Em Trust Anchor Key Pq TAK
+objects the
+.Em CMS signing-time
+attribute is used as timestamp; for
+.Em X.509
+.Em CA
+and
+.Em EE
+certificates the
+.Em notBefore
+is used as timestamp; for
+.Em Certificate Revocation Lists Pq CRL
+the
+.Em lastUpdate
+is used as timestamp.
+.Pp
+.Em RPKI
+Publication Point operators as well as
+.Em Relying Parties
+benefit from deterministic file modification times when synchronizing local
+caches following data transfer protocol switches between
+.Em RRDP
+to
+.Em RSYNC .
+.Pp
+While the
+.Nm
+utility does not perform any cryptographic validation, the following sanity
+checks are performed before setting the file modification time.
+For
+.Em CMS
+files the self-signage and the presence of no more than one
+.Vt CMS_SignerInfo
+and one
+.Em signing-time
+attribute are confirmed.
+.Em X.509
+.Vt Certificate
+and
+.Em CRL
+files must successfully decode into the applicable ASN.1 structure.
+Files may not contain trailing data beyond the internal length markers.
+.Pp
+The options are as follows:
+.Bl -tag -width Ds
+.It Fl h
+Display usage.
+.It Fl V
+Display the version number and exit.
+.Pp
+.It Fl v
+Verbose operation.
+.Sh EXIT STATUS
+.Ex -std rpkitouch
+.Sh SEE ALSO
+.Xr openrsync 1 ,
+.Xr rpki-client 8
+.Sh STANDARDS
+.Rs
+.%T Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile
+.%R RFC 5280
+.Re
+.Pp
+.Rs
+.%T Cryptographic Message Syntax (CMS)
+.%R RFC 5652
+.Re
+.Pp
+.Rs
+.%T A Profile for X.509 PKIX Resource Certificates
+.%R RFC 6487
+.Re
+.Sh AUTHORS
+.An -nosplit
+.An Job Snijders Aq Mt job@fastly.com
