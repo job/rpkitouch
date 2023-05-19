@@ -359,7 +359,6 @@ main(int argc, char *argv[])
 		size_t fnsz;
 		time_t time;
 		enum filetype ftype;
-		int invalid_ftype = 0;
 
 		fn = *argv;
 		fnsz = strlen(fn);
@@ -391,15 +390,12 @@ main(int argc, char *argv[])
 			break;
 		default:
 			warnx("%s: unsupported file", fn);
-			invalid_ftype = 1;
 			rc = 1;
-			break;
-		}
-
-		if (invalid_ftype || time == 0) {
-			invalid_ftype = 0;
 			continue;
 		}
+
+		if (time == 0)
+			continue;
 
 		if (!set_mtime(fn, time))
 			rc = 1;
