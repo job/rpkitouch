@@ -61,7 +61,7 @@ const struct {
 
 ASN1_OBJECT *sign_time_oid;
 
-void __dead usage(void);
+void usage(void);
 
 void
 setup_oids(void) {
@@ -410,7 +410,7 @@ main(int argc, char *argv[])
 	return rc;
 }
 
-void __dead
+void
 usage(void)
 {
 	fprintf(stderr, "usage: rpkitouch [-hVv] file ...\n");
