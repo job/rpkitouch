@@ -41,6 +41,15 @@ objects from data sources lacking file modification times (such as
 to a disk hierachy for public consumption via
 .Em RSYNC .
 .Pp
+.Em RPKI
+Publication Point operators as well as
+.Em Relying Parties
+benefit from deterministic file modification times when synchronizing local
+caches following data transfer protocol switches between
+.Em RRDP
+to
+.Em RSYNC .
+.Pp
 For
 .Em Autonomous System Provider Authorization Pq ASPA ,
 .Em Ghostbuster Records Pq GBR ,
@@ -62,15 +71,6 @@ is used as timestamp; for
 the
 .Em lastUpdate
 is used as timestamp.
-.Pp
-.Em RPKI
-Publication Point operators as well as
-.Em Relying Parties
-benefit from deterministic file modification times when synchronizing local
-caches following data transfer protocol switches between
-.Em RRDP
-to
-.Em RSYNC .
 .Pp
 While the
 .Nm

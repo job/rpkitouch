@@ -3,3 +3,6 @@ all:
 
 clean:
 	rm rpkitouch
+
+readme:
+	mandoc -T markdown rpkitouch.8 > README.md

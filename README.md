@@ -30,6 +30,15 @@ objects from data sources lacking file modification times (such as
 to a disk hierachy for public consumption via
 *RSYNC*.
 
+*RPKI*
+Publication Point operators as well as
+*Relying Parties*
+benefit from deterministic file modification times when synchronizing local
+caches following data transfer protocol switches between
+*RRDP*
+to
+*RSYNC*.
+
 For
 *Autonomous System Provider Authorization* (ASPA),
 *Ghostbuster Records* (GBR),
@@ -51,15 +60,6 @@ is used as timestamp; for
 the
 *lastUpdate*
 is used as timestamp.
-
-*RPKI*
-Publication Point operators as well as
-*Relying Parties*
-benefit from deterministic file modification times when synchronizing local
-caches following data transfer protocol switches between
-*RRDP*
-to
-*RSYNC*.
 
 While the
 **rpkitouch**
