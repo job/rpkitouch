@@ -2,6 +2,11 @@ An extension proposal for OpenBSD rpki-client(8) to set the mtime
 of files obtained through RRDP to innate RPKI timestamps such as
 X.509 notBefore or the CMS signing-time.
 
+This changeset provides a 25% increase in efficiency when switching
+from RRDP to RSYNC in today's RPKI ecosystem. At the time of writing,
+according to `rsync -rt -n --stats X/ Y/` the number of
+'regular files transferred' drops from 271,496 to 200,283.
+
 Index: aspa.c
 ===================================================================
 RCS file: /cvs/src/usr.sbin/rpki-client/aspa.c,v
