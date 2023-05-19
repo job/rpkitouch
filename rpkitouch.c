@@ -403,7 +403,7 @@ main(int argc, char *argv[])
 		if (time == 0)
 			continue;
 
-		if (!set_mtime(fn, time))
+		if (set_mtime(fn, time))
 			rc = 1;
 	}
 
