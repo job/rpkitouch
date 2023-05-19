@@ -104,6 +104,7 @@ hierarchy to their respective
 *RPKI*
 derived timestamps:
 
+	$ cd /usr/share/rpki/publication/
 	$ find . -type f | xargs rpkitouch
 
 # SEE ALSO

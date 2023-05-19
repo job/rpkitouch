@@ -107,7 +107,10 @@ hierarchy to their respective
 .Em RPKI
 derived timestamps:
 .Pp
-.Dl $ find \&. -type f | xargs rpkitouch
+.Bd -literal -offset indent
+$ cd /usr/share/rpki/publication/
+$ find \&. -type f | xargs rpkitouch
+.Ed
 .Sh SEE ALSO
 .Xr openrsync 1 ,
 .Xr rpki-client 8
