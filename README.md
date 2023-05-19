@@ -105,7 +105,7 @@ hierarchy to their respective
 derived timestamps:
 
 	$ cd /usr/share/rpki/publication/
-	$ find . -type f | xargs rpkitouch
+	$ find . -type f -exec rpkitouch {} +
 
 # SEE ALSO
 

@@ -110,7 +110,7 @@ derived timestamps:
 .Pp
 .Bd -literal -offset indent
 $ cd /usr/share/rpki/publication/
-$ find \&. -type f | xargs rpkitouch
+$ find \&. -type f -exec rpkitouch {} \+
 .Ed
 .Sh SEE ALSO
 .Xr openrsync 1 ,
