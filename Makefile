@@ -1,5 +1,5 @@
 all:
-	cc -o rpkitouch rpkitouch.c -lc -lcrypto
+	cc -O2 -pipe -Wall -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wpointer-arith -Wsign-compare -Werror-implicit-function-declaration -MD -MP -o rpkitouch rpkitouch.c -lc -lcrypto
 	mandoc -Tlint rpkitouch.8
 
 install:

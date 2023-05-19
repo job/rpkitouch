@@ -66,13 +66,13 @@ ASN1_OBJECT *sign_time_oid;
 
 void usage(void);
 
-void
+static void
 setup_oids(void) {
 	if ((sign_time_oid = OBJ_txt2obj("1.2.840.113549.1.9.5", 1)) == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "1.2.840.113549.1.9.5");
 }
 
-unsigned char *
+static unsigned char *
 load_file(const char *fn, size_t *len)
 {
 	unsigned char *buf = NULL;
@@ -113,7 +113,7 @@ load_file(const char *fn, size_t *len)
 	return NULL;
 }
 
-int
+static int
 asn1time_to_time(const ASN1_TIME *at, time_t *t)
 {
 	struct tm tm;
@@ -131,7 +131,7 @@ asn1time_to_time(const ASN1_TIME *at, time_t *t)
 	return 1;
 }
 
-int
+static int
 cms_get_signtime_attr(const char *fn, X509_ATTRIBUTE *attr, time_t *signtime)
 {
 	const ASN1_TIME *at;
@@ -159,7 +159,7 @@ cms_get_signtime_attr(const char *fn, X509_ATTRIBUTE *attr, time_t *signtime)
 	return 1;
 }
 
-time_t
+static time_t
 cms_get_signtime(const char *fn)
 {
 	CMS_ContentInfo *cms = NULL;
@@ -234,7 +234,7 @@ cms_get_signtime(const char *fn)
 	return time;
 }
 
-time_t
+static time_t
 get_cert_notbefore(const char *fn)
 {
 	X509 *x = NULL;
@@ -273,7 +273,7 @@ get_cert_notbefore(const char *fn)
 	return time;
 }
 
-time_t
+static time_t
 get_crl_lastupdate(const char *fn)
 {
 	X509_CRL *x = NULL;
@@ -313,7 +313,7 @@ get_crl_lastupdate(const char *fn)
 }
 
 
-int
+static int
 set_mtime(const char *fn, time_t mtime)
 {
 	struct timespec ts[2];
@@ -335,7 +335,8 @@ set_mtime(const char *fn, time_t mtime)
 int
 main(int argc, char *argv[])
 {
-	int c, i, rc;
+	int c, rc;
+	size_t i;
 
 	while ((c = getopt(argc, argv, "hVv")) != -1)
 		switch (c) {
