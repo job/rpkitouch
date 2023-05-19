@@ -41,6 +41,7 @@ enum filetype {
 	TYPE_MFT,
 	TYPE_ROA,
 	TYPE_TAK,
+	TYPE_UNKNOWN,
 };
 
 /*
@@ -367,6 +368,7 @@ main(int argc, char *argv[])
 			continue;
 		}
 
+		ftype = TYPE_UNKNOWN;
 		for (i = 0; i < sizeof(ext_tab) / sizeof(ext_tab[0]); i++) {
 			if (strcasecmp(fn + fnsz - 4, ext_tab[i].ext) == 0) {
 				ftype = ext_tab[i].type;
