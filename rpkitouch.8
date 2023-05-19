@@ -107,10 +107,9 @@ Recursively set all data modification times of all files in a given directory
 hierarchy to their respective
 .Em RPKI
 derived timestamps:
-.Pp
 .Bd -literal -offset indent
 $ cd /usr/share/rpki/publication/
-$ find \&. -type f -exec rpkitouch {} \+
+$ find \&. -type f -exec rpkitouch {} \e+
 .Ed
 .Sh SEE ALSO
 .Xr openrsync 1 ,
