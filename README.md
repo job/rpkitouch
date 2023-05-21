@@ -2,7 +2,7 @@ RPKITOUCH(8) - System Manager's Manual
 
 # NAME
 
-**rpkitouch** - set file modification times to innate RPKI timestamps
+**rpkitouch** - set file modification times to internal RPKI timestamps
 
 # SYNOPSIS
 
@@ -16,9 +16,10 @@ The
 **rpkitouch**
 utility sets the last data modification time of
 *file*
-to the timestamp innate to the contained
+to the timestamp internal to the contained
 *RPKI*
 object.
+Deterministic timestamps help minimize RP synchronisation times.
 
 **rpkitouch**
 is useful for
@@ -122,4 +123,4 @@ RFC 6487.
 
 Job Snijders &lt;[job@fastly.com](mailto:job@fastly.com)&gt;
 
-OpenBSD 7.3 - May 19, 2023
+OpenBSD 7.3 - May 21, 2023

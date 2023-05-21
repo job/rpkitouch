@@ -18,7 +18,7 @@
 .Os
 .Sh NAME
 .Nm rpkitouch
-.Nd set file modification times to innate RPKI timestamps
+.Nd set file modification times to internal RPKI timestamps
 .Sh SYNOPSIS
 .Nm rpkitouch
 .Op Fl hVv
@@ -28,9 +28,10 @@ The
 .Nm
 utility sets the last data modification time of
 .Ar file
-to the timestamp innate to the contained
+to the timestamp internal to the contained
 .Em RPKI
 object.
+Deterministic timestamps help minimize RP synchronisation times.
 .Pp
 .Nm
 is useful for
