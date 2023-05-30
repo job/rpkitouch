@@ -191,8 +191,15 @@ cms_get_signtime(const char *fn)
 		goto out;
 	}
 
-	sinfos = CMS_get0_SignerInfos(cms);
-	assert(sinfos != NULL);
+	if ((sinfos = CMS_get0_SignerInfos(cms)) == NULL) {
+		if ((obj = CMS_get0_type(cms)) == NULL) {
+			warnx("%s: RFC 6488: missing content-type", fn);
+			goto out;
+		}
+		warnx("%s: RFC 6488: no signerInfo in CMS object", fn);
+		goto out;
+	}
+
 	if (sk_CMS_SignerInfo_num(sinfos) != 1) {
 		warnx("%s: multiple signerInfos", fn);
 		goto out;
