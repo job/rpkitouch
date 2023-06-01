@@ -59,7 +59,7 @@ certificates the
 is used as timestamp; for
 *Certificate Revocation Lists* (CRL)
 the
-*lastUpdate*
+*thisUpdate*
 is used as timestamp.
 
 While the
@@ -123,4 +123,4 @@ RFC 6487.
 
 Job Snijders &lt;[job@fastly.com](mailto:job@fastly.com)&gt;
 
-OpenBSD 7.3 - May 21, 2023
+OpenBSD 7.3 - June 1, 2023

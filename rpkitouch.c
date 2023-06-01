@@ -281,7 +281,7 @@ get_cert_notbefore(const char *fn)
 }
 
 static time_t
-get_crl_lastupdate(const char *fn)
+get_crl_thisupdate(const char *fn)
 {
 	X509_CRL *x = NULL;
 	const ASN1_TIME *at;
@@ -392,7 +392,7 @@ main(int argc, char *argv[])
 			time = get_cert_notbefore(fn);
 			break;
 		case TYPE_CRL:
-			time = get_crl_lastupdate(fn);
+			time = get_crl_thisupdate(fn);
 			break;
 		case TYPE_ASPA:
 		case TYPE_GBR:
