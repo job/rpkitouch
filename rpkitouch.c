@@ -160,7 +160,7 @@ cms_get_signtime_attr(const char *fn, X509_ATTRIBUTE *attr, time_t *signtime)
 }
 
 static time_t
-cms_get_signtime(const char *fn)
+get_cms_signtime(const char *fn)
 {
 	CMS_ContentInfo *cms = NULL;
 	STACK_OF(CMS_SignerInfo) *sinfos;
@@ -399,7 +399,7 @@ main(int argc, char *argv[])
 		case TYPE_MFT:
 		case TYPE_ROA:
 		case TYPE_TAK:
-			time = cms_get_signtime(fn);
+			time = get_cms_signtime(fn);
 			break;
 		default:
 			warnx("%s: unsupported file", fn);
