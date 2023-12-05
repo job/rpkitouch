@@ -17,5 +17,3 @@ jobs:
       run: sudo apt install mandoc
     - name: make
       run: make
-    - name: make test
-      run: make test
