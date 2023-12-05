@@ -348,7 +348,7 @@ main(int argc, char *argv[])
 	while ((c = getopt(argc, argv, "hVv")) != -1)
 		switch (c) {
 		case 'V':
-			printf("version 0.1\n");
+			printf("version 1.0\n");
 			exit(0);
 		case 'v':
 			verbose = 1;
