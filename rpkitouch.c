@@ -359,13 +359,13 @@ main(int argc, char *argv[])
 	int c, rc;
 	size_t i;
 
-	while ((c = getopt(argc, argv, "hVv")) != -1)
+	while ((c = getopt(argc, argv, "hnVv")) != -1)
 		switch (c) {
 		case 'n':
 			noop = 1;
 			break;
 		case 'V':
-			printf("version 1.1\n");
+			printf("version 1.2\n");
 			exit(0);
 		case 'v':
 			verbose = 1;
