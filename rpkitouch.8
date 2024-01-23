@@ -21,7 +21,7 @@
 .Nd set file modification times to internal RPKI timestamps
 .Sh SYNOPSIS
 .Nm rpkitouch
-.Op Fl hVv
+.Op Fl hnVv
 .Ar
 .Sh DESCRIPTION
 The
@@ -96,6 +96,14 @@ The options are as follows:
 .Bl -tag -width Ds
 .It Fl h
 Display usage.
+.It Fl n
+No-op.
+The file's modification time is computed but not set.
+Can be combined with
+.Fl v
+to see what
+.Nm
+would change.
 .It Fl V
 Display the version number and exit.
 .It Fl v

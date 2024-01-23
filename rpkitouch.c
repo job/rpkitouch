@@ -33,6 +33,7 @@
 #include <openssl/asn1.h>
 #include <openssl/cms.h>
 
+int noop;
 int verbose;
 
 enum filetype {
@@ -326,6 +327,9 @@ set_mtime(const char *fn, time_t mtime)
 	struct timespec ts[2];
 	int rc = 0;
 
+	if (noop)
+		return rc;
+
 	ts[0].tv_nsec = UTIME_OMIT;
 	ts[1].tv_sec = mtime;
 	ts[1].tv_nsec = 0;
@@ -333,10 +337,20 @@ set_mtime(const char *fn, time_t mtime)
 	if (utimensat(AT_FDCWD, fn, ts, 0) == -1) {
 		warn("%s: utimensat failed", fn);
 		rc = 1;
-	} else if (verbose)
-		printf("%s: mtime set to %lld\n", fn, (long long)mtime);
+	}
 
 	return rc;
+}
+
+static time_t
+get_mtime(const char *fn)
+{
+	struct stat st;
+
+	if (stat(fn, &st) != 0)
+		err(1, "stat");
+
+	return st.st_mtim.tv_sec;
 }
 
 int
@@ -347,8 +361,11 @@ main(int argc, char *argv[])
 
 	while ((c = getopt(argc, argv, "hVv")) != -1)
 		switch (c) {
+		case 'n':
+			noop = 1;
+			break;
 		case 'V':
-			printf("version 1.0\n");
+			printf("version 1.1\n");
 			exit(0);
 		case 'v':
 			verbose = 1;
@@ -369,7 +386,7 @@ main(int argc, char *argv[])
 	for (rc = 0; *argv; ++argv) {
 		char *fn;
 		size_t fnsz;
-		time_t time;
+		time_t time, otime;
 		enum filetype ftype;
 
 		fn = *argv;
@@ -410,8 +427,13 @@ main(int argc, char *argv[])
 		if (time == 0)
 			continue;
 
-		if (set_mtime(fn, time))
-			rc = 1;
+		if ((otime = get_mtime(fn)) != time) {
+			if (set_mtime(fn, time))
+				rc = 1;
+			if (verbose)
+				printf("%s %lld -> %lld\n", fn,
+				    (long long)otime, (long long)time);
+		}
 	}
 
 	return rc;
@@ -420,6 +442,6 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	fprintf(stderr, "usage: rpkitouch [-hVv] file ...\n");
+	fprintf(stderr, "usage: rpkitouch [-hnVv] file ...\n");
 	exit(1);
 }
