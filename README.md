@@ -7,7 +7,7 @@ RPKITOUCH(8) - System Manager's Manual
 # SYNOPSIS
 
 **rpkitouch**
-\[**-hVv**]
+\[**-hnVv**]
 *file&nbsp;...*
 
 # DESCRIPTION
@@ -86,6 +86,16 @@ The options are as follows:
 
 > Display usage.
 
+**-n**
+
+> No-op.
+> The file's modification time is computed but not set.
+> Can be combined with
+> **-v**
+> to see what
+> **rpkitouch**
+> would change.
+
 **-V**
 
 > Display the version number and exit.
@@ -126,4 +136,4 @@ RFC 6487.
 
 Job Snijders &lt;[job@fastly.com](mailto:job@fastly.com)&gt;
 
-OpenBSD 7.4 - December 5, 2023
+OpenBSD 7.4 - January 23, 2024
