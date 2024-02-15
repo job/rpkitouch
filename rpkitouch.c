@@ -43,6 +43,7 @@ enum filetype {
 	TYPE_GBR,
 	TYPE_MFT,
 	TYPE_ROA,
+	TYPE_SPL,
 	TYPE_TAK,
 	TYPE_UNKNOWN,
 };
@@ -61,6 +62,7 @@ const struct {
 	{ .ext = ".tak", .type = TYPE_TAK },
 	{ .ext = ".mft", .type = TYPE_MFT },
 	{ .ext = ".roa", .type = TYPE_ROA },
+	{ .ext = ".spl", .type = TYPE_SPL },
 };
 
 ASN1_OBJECT *sign_time_oid;
@@ -415,6 +417,7 @@ main(int argc, char *argv[])
 		case TYPE_GBR:
 		case TYPE_MFT:
 		case TYPE_ROA:
+		case TYPE_SPL:
 		case TYPE_TAK:
 			time = get_cms_signtime(fn);
 			break;
