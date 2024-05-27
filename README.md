@@ -120,8 +120,8 @@ derived timestamps:
 
 # STANDARDS
 
-*On the use of the CMS signing-time attribute in RPKI Signed Objects*,
-[https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-cms-signing-time](https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-cms-signing-time).
+*On the Use of the CMS Signing-Time Attribute in RPKI Signed Objects*,
+RFC 9589.
 
 *Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile*,
 RFC 5280.
@@ -136,4 +136,4 @@ RFC 6487.
 
 Job Snijders &lt;[job@fastly.com](mailto:job@fastly.com)&gt;
 
-OpenBSD 7.5 - February 26, 2024
+OpenBSD 7.5 - May 27, 2024
