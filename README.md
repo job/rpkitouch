@@ -104,6 +104,18 @@ The options are as follows:
 
 > Verbose operation.
 
+# INSTALLATION
+
+**rpkitouch**
+runs on all operating systems with a libcrypto library based on
+OpenSSL 1.1 or LibreSSL 3.6 or later.
+
+On Ubuntu/Debian install the
+*libssl-dev*
+package, on Redhat/Rocky/Fedora install the
+*openssl-devel*
+package.
+
 # EXIT STATUS
 
 The **rpkitouch** utility exits&#160;0 on success, and&#160;&gt;0 if an error occurs.
@@ -136,4 +148,4 @@ RFC 6487.
 
 Job Snijders &lt;[job@fastly.com](mailto:job@fastly.com)&gt;
 
-OpenBSD 7.5 - May 27, 2024
+OpenBSD 7.5 - June 3, 2024
