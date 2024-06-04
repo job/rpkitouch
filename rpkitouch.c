@@ -423,7 +423,6 @@ main(int argc, char *argv[])
 			break;
 		default:
 			warnx("%s: unsupported file", fn);
-			rc = 1;
 			continue;
 		}
 
