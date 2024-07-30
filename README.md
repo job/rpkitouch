@@ -45,6 +45,7 @@ For
 *Ghostbuster Records* (GBR),
 *Manifests* (MFT),
 *Route Origin Authorization* (ROA)
+*Signed Prefix Lists* (SPL)
 and
 *Trust Anchor Key* (TAK)
 objects the
@@ -148,4 +149,4 @@ RFC 6487.
 
 Job Snijders &lt;[job@fastly.com](mailto:job@fastly.com)&gt;
 
-OpenBSD 7.5 - June 3, 2024
+OpenBSD 7.5 - July 30, 2024
