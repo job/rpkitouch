@@ -37,14 +37,9 @@ int noop;
 int verbose;
 
 enum filetype {
-	TYPE_ASPA,
-	TYPE_CER,
-	TYPE_CRL,
-	TYPE_GBR,
-	TYPE_MFT,
-	TYPE_ROA,
-	TYPE_SPL,
-	TYPE_TAK,
+	TYPE_CER,	/* Certificate */
+	TYPE_CRL,	/* Certificate Revocation List */
+	TYPE_SOB,	/* Signed Object */
 	TYPE_UNKNOWN,
 };
 
@@ -55,14 +50,14 @@ const struct {
 	const char *ext;
 	enum filetype type;
 } ext_tab[] = {
-	{ .ext = ".asa", .type = TYPE_ASPA },
 	{ .ext = ".cer", .type = TYPE_CER },
 	{ .ext = ".crl", .type = TYPE_CRL },
-	{ .ext = ".gbr", .type = TYPE_GBR },
-	{ .ext = ".tak", .type = TYPE_TAK },
-	{ .ext = ".mft", .type = TYPE_MFT },
-	{ .ext = ".roa", .type = TYPE_ROA },
-	{ .ext = ".spl", .type = TYPE_SPL },
+	{ .ext = ".asa", .type = TYPE_SOB },
+	{ .ext = ".gbr", .type = TYPE_SOB },
+	{ .ext = ".mft", .type = TYPE_SOB },
+	{ .ext = ".roa", .type = TYPE_SOB },
+	{ .ext = ".spl", .type = TYPE_SOB },
+	{ .ext = ".tak", .type = TYPE_SOB },
 };
 
 ASN1_OBJECT *sign_time_oid;
@@ -413,12 +408,7 @@ main(int argc, char *argv[])
 		case TYPE_CRL:
 			time = get_crl_thisupdate(fn);
 			break;
-		case TYPE_ASPA:
-		case TYPE_GBR:
-		case TYPE_MFT:
-		case TYPE_ROA:
-		case TYPE_SPL:
-		case TYPE_TAK:
+		case TYPE_SOB:
 			time = get_cms_signtime(fn);
 			break;
 		default:
