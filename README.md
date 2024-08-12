@@ -115,7 +115,10 @@ On Ubuntu/Debian install the
 *libssl-dev*
 package, on Redhat/Rocky/Fedora install the
 *openssl-devel*
-package.
+package, on Centos 7 install the
+*openssl11-devel*
+via EPEL and build the program via
+"make centos7".
 
 # EXIT STATUS
 
@@ -149,4 +152,4 @@ RFC 6487.
 
 Job Snijders &lt;[job@fastly.com](mailto:job@fastly.com)&gt;
 
-OpenBSD 7.5 - July 30, 2024
+OpenBSD 7.6 - August 12, 2024
