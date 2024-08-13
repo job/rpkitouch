@@ -115,14 +115,16 @@ On Ubuntu/Debian install the
 *libssl-dev*
 package, on Redhat/Rocky/Fedora install the
 *openssl-devel*
-package, on Centos 7 install the
+package, then simply issue the following command to build
+'`make`';
+on Centos 7 install the
 *openssl11-devel*
-via EPEL and build the program via
-"make centos7".
+via EPEL, and build the program via
+'`make centos7`'.
 
 # EXIT STATUS
 
-The **rpkitouch** utility exits&#160;0 on success, and&#160;&gt;0 if an error occurs.
+The **rpkitouch** utility exits0 on success, and>0 if an error occurs.
 
 # EXAMPLES
 
@@ -150,6 +152,6 @@ RFC 6487.
 
 # AUTHORS
 
-Job Snijders &lt;[job@fastly.com](mailto:job@fastly.com)&gt;
+Job Snijders <[job@fastly.com](mailto:job@fastly.com)>
 
 OpenBSD 7.6 - August 13, 2024
