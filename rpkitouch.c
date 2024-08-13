@@ -40,11 +40,13 @@ enum filetype {
 	TYPE_CER,	/* Certificate */
 	TYPE_CRL,	/* Certificate Revocation List */
 	TYPE_SOB,	/* Signed Object */
+	TYPE_TAL,	/* Trust Anchor Locator */
 	TYPE_UNKNOWN,
 };
 
 /*
  * https://www.iana.org/assignments/rpki/rpki.xhtml
+ * .tal is not IANA registered, but added as convenience.
  */
 const struct {
 	const char *ext;
@@ -58,6 +60,7 @@ const struct {
 	{ .ext = ".roa", .type = TYPE_SOB },
 	{ .ext = ".spl", .type = TYPE_SOB },
 	{ .ext = ".tak", .type = TYPE_SOB },
+	{ .ext = ".tal", .type = TYPE_TAL },
 };
 
 ASN1_OBJECT *sign_time_oid;
@@ -411,6 +414,8 @@ main(int argc, char *argv[])
 		case TYPE_SOB:
 			time = get_cms_signtime(fn);
 			break;
+		case TYPE_TAL:
+			continue;
 		default:
 			warnx("%s: unsupported file", fn);
 			rc = 1;
