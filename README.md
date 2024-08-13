@@ -115,12 +115,13 @@ On Ubuntu/Debian install the
 *libssl-dev*
 package, on Redhat/Rocky/Fedora install the
 *openssl-devel*
-package, then simply issue the following command to build
-'`make`';
-on Centos 7 install the
+package, then simply issue
+'`make`'
+to build;
+on Centos 7 install
 *openssl11-devel*
-via EPEL, and build the program via
-'`make centos7`'.
+from EPEL and then build the program using this special target
+'`make centos7`'
 
 # EXIT STATUS
 
