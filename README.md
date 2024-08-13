@@ -152,4 +152,4 @@ RFC 6487.
 
 Job Snijders &lt;[job@fastly.com](mailto:job@fastly.com)&gt;
 
-OpenBSD 7.6 - August 12, 2024
+OpenBSD 7.6 - August 13, 2024
