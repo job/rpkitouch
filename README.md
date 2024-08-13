@@ -125,7 +125,7 @@ from EPEL and then build the program using this special target
 
 # EXIT STATUS
 
-The **rpkitouch** utility exits0 on success, and>0 if an error occurs.
+The **rpkitouch** utility exits&#160;0 on success, and&#160;&gt;0 if an error occurs.
 
 # EXAMPLES
 
@@ -153,6 +153,6 @@ RFC 6487.
 
 # AUTHORS
 
-Job Snijders <[job@fastly.com](mailto:job@fastly.com)>
+Job Snijders &lt;[job@fastly.com](mailto:job@fastly.com)&gt;
 
 OpenBSD 7.6 - August 13, 2024
