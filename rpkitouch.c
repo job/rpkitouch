@@ -94,6 +94,8 @@ load_file(const char *fn, size_t *len, time_t *time)
 	*len = 0;
 	*time = 0;
 
+	memset(&st, 0, sizeof(st));
+
 	if ((fd = open(fn, O_RDONLY)) == -1)
 		return NULL;
 	if (fstat(fd, &st) != 0)
@@ -102,9 +104,11 @@ load_file(const char *fn, size_t *len, time_t *time)
 		errno = EFBIG;
 		goto err;
 	}
+
 	size = (size_t)st.st_size;
 	if ((buf = malloc(size)) == NULL)
 		goto err;
+
 	n = read(fd, buf, size);
 	if (n == -1)
 		goto err;
@@ -112,6 +116,7 @@ load_file(const char *fn, size_t *len, time_t *time)
 		errno = EIO;
 		goto err;
 	}
+
 	close(fd);
 	*len = size;
 	*time = st.st_mtim.tv_sec;
