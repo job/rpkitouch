@@ -102,7 +102,8 @@ Calculate the SHA-256 message digest for
 and copy its contents to
 .Ar directory
 using a content-addressable file naming scheme.
-Only overwrite existing files if the size or modification timestamp differ.
+To improve performance, existing files are only overwritten if the size or
+last modification timestamp differ.
 .It Fl h
 Display usage.
 .It Fl n

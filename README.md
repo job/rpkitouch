@@ -91,7 +91,8 @@ The options are as follows:
 > and copy its contents to
 > *directory*
 > using a content-addressable file naming scheme.
-> Only overwrite existing files if the size or modification timestamp differ.
+> To improve performance, existing files are only overwritten if the size or
+> last modification timestamp differ.
 
 **-h**
 
