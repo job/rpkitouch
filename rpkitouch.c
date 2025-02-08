@@ -466,7 +466,7 @@ main(int argc, char *argv[])
 			noop = 1;
 			break;
 		case 'V':
-			printf("version 1.4\n");
+			printf("version 1.5\n");
 			exit(0);
 		case 'v':
 			verbose = 1;
