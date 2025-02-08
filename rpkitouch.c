@@ -18,13 +18,13 @@
 */
 
 #include <sys/types.h>
-#include <sys/limits.h>
 #include <sys/stat.h>
 
 #include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -338,7 +338,7 @@ set_mtime(int fd, const char *fn, time_t mtime)
  * RFC 4648 section 5
  */
 static int
-b64uri_encode(const unsigned char *in, size_t inlen, char **out)
+b64uri_encode(const unsigned char *in, size_t inlen, unsigned char **out)
 {
 	unsigned char *to;
 	size_t tolen = 0;
@@ -357,13 +357,13 @@ b64uri_encode(const unsigned char *in, size_t inlen, char **out)
 	EVP_EncodeBlock(to, in, inlen);
 	*out = to;
 
-	c = to;
+	c = (char *)to;
 	while ((c = strchr(c, '+')) != NULL)
 		*c = '-';
-	c = to;
+	c = (char *)to;
 	while ((c = strchr(c, '/')) != NULL)
 		*c = '_';
-	if ((c = strchr(to, '=')) != NULL)
+	if ((c = strchr((char *)to, '=')) != NULL)
 		*c = '\0';
 
 	return 0;
@@ -374,12 +374,14 @@ save(enum filetype ftype, unsigned char *content, off_t content_len,
     time_t time, char *fn)
 {
 	unsigned char md[SHA256_DIGEST_LENGTH];
-	char cpath[6];
-	char *cfn, *path;
+	char cpath[6], *path;
+	unsigned char *cfn;
 	struct stat st;
 	struct timespec ts[2];
 	int fd = 0;
 	size_t i;
+
+	memset(&st, 0, sizeof(st));
 
 	SHA256(content, content_len, md);
 
@@ -417,7 +419,7 @@ save(enum filetype ftype, unsigned char *content, off_t content_len,
 		goto out;
 
 	if (verbose)
-		printf("%s -> %s %lld\n", fn, path, time);
+		printf("%s -> %s %lld\n", fn, path, (long long)time);
 
 	if (noop)
 		goto out;
@@ -556,7 +558,6 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	fprintf(stderr, "usage: %s [-hnVv] [-d directory] file ...\n",
-	    getprogname());
+	fprintf(stderr, "usage: rpkitouch [-hnVv] [-d directory] file ...\n");
 	exit(1);
 }
