@@ -1,5 +1,5 @@
 .\" $OpenBSD$
-.\" Copyright (c) 2023 Job Snijders <job@fastly.com>
+.\" Copyright (c) 2023,2025 Job Snijders <job@openbsd.org>
 .\"
 .\" Permission to use, copy, modify, and distribute this software for any
 .\" purpose with or without fee is hereby granted, provided that the above
@@ -22,6 +22,7 @@
 .Sh SYNOPSIS
 .Nm rpkitouch
 .Op Fl hnVv
+.Op Fl d Ar directory
 .Ar
 .Sh DESCRIPTION
 The
@@ -53,11 +54,11 @@ to
 .Em RSYNC .
 .Pp
 For
-.Em Autonomous System Provider Authorization Pq ASPA ,
+.Em Autonomous System Provider Authorisation Pq ASPA ,
 .Em Ghostbuster Records Pq GBR ,
 .Em Manifests Pq MFT ,
-.Em Route Origin Authorization Pq ROA
-.Em Signed Prefix Lists Pq SPL
+.Em Route Origin Authorization Pq ROA ,
+.Em Signed Prefix Lists Pq SPL ,
 and
 .Em Trust Anchor Key Pq TAK
 objects the
@@ -95,12 +96,21 @@ Files may not contain trailing data beyond the internal length markers.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl d Ar directory
+Calculate the SHA-256 message digest for
+.Ar file
+and copy its contents to
+.Ar directory
+using a content-addressable file naming scheme.
+Only overwrite existing files if the size or modification timestamp differ.
 .It Fl h
 Display usage.
 .It Fl n
 No-op.
 The file's modification time is computed but not set.
 Can be combined with
+.Fl d
+and
 .Fl v
 to see what
 .Nm
@@ -138,6 +148,15 @@ derived timestamps:
 $ cd /usr/share/rpki/publication/
 $ find \&. -type f -exec rpkitouch {} \e+
 .Ed
+.Pp
+Copy a signed object to
+.Pa /tmp
+with the Base64 encoded SHA-256 message digest as its target file name.
+.Bd -literal -offset indent
+$ rpkitouch -d /tmp rpki.ripe.net/repository/ripe-ncc-ta.mft
+$ ls /tmp/cH/GJ
+cHGJX_X5v17fw2SLUy5eL6SRGQdj_ZwVizbByy9-W5Y.mft
+.Ed
 .Sh STANDARDS
 .Rs
 .%T On the Use of the CMS Signing-Time Attribute in RPKI Signed Objects
@@ -160,4 +179,4 @@ $ find \&. -type f -exec rpkitouch {} \e+
 .Re
 .Sh AUTHORS
 .An -nosplit
-.An Job Snijders Aq Mt job@fastly.com
+.An Job Snijders Aq Mt job@openbsd.org

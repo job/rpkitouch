@@ -1,23 +1,45 @@
+PROG=	rpkitouch
+SRCS=	rpkitouch.c mkdir.c
+MAN=	rpkitouch.8
+
+LDADD+= -lc -lcrypto
+
+CFLAGS+= -O2 -pipe
+CFLAGS+= -Wall
+CFLAGS+= -Wmissing-prototypes -Wmissing-declarations
+CFLAGS+= -Wshadow -Wpointer-arith -Wsign-compare
+CFLAGS+= -Werror-implicit-function-declaration
+CFLAGS+= -MD -MP
+
 all:
-	cc -O2 -pipe -Wall -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wpointer-arith -Wsign-compare -Werror-implicit-function-declaration -MD -MP -o rpkitouch rpkitouch.c -lc -lcrypto
-	mandoc -Tlint rpkitouch.8
+	cc -o $(PROG) $(CFLAGS) $(SRCS) $(LDADD)
+	mandoc -Tlint $(MAN)
+	ctags rpkitouch.c
 
 centos7:
 	cc -O2 -pipe -Wall -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wpointer-arith -Wsign-compare -Werror-implicit-function-declaration -MD -MP $$(pkg-config --cflags-only-I openssl11) $$(pkg-config --libs-only-L openssl11) -o rpkitouch rpkitouch.c -lc -lcrypto
 
 install:
-	install -c -s -o root -g bin -m 555 rpkitouch /usr/local/bin/rpkitouch
-	install -c -o root -g bin -m 444 rpkitouch.8 /usr/share/man/man8/rpkitouch.8
+	install -c -s -o root -g bin -m 555 rpkitouch /usr/local/bin/
+	install -c -o root -g bin -m 444 rpkitouch.8 /usr/local/man/man8/
+
+TEST_FILES = 40SlM-M4frFfmZ2HaMH0tlCageA.gbr FjSf5hX1GmGhKMu9AG7WVIl8m1M.asa
+TEST_FILES += t7xg6ZtXdcYhy-YGTMk_ONTD31E.cer yqgF26w2R0m5sRVZCrbvD5cM29g.mft
+TEST_FILES += 5EjPZ8Kw2_h5hRqKpwmjdnq7Tq8.roa yqgF26w2R0m5sRVZCrbvD5cM29g.crl
+TEST_FILES += 9X0AhXWTJDl8lJhfOwvnac-42CA.spl
 
 test:
-	cd tests && touch 40SlM-M4frFfmZ2HaMH0tlCageA.gbr FjSf5hX1GmGhKMu9AG7WVIl8m1M.asa t7xg6ZtXdcYhy-YGTMk_ONTD31E.cer yqgF26w2R0m5sRVZCrbvD5cM29g.mft 5EjPZ8Kw2_h5hRqKpwmjdnq7Tq8.roa yqgF26w2R0m5sRVZCrbvD5cM29g.crl 9X0AhXWTJDl8lJhfOwvnac-42CA.spl
-	./rpkitouch -v tests/40SlM-M4frFfmZ2HaMH0tlCageA.gbr tests/FjSf5hX1GmGhKMu9AG7WVIl8m1M.asa tests/t7xg6ZtXdcYhy-YGTMk_ONTD31E.cer tests/yqgF26w2R0m5sRVZCrbvD5cM29g.mft tests/5EjPZ8Kw2_h5hRqKpwmjdnq7Tq8.roa tests/yqgF26w2R0m5sRVZCrbvD5cM29g.crl tests/9X0AhXWTJDl8lJhfOwvnac-42CA.spl
-	cd tests && ls -rl 40SlM-M4frFfmZ2HaMH0tlCageA.gbr FjSf5hX1GmGhKMu9AG7WVIl8m1M.asa t7xg6ZtXdcYhy-YGTMk_ONTD31E.cer yqgF26w2R0m5sRVZCrbvD5cM29g.mft 5EjPZ8Kw2_h5hRqKpwmjdnq7Tq8.roa yqgF26w2R0m5sRVZCrbvD5cM29g.crl 9X0AhXWTJDl8lJhfOwvnac-42CA.spl | awk '{ print $$5, $$6, $$7, $$8, $$9 }' | sort > outcome.txt
+	cd tests && touch $(TEST_FILES)
+	cd tests && ../rpkitouch -v $(TEST_FILES)
+	cd tests && ls -rl $(TEST_FILES) | awk '{ print $$5, $$6, $$7, $$8, $$9 }' | sort > outcome.txt
+	mkdir -p tests/c
+	cd tests && ../rpkitouch -d ./c $(TEST_FILES)
+	find tests/c -type f >> tests/outcome.txt
 	diff tests/outcome.txt tests/expected_outcome.txt
 	echo OK
 
 clean:
-	-rm -f rpkitouch rpkitouch.d tests/outcome.txt
+	-rm -rf rpkitouch rpkitouch.d tests/outcome.txt tests/c tags
 
 readme:
 	mandoc -T markdown rpkitouch.8 > README.md

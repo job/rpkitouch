@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023 Job Snijders <job@fastly.com>
+ * Copyright (c) 2023,2025 Job Snijders <job@sobornost.net>
  * Copyright (c) 2022 Theo Buehler <tb@openbsd.org>
  * Copyright (c) 2020 Claudio Jeker <claudio@openbsd.org>
  * Copyright (c) 2019 Kristaps Dzonsons <kristaps@bsd.lv>
@@ -18,6 +18,7 @@
 */
 
 #include <sys/types.h>
+#include <sys/limits.h>
 #include <sys/stat.h>
 
 #include <assert.h>
@@ -32,14 +33,21 @@
 
 #include <openssl/asn1.h>
 #include <openssl/cms.h>
+#include <openssl/sha.h>
 
 int noop;
+int outdirfd;
 int verbose;
 
 enum filetype {
 	TYPE_CER,	/* Certificate */
 	TYPE_CRL,	/* Certificate Revocation List */
-	TYPE_SOB,	/* Signed Object */
+	TYPE_ASPA,	/* Autonomous System Provider Authorisation */
+	TYPE_GBR,	/* Ghostbuster Record */
+	TYPE_MFT,	/* Manifest */
+	TYPE_ROA,	/* Route Origin Authorization */
+	TYPE_SPL,	/* Signed Prefix List */
+	TYPE_TAK,	/* Trust Anchor Key */
 	TYPE_TAL,	/* Trust Anchor Locator */
 	TYPE_UNKNOWN,
 };
@@ -54,17 +62,18 @@ const struct {
 } ext_tab[] = {
 	{ .ext = ".cer", .type = TYPE_CER },
 	{ .ext = ".crl", .type = TYPE_CRL },
-	{ .ext = ".asa", .type = TYPE_SOB },
-	{ .ext = ".gbr", .type = TYPE_SOB },
-	{ .ext = ".mft", .type = TYPE_SOB },
-	{ .ext = ".roa", .type = TYPE_SOB },
-	{ .ext = ".spl", .type = TYPE_SOB },
-	{ .ext = ".tak", .type = TYPE_SOB },
+	{ .ext = ".asa", .type = TYPE_ASPA },
+	{ .ext = ".gbr", .type = TYPE_GBR },
+	{ .ext = ".mft", .type = TYPE_MFT },
+	{ .ext = ".roa", .type = TYPE_ROA },
+	{ .ext = ".spl", .type = TYPE_SPL },
+	{ .ext = ".tak", .type = TYPE_TAK },
 	{ .ext = ".tal", .type = TYPE_TAL },
 };
 
 ASN1_OBJECT *sign_time_oid;
 
+int mkpathat(int, const char *);
 void usage(void);
 
 static void
@@ -74,7 +83,7 @@ setup_oids(void) {
 }
 
 static unsigned char *
-load_file(const char *fn, size_t *len)
+load_file(const char *fn, size_t *len, time_t *time)
 {
 	unsigned char *buf = NULL;
 	struct stat st;
@@ -83,6 +92,7 @@ load_file(const char *fn, size_t *len)
 	int fd, saved_errno;
 
 	*len = 0;
+	*time = 0;
 
 	if ((fd = open(fn, O_RDONLY)) == -1)
 		return NULL;
@@ -104,6 +114,7 @@ load_file(const char *fn, size_t *len)
 	}
 	close(fd);
 	*len = size;
+	*time = st.st_mtim.tv_sec;
 	return buf;
 
  err:
@@ -161,20 +172,15 @@ cms_get_signtime_attr(const char *fn, X509_ATTRIBUTE *attr, time_t *signtime)
 }
 
 static time_t
-get_cms_signtime(const char *fn)
+get_cms_signtime(const char *fn, unsigned char *content, size_t len)
 {
 	CMS_ContentInfo *cms = NULL;
 	STACK_OF(CMS_SignerInfo) *sinfos;
 	CMS_SignerInfo *si;
 	const ASN1_OBJECT *obj;
 	const unsigned char *der, *oder;
-	unsigned char *content;
 	int i, has_st = 0, nattrs;
-	size_t len;
 	time_t time = 0;
-
-	if ((content = load_file(fn, &len)) == NULL)
-		goto out;
 
 	oder = der = content;
 	if ((cms = d2i_CMS_ContentInfo(NULL, &der, len)) == NULL) {
@@ -237,23 +243,17 @@ get_cms_signtime(const char *fn)
 	}
 
  out:
-	free(content);
 	CMS_ContentInfo_free(cms);
 	return time;
 }
 
 static time_t
-get_cert_notbefore(const char *fn)
+get_cert_notbefore(const char *fn, unsigned char *content, size_t len)
 {
 	X509 *x = NULL;
 	const ASN1_TIME *at;
 	const unsigned char *der, *oder;
-	unsigned char *content;
-	size_t len;
 	time_t time = 0;
-
-	if ((content = load_file(fn, &len)) == NULL)
-		goto out;
 
 	oder = der = content;
 	if ((x = d2i_X509(NULL, &der, len)) == NULL) {
@@ -276,23 +276,17 @@ get_cert_notbefore(const char *fn)
 	}
 
  out:
-	free(content);
 	X509_free(x);
 	return time;
 }
 
 static time_t
-get_crl_thisupdate(const char *fn)
+get_crl_thisupdate(const char *fn, unsigned char *content, size_t len)
 {
 	X509_CRL *x = NULL;
 	const ASN1_TIME *at;
 	const unsigned char *der, *oder;
-	unsigned char *content;
-	size_t len;
 	time_t time = 0;
-
-	if ((content = load_file(fn, &len)) == NULL)
-		goto out;
 
 	oder = der = content;
 	if ((x = d2i_X509_CRL(NULL, &der, len)) == NULL) {
@@ -315,42 +309,134 @@ get_crl_thisupdate(const char *fn)
 	}
 
  out:
-	free(content);
 	X509_CRL_free(x);
 	return time;
 }
 
-
 static int
-set_mtime(const char *fn, time_t mtime)
+set_mtime(int fd, const char *fn, time_t mtime)
 {
 	struct timespec ts[2];
-	int rc = 0;
 
 	if (noop)
-		return rc;
+		return 0;
 
 	ts[0].tv_nsec = UTIME_OMIT;
 	ts[1].tv_sec = mtime;
 	ts[1].tv_nsec = 0;
 
-	if (utimensat(AT_FDCWD, fn, ts, 0) == -1) {
+	if (utimensat(fd, fn, ts, 0) == -1) {
 		warn("%s: utimensat failed", fn);
-		rc = 1;
+		return -1;
 	}
 
-	return rc;
+	return 0;
 }
 
-static time_t
-get_mtime(const char *fn)
+static int
+b64uri_encode(const unsigned char *in, size_t inlen, char **out)
 {
+	unsigned char *to;
+	size_t tolen = 0;
+	char *c = NULL;
+
+	*out = NULL;
+
+	if (inlen >= INT_MAX / 2)
+		return -1;
+
+	tolen = ((inlen + 2) / 3) * 4 + 1;
+
+	if ((to = malloc(tolen)) == NULL)
+		return -1;
+
+	EVP_EncodeBlock(to, in, inlen);
+	*out = to;
+
+	c = to;
+	while ((c = strchr(c, '+')) != NULL)
+		*c = '-';
+	c = to;
+	while ((c = strchr(c, '/')) != NULL)
+		*c = '_';
+	if ((c = strchr(to, '=')) != NULL)
+		*c = '\0';
+
+	return 0;
+}
+
+static int
+save(enum filetype ftype, unsigned char *content, off_t content_len,
+    time_t time, char *fn)
+{
+	unsigned char md[SHA256_DIGEST_LENGTH];
+	char cpath[6];
+	char *cfn, *path;
 	struct stat st;
+	struct timespec ts[2];
+	int fd = 0;
+	size_t i;
 
-	if (stat(fn, &st) != 0)
-		err(1, "stat");
+	SHA256(content, content_len, md);
 
-	return st.st_mtim.tv_sec;
+	if (b64uri_encode(md, SHA256_DIGEST_LENGTH, &cfn) != 0)
+		err(1, "b64uri_encode");
+
+	snprintf(cpath, sizeof(cpath), "%c%c/%c%c",
+	    cfn[0], cfn[1], cfn[2], cfn[3]);
+
+	for (i = 0; i < sizeof(ext_tab) / sizeof(ext_tab[0]); i++) {
+		if (ext_tab[i].type == ftype) {
+			if (asprintf(&path, "%s/%s%s", cpath, cfn,
+			    ext_tab[i].ext) == -1) {
+				err(1, "asprintf");
+			}
+			break;
+		}
+	}
+
+	if (!noop) {
+		if (mkpathat(outdirfd, cpath) == -1)
+			err(1, "mkpathat %s", cpath);
+	}
+
+	if (fstatat(outdirfd, path, &st, 0) != 0) {
+		if (errno != ENOTDIR && errno != ENOENT)
+			err(1, "fstatat %s", path);
+	}
+
+	/*
+	 * Skip saving files that already are the same size and have the same
+	 * last data modification timestamp.
+	 */
+	if (st.st_size == content_len && st.st_mtim.tv_sec == time)
+		goto out;
+
+	if (verbose)
+		printf("%s -> %s %lld\n", fn, path, time);
+
+	if (noop)
+		goto out;
+
+	if ((fd = openat(outdirfd, path, O_CREAT | O_WRONLY, 0644)) == -1)
+		err(1, "openat %s", path);
+
+	if (write(fd, content, content_len) != content_len)
+		err(1, "write %s", path);
+
+	ts[0].tv_nsec = UTIME_OMIT;
+	ts[1].tv_sec = time;
+	ts[1].tv_nsec = 0;
+
+	if (futimens(fd, ts))
+		err(1, "futimens %s", path);
+
+	close(fd);
+
+ out:
+	free(cfn);
+	free(path);
+	return 0;
 }
 
 int
@@ -358,9 +444,13 @@ main(int argc, char *argv[])
 {
 	int c, rc;
 	size_t i;
+	char *outdir = NULL;
 
-	while ((c = getopt(argc, argv, "hnVv")) != -1)
+	while ((c = getopt(argc, argv, "d:hnVv")) != -1)
 		switch (c) {
+		case 'd':
+			outdir = optarg;
+			break;
 		case 'n':
 			noop = 1;
 			break;
@@ -383,11 +473,18 @@ main(int argc, char *argv[])
 
 	setup_oids();
 
+	if (outdir != NULL && !noop) {
+		if ((outdirfd = open(outdir, O_RDONLY | O_DIRECTORY)) == -1)
+			err(1, "output directory %s", outdir);
+	}
+
 	for (rc = 0; *argv; ++argv) {
 		char *fn;
 		size_t fnsz;
-		time_t time, otime;
+		size_t content_len;
+		time_t otime, time;
 		enum filetype ftype;
+		unsigned char *content = NULL;
 
 		fn = *argv;
 		fnsz = strlen(fn);
@@ -404,15 +501,23 @@ main(int argc, char *argv[])
 			}
 		}
 
+		if ((content = load_file(fn, &content_len, &otime)) == NULL)
+			continue;
+
 		switch (ftype) {
 		case TYPE_CER:
-			time = get_cert_notbefore(fn);
+			time = get_cert_notbefore(fn, content, content_len);
 			break;
 		case TYPE_CRL:
-			time = get_crl_thisupdate(fn);
+			time = get_crl_thisupdate(fn, content, content_len);
 			break;
-		case TYPE_SOB:
-			time = get_cms_signtime(fn);
+		case TYPE_ASPA:
+		case TYPE_GBR:
+		case TYPE_MFT:
+		case TYPE_ROA:
+		case TYPE_SPL:
+		case TYPE_TAK:
+			time = get_cms_signtime(fn, content, content_len);
 			break;
 		case TYPE_TAL:
 			continue;
@@ -425,13 +530,20 @@ main(int argc, char *argv[])
 		if (time == 0)
 			continue;
 
-		if ((otime = get_mtime(fn)) != time) {
-			if (set_mtime(fn, time))
+		if (otime != time) {
+			if (set_mtime(AT_FDCWD, fn, time))
 				rc = 1;
 			if (verbose)
 				printf("%s %lld -> %lld\n", fn,
 				    (long long)otime, (long long)time);
 		}
+
+		if (outdir != NULL) {
+			if (save(ftype, content, content_len, time, fn) != 0)
+				err(1, "save %s", fn);
+		}
+
+		free(content);
 	}
 
 	return rc;
@@ -440,6 +552,7 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	fprintf(stderr, "usage: rpkitouch [-hnVv] file ...\n");
+	fprintf(stderr, "usage: %s [-hnVv] [-d directory] file ...\n",
+	    getprogname());
 	exit(1);
 }
