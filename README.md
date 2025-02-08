@@ -8,6 +8,7 @@ RPKITOUCH(8) - System Manager's Manual
 
 **rpkitouch**
 \[**-hnVv**]
+\[**-d**&nbsp;*directory*]
 *file&nbsp;...*
 
 # DESCRIPTION
@@ -41,11 +42,11 @@ to
 *RSYNC*.
 
 For
-*Autonomous System Provider Authorization* (ASPA),
+*Autonomous System Provider Authorisation* (ASPA),
 *Ghostbuster Records* (GBR),
 *Manifests* (MFT),
-*Route Origin Authorization* (ROA)
-*Signed Prefix Lists* (SPL)
+*Route Origin Authorization* (ROA),
+*Signed Prefix Lists* (SPL),
 and
 *Trust Anchor Key* (TAK)
 objects the
@@ -83,6 +84,15 @@ Files may not contain trailing data beyond the internal length markers.
 
 The options are as follows:
 
+**-d** *directory*
+
+> Calculate the SHA-256 message digest for
+> *file*
+> and copy its contents to
+> *directory*
+> using a content-addressable file naming scheme.
+> Only overwrite existing files if the size or modification timestamp differ.
+
 **-h**
 
 > Display usage.
@@ -92,6 +102,8 @@ The options are as follows:
 > No-op.
 > The file's modification time is computed but not set.
 > Can be combined with
+> **-d**
+> and
 > **-v**
 > to see what
 > **rpkitouch**
@@ -137,22 +149,30 @@ derived timestamps:
 	$ cd /usr/share/rpki/publication/
 	$ find . -type f -exec rpkitouch {} \+
 
+Copy a signed object to
+*/tmp*
+with the Base64 encoded SHA-256 message digest as its target file name.
+
+	$ rpkitouch -d /tmp rpki.ripe.net/repository/ripe-ncc-ta.mft
+	$ ls /tmp/cH/GJ
+	cHGJX_X5v17fw2SLUy5eL6SRGQdj_ZwVizbByy9-W5Y.mft
+
 # STANDARDS
 
 *On the Use of the CMS Signing-Time Attribute in RPKI Signed Objects*,
-RFC 9589.
+[RFC 9589](http://www.rfc-editor.org/rfc/rfc9589.html).
 
 *Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile*,
-RFC 5280.
+[RFC 5280](http://www.rfc-editor.org/rfc/rfc5280.html).
 
 *Cryptographic Message Syntax (CMS)*,
-RFC 5652.
+[RFC 5652](http://www.rfc-editor.org/rfc/rfc5652.html).
 
 *A Profile for X.509 PKIX Resource Certificates*,
-RFC 6487.
+[RFC 6487](http://www.rfc-editor.org/rfc/rfc6487.html).
 
 # AUTHORS
 
-Job Snijders &lt;[job@fastly.com](mailto:job@fastly.com)&gt;
+Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
 
-OpenBSD 7.6 - August 13, 2024
+OpenBSD 7.6 - February 8, 2025
