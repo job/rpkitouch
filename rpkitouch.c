@@ -333,6 +333,10 @@ set_mtime(int fd, const char *fn, time_t mtime)
 	return 0;
 }
 
+/*
+ * Base 64 encoding with URL and filename safe alphabet.
+ * RFC 4648 section 5
+ */
 static int
 b64uri_encode(const unsigned char *in, size_t inlen, char **out)
 {
