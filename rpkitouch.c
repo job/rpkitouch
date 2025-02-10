@@ -423,7 +423,7 @@ save(enum filetype ftype, unsigned char *content, off_t content_len,
 	if (st.st_size == content_len && st.st_mtim.tv_sec == time)
 		goto out;
 
-	if (verbose && !srcnoop)
+	if (verbose)
 		printf("%s -> %s %lld\n", fn, path, (long long)time);
 
 	if (noop)
@@ -550,7 +550,7 @@ main(int argc, char *argv[])
 		if (otime != time) {
 			if (set_mtime(AT_FDCWD, fn, time))
 				rc = 1;
-			if (verbose)
+			if (verbose && !srcnoop)
 				printf("%s %lld -> %lld\n", fn,
 				    (long long)otime, (long long)time);
 		}
