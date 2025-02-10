@@ -35,7 +35,7 @@
 #include <openssl/cms.h>
 #include <openssl/sha.h>
 
-int noop;
+int srcnoop, noop;
 int outdirfd;
 int verbose;
 
@@ -323,7 +323,7 @@ set_mtime(int fd, const char *fn, time_t mtime)
 {
 	struct timespec ts[2];
 
-	if (noop)
+	if (noop || srcnoop)
 		return 0;
 
 	ts[0].tv_nsec = UTIME_OMIT;
@@ -457,10 +457,13 @@ main(int argc, char *argv[])
 	size_t i;
 	char *outdir = NULL;
 
-	while ((c = getopt(argc, argv, "d:hnVv")) != -1)
+	while ((c = getopt(argc, argv, "d:hNnVv")) != -1)
 		switch (c) {
 		case 'd':
 			outdir = optarg;
+			break;
+		case 'N':
+			srcnoop = 1;
 			break;
 		case 'n':
 			noop = 1;
@@ -480,6 +483,9 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	if (*argv == NULL)
+		usage();
+
+	if (srcnoop && outdir == NULL)
 		usage();
 
 	setup_oids();
@@ -563,6 +569,6 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	fprintf(stderr, "usage: rpkitouch [-hnVv] [-d directory] file ...\n");
+	fprintf(stderr, "usage: rpkitouch [-hNnVv] [-d directory] file ...\n");
 	exit(1);
 }

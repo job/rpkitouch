@@ -21,7 +21,7 @@
 .Nd set file modification times to internal RPKI timestamps
 .Sh SYNOPSIS
 .Nm rpkitouch
-.Op Fl hnVv
+.Op Fl hNnVv
 .Op Fl d Ar directory
 .Ar
 .Sh DESCRIPTION
@@ -106,6 +106,10 @@ To improve performance, existing files are only overwritten if the size or
 last modification timestamp differ.
 .It Fl h
 Display usage.
+.It Fl N
+The source file's modification time is computed but not set.
+Can only be used together with
+.Fl d .
 .It Fl n
 No-op.
 The file's modification time is computed but not set.
