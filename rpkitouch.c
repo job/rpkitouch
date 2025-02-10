@@ -423,7 +423,7 @@ save(enum filetype ftype, unsigned char *content, off_t content_len,
 	if (st.st_size == content_len && st.st_mtim.tv_sec == time)
 		goto out;
 
-	if (verbose)
+	if (verbose && !srcnoop)
 		printf("%s -> %s %lld\n", fn, path, (long long)time);
 
 	if (noop)
