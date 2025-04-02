@@ -10,6 +10,7 @@ CFLAGS+= -Wmissing-prototypes -Wmissing-declarations
 CFLAGS+= -Wshadow -Wpointer-arith -Wsign-compare
 CFLAGS+= -Werror-implicit-function-declaration
 CFLAGS+= -MD -MP
+CFLAGS+= -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_GNU_SOURCE
 
 all:
 	cc -o $(PROG) $(CFLAGS) $(SRCS) $(LDADD)
