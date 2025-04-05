@@ -379,7 +379,7 @@ save(enum filetype ftype, unsigned char *content, off_t content_len,
     time_t mtime, char *fn)
 {
 	unsigned char md[SHA256_DIGEST_LENGTH];
-	char cpath[6], *path;
+	char cpath[6], *path, *tmppath;
 	unsigned char *cfn;
 	struct stat st;
 	struct timespec ts[2];
@@ -400,6 +400,10 @@ save(enum filetype ftype, unsigned char *content, off_t content_len,
 		if (ext_tab[i].type == ftype) {
 			if (asprintf(&path, "%s/%s%s", cpath, cfn,
 			    ext_tab[i].ext) == -1) {
+				err(1, "asprintf");
+			}
+			if (asprintf(&tmppath, "%s/.%s%s.XXXXXXXXXX", cpath,
+			    cfn, ext_tab[i].ext) == -1) {
 				err(1, "asprintf");
 			}
 			break;
@@ -434,8 +438,15 @@ save(enum filetype ftype, unsigned char *content, off_t content_len,
 	if (noop)
 		goto out;
 
-	if ((fd = openat(outdirfd, path, O_CREAT | O_WRONLY, 0644)) == -1)
-		err(1, "openat %s", path);
+	if (fchdir(outdirfd) != 0)
+		err(1, "fchdir");
+
+	if ((fd = mkostemp(tmppath, O_CLOEXEC)) == -1) {
+		warnx("mkostemp %s", tmppath);
+		goto out;
+	}
+
+	(void)fchmod(fd, 0644);
 
 	if (write(fd, content, content_len) != content_len)
 		err(1, "write %s", path);
@@ -447,11 +458,20 @@ save(enum filetype ftype, unsigned char *content, off_t content_len,
 	if (futimens(fd, ts))
 		err(1, "futimens %s", path);
 
-	close(fd);
+	if (close(fd) != 0) {
+		warnx("%s: close failed", tmppath);
+		goto out;
+	}
+
+	if (rename(tmppath, path) == -1) {
+		warnx("%s: rename to %s failed", tmppath, path);
+		unlink(tmppath);
+	}
 
  out:
 	free(cfn);
 	free(path);
+	free(tmppath);
 	return 0;
 }
 
