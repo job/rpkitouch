@@ -376,7 +376,7 @@ b64uri_encode(const unsigned char *in, size_t inlen, unsigned char **out)
 
 static int
 save(enum filetype ftype, unsigned char *content, off_t content_len,
-    time_t time, char *fn)
+    time_t mtime, char *fn)
 {
 	unsigned char md[SHA256_DIGEST_LENGTH];
 	char cpath[6], *path;
@@ -420,11 +420,16 @@ save(enum filetype ftype, unsigned char *content, off_t content_len,
 	 * Skip saving files that already are the same size and have the same
 	 * last data modification timestamp.
 	 */
-	if (st.st_size == content_len && st.st_mtim.tv_sec == time)
+	if (st.st_size == content_len && st.st_mtim.tv_sec == mtime)
 		goto out;
 
-	if (verbose)
-		printf("%s -> %s %lld\n", fn, path, (long long)time);
+	if (verbose) {
+		time_t delay;
+
+		delay = time(NULL) - mtime;
+		printf("%s %s %lld (%lld)\n", fn, path, (long long)mtime,
+		    (long long)delay);
+	}
 
 	if (noop)
 		goto out;
@@ -436,7 +441,7 @@ save(enum filetype ftype, unsigned char *content, off_t content_len,
 		err(1, "write %s", path);
 
 	ts[0].tv_nsec = UTIME_OMIT;
-	ts[1].tv_sec = time;
+	ts[1].tv_sec = mtime;
 	ts[1].tv_nsec = 0;
 
 	if (futimens(fd, ts))
