@@ -456,7 +456,7 @@ save(enum filetype ftype, unsigned char *content, off_t content_len,
 	ts[1].tv_nsec = 0;
 
 	if (futimens(fd, ts))
-		err(1, "futimens %s", path);
+		err(1, "futimens %s", tmppath);
 
 	if (close(fd) != 0) {
 		warnx("%s: close failed", tmppath);
