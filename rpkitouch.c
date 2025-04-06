@@ -24,6 +24,7 @@
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -379,7 +380,7 @@ save(enum filetype ftype, unsigned char *content, off_t content_len,
     time_t mtime, char *fn)
 {
 	unsigned char md[SHA256_DIGEST_LENGTH];
-	char cpath[6], *path, *tmppath;
+	char cpath[6], *path, *tmppath, *mftdir;
 	unsigned char *cfn;
 	struct stat st;
 	struct timespec ts[2];
@@ -466,6 +467,35 @@ save(enum filetype ftype, unsigned char *content, off_t content_len,
 	if (rename(tmppath, path) == -1) {
 		warnx("%s: rename to %s failed", tmppath, path);
 		unlink(tmppath);
+	}
+
+	/*
+	 * Link fqdn.net/path/to/manifest.mft if the on-disk copy is older.
+	 * mft/rpki.example.net/manifest.mft -> xY/zZ/232323...mft
+	 */
+
+	if (ftype != TYPE_MFT)
+		goto out;
+
+	if (asprintf(&mftdir, "mft/%s", dirname(fn)) == -1)
+		err(1, "asprintf");
+	if (mkpathat(outdirfd, mftdir) == -1)
+		err(1, "mkpathat %s", mftdir);
+
+	free(tmppath);
+	if (asprintf(&tmppath, "mft/%s", fn) == -1)
+		err(1, "asprintf");
+
+	memset(&st, 0, sizeof(st));
+	if (fstatat(outdirfd, tmppath, &st, 0) != 0) {
+		if (errno != ENOTDIR && errno != ENOENT)
+			err(1, "fstatat %s", tmppath);
+	}
+
+	if (st.st_mtim.tv_sec < mtime) {
+		if (linkat(outdirfd, path, outdirfd, tmppath, 0) != 0) {
+			warnx("failed to link %s to %s", path, tmppath);
+		}
 	}
 
  out:
