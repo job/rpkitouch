@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023,2025 Job Snijders <job@sobornost.net>
+ * Copyright (c) 2023-2025 Job Snijders <job@sobornost.net>
  * Copyright (c) 2022 Theo Buehler <tb@openbsd.org>
  * Copyright (c) 2020 Claudio Jeker <claudio@openbsd.org>
  * Copyright (c) 2019 Kristaps Dzonsons <kristaps@bsd.lv>
@@ -75,6 +75,7 @@ const struct {
 ASN1_OBJECT *sign_time_oid;
 
 int mkpathat(int, const char *);
+int mkstempat(int, char *);
 void usage(void);
 
 static void
@@ -375,16 +376,79 @@ b64uri_encode(const unsigned char *in, size_t inlen, unsigned char **out)
 	return 0;
 }
 
+/*
+ * Write content to a temp file and then atomically move it into place.
+ * Return 0 on success.
+ */
 static int
-save(enum filetype ftype, unsigned char *content, off_t content_len,
-    time_t mtime, char *fn)
+write_file(char *path, unsigned char *content, off_t content_len, time_t mtime)
+{
+	char *dir, *dn, *file, *bn, *tmpbn;
+	struct timespec ts[2];
+	int fd, rc = 1;
+
+	if (noop)
+		return 0;
+
+	if ((dir = strdup(path)) == NULL)
+		err(1, "strdup");
+	if ((dn = dirname(dir)) == NULL)
+		err(1, "dirname");
+
+	if ((file = strdup(path)) == NULL)
+		err(1, "strdup");
+	if ((bn = basename(file)) == NULL)
+		err(1, "basename");
+
+	if (asprintf(&tmpbn, "%s/.%s.XXXXXXXXXX", dn, bn) == -1)
+		err(1, "asprintf");
+
+	if (mkpathat(outdirfd, dn) == -1)
+		err(1, "mkpathat %s", dn);
+
+	if ((fd = mkstempat(outdirfd, tmpbn)) == -1)
+		err(1, "mkstempat %s", tmpbn);
+
+	(void)fchmod(fd, 0644);
+
+	if (write(fd, content, content_len) != content_len)
+		err(1, "write %s/%s", dn, tmpbn);
+
+	ts[0].tv_nsec = UTIME_OMIT;
+	ts[1].tv_sec = mtime;
+	ts[1].tv_nsec = 0;
+
+	if (futimens(fd, ts))
+		err(1, "futimens %s/%s", dn, tmpbn);
+
+	if (close(fd) != 0) {
+		warnx("close failed %s/%s", dn, tmpbn);
+		goto out;
+	}
+
+	if (renameat(outdirfd, tmpbn, outdirfd, path) == -1) {
+		warnx("%s: rename to %s failed", tmpbn, path);
+		unlink(tmpbn);
+		goto out;
+	}
+
+	rc = 0;
+ out:
+	free(dir);
+	free(file);
+	free(tmpbn);
+	return rc;
+}
+
+static int
+store(enum filetype ftype, char *fn, unsigned char *content, off_t content_len,
+    time_t mtime)
 {
 	unsigned char md[SHA256_DIGEST_LENGTH];
-	char cpath[6], *path, *tmppath, *mftdir;
+	char cpath[6], *path = NULL, *tfn = NULL, *tmppath = NULL;
+	char *mftdir = NULL, *mfttmppath = NULL;
 	unsigned char *cfn;
 	struct stat st;
-	struct timespec ts[2];
-	int fd = 0;
 	size_t i;
 
 	memset(&st, 0, sizeof(st));
@@ -407,6 +471,10 @@ save(enum filetype ftype, unsigned char *content, off_t content_len,
 			    cfn, ext_tab[i].ext) == -1) {
 				err(1, "asprintf");
 			}
+			if (asprintf(&mfttmppath, "mft/%s/.%s%s.XXXXXXXXXX",
+			    cpath, cfn, ext_tab[i].ext) == -1) {
+				err(1, "asprintf");
+			}
 			break;
 		}
 	}
@@ -422,7 +490,7 @@ save(enum filetype ftype, unsigned char *content, off_t content_len,
 	}
 
 	/*
-	 * Skip saving files that already are the same size and have the same
+	 * Skip files that already are of the same size and have the same
 	 * last data modification timestamp.
 	 */
 	if (st.st_size == content_len && st.st_mtim.tv_sec == mtime)
@@ -439,50 +507,31 @@ save(enum filetype ftype, unsigned char *content, off_t content_len,
 	if (noop)
 		goto out;
 
-	if (fchdir(outdirfd) != 0)
-		err(1, "fchdir");
-
-	if ((fd = mkostemp(tmppath, O_CLOEXEC)) == -1) {
-		warnx("mkostemp %s", tmppath);
-		goto out;
-	}
-
-	(void)fchmod(fd, 0644);
-
-	if (write(fd, content, content_len) != content_len)
-		err(1, "write %s", path);
-
-	ts[0].tv_nsec = UTIME_OMIT;
-	ts[1].tv_sec = mtime;
-	ts[1].tv_nsec = 0;
-
-	if (futimens(fd, ts))
-		err(1, "futimens %s", tmppath);
-
-	if (close(fd) != 0) {
-		warnx("%s: close failed", tmppath);
-		goto out;
-	}
-
-	if (rename(tmppath, path) == -1) {
-		warnx("%s: rename to %s failed", tmppath, path);
-		unlink(tmppath);
-	}
+	if (write_file(path, content, content_len, mtime) != 0)
+		errx(1, "write_file %s failed", path);
 
 	/*
-	 * Link fqdn.net/path/to/manifest.mft if the on-disk copy is older.
-	 * mft/rpki.example.net/manifest.mft -> xY/zZ/232323...mft
+	 * Now also write Manifests into their named location (the SIA SignedObject).
+	 * Only overwrite if the on-disk copy is older.
 	 */
 
 	if (ftype != TYPE_MFT)
 		goto out;
 
-	if (asprintf(&mftdir, "mft/%s", dirname(fn)) == -1)
+	if ((tfn = strdup(fn)) == NULL)
+		err(1, "strdup");
+	if (asprintf(&mftdir, "mft/%s", dirname(tfn)) == -1)
 		err(1, "asprintf");
+
 	if (mkpathat(outdirfd, mftdir) == -1)
 		err(1, "mkpathat %s", mftdir);
 
+	/*
+	 * XXX: here we should use the actual SIA Signed instead of name
+	 * through argv.
+	 */
 	free(tmppath);
+	tmppath = NULL;
 	if (asprintf(&tmppath, "mft/%s", fn) == -1)
 		err(1, "asprintf");
 
@@ -492,14 +541,16 @@ save(enum filetype ftype, unsigned char *content, off_t content_len,
 			err(1, "fstatat %s", tmppath);
 	}
 
-	if (st.st_mtim.tv_sec < mtime) {
-		if (linkat(outdirfd, path, outdirfd, tmppath, 0) != 0) {
-			warnx("failed to link %s to %s", path, tmppath);
-		}
-	}
+	if (st.st_mtim.tv_sec >= mtime)
+		goto out;
+
+	if (write_file(tmppath, content, content_len, mtime) != 0)
+		errx(1, "write_file %s failed", path);
 
  out:
 	free(cfn);
+	free(tfn);
+	free(mftdir);
 	free(path);
 	free(tmppath);
 	return 0;
@@ -517,8 +568,7 @@ main(int argc, char *argv[])
 		case 'd':
 			outdir = optarg;
 			break;
-		case 'N':
-			/* legacy option */
+		case 'N': /* deprecated */
 			break;
 		case 'n':
 			noop = 1;
@@ -608,8 +658,8 @@ main(int argc, char *argv[])
 		}
 
 		if (outdir != NULL) {
-			if (save(ftype, content, content_len, time, fn) != 0)
-				err(1, "save %s", fn);
+			if (store(ftype, fn, content, content_len, time) != 0)
+				err(1, "failed to store %s", fn);
 		}
 
 		free(content);

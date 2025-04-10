@@ -1,5 +1,5 @@
 PROG=	rpkitouch
-SRCS=	rpkitouch.c mkdir.c
+SRCS=	rpkitouch.c mkdir.c mktemp.c
 MAN=	rpkitouch.8
 
 LDADD+= -lc -lcrypto
