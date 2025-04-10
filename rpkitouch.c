@@ -493,22 +493,18 @@ store(enum filetype ftype, char *fn, unsigned char *content, off_t content_len,
 	 * Skip files that already are of the same size and have the same
 	 * last data modification timestamp.
 	 */
-	if (st.st_size == content_len && st.st_mtim.tv_sec == mtime)
-		goto out;
+	if (st.st_size != content_len || st.st_mtim.tv_sec != mtime) {
+		if (write_file(path, content, content_len, mtime) != 0)
+			errx(1, "write_file %s failed", path);
 
-	if (verbose) {
-		time_t delay;
+		if (verbose) {
+			time_t delay;
 
-		delay = time(NULL) - mtime;
-		printf("%s %s %lld (%lld)\n", fn, path, (long long)mtime,
-		    (long long)delay);
+			delay = time(NULL) - mtime;
+			printf("%s %s %lld (%lld)\n", fn, path,
+			    (long long)mtime, (long long)delay);
+		}
 	}
-
-	if (noop)
-		goto out;
-
-	if (write_file(path, content, content_len, mtime) != 0)
-		errx(1, "write_file %s failed", path);
 
 	/*
 	 * Now also write Manifests into their named location (the SIA SignedObject).
@@ -523,8 +519,10 @@ store(enum filetype ftype, char *fn, unsigned char *content, off_t content_len,
 	if (asprintf(&mftdir, "mft/%s", dirname(tfn)) == -1)
 		err(1, "asprintf");
 
-	if (mkpathat(outdirfd, mftdir) == -1)
-		err(1, "mkpathat %s", mftdir);
+	if (!noop) {
+		if (mkpathat(outdirfd, mftdir) == -1)
+			err(1, "mkpathat %s", mftdir);
+	}
 
 	/*
 	 * XXX: here we should use the actual SIA Signed instead of name
@@ -541,11 +539,10 @@ store(enum filetype ftype, char *fn, unsigned char *content, off_t content_len,
 			err(1, "fstatat %s", tmppath);
 	}
 
-	if (st.st_mtim.tv_sec >= mtime)
-		goto out;
-
-	if (write_file(tmppath, content, content_len, mtime) != 0)
-		errx(1, "write_file %s failed", path);
+	if (st.st_mtim.tv_sec < mtime) {
+		if (write_file(tmppath, content, content_len, mtime) != 0)
+			errx(1, "write_file %s failed", tmppath);
+	}
 
  out:
 	free(cfn);
