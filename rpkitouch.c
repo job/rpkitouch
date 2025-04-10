@@ -544,7 +544,7 @@ store(enum filetype ftype, char *fn, unsigned char *content, off_t content_len,
 
 		if (verbose) {
 			delay = time(NULL) - mtime;
-			printf("%s %lld (%lld)\n", path, (long long)mtime,
+			printf("%s %lld (%lld)\n", tmppath, (long long)mtime,
 			    (long long)delay);
 		}
 	}
