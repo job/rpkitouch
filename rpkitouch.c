@@ -450,6 +450,7 @@ store(enum filetype ftype, char *fn, unsigned char *content, off_t content_len,
 	unsigned char *cfn;
 	struct stat st;
 	size_t i;
+	time_t delay;
 
 	memset(&st, 0, sizeof(st));
 
@@ -498,8 +499,6 @@ store(enum filetype ftype, char *fn, unsigned char *content, off_t content_len,
 			errx(1, "write_file %s failed", path);
 
 		if (verbose) {
-			time_t delay;
-
 			delay = time(NULL) - mtime;
 			printf("%s %s %lld (%lld)\n", fn, path,
 			    (long long)mtime, (long long)delay);
@@ -542,6 +541,12 @@ store(enum filetype ftype, char *fn, unsigned char *content, off_t content_len,
 	if (st.st_mtim.tv_sec < mtime) {
 		if (write_file(tmppath, content, content_len, mtime) != 0)
 			errx(1, "write_file %s failed", tmppath);
+
+		if (verbose) {
+			delay = time(NULL) - mtime;
+			printf("%s %lld (%lld)\n", path, (long long)mtime,
+			    (long long)delay);
+		}
 	}
 
  out:
