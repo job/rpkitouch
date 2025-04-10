@@ -151,12 +151,21 @@ $ find \&. -type f -exec rpkitouch {} \e+
 .Ed
 .Pp
 Copy a signed object to
-.Pa /tmp
+.Pa /tmp/a
 with the Base64 encoded SHA-256 message digest as its target file name.
 .Bd -literal -offset indent
-$ rpkitouch -d /tmp rpki.ripe.net/repository/ripe-ncc-ta.mft
-$ ls /tmp/cH/GJ
-cHGJX_X5v17fw2SLUy5eL6SRGQdj_ZwVizbByy9-W5Y.mft
+$ rpkitouch -vd /tmp/a rpki.ripe.net/repository/ripe-ncc-ta.mft
+rpki.ripe.net/repository/ripe-ncc-ta.mft kX/xB/kXxBgilLlXi4SJHY9JoWnmJAtRoO5oE084UXV6TsQ20.mft 1744024405 (271880)
+
+$ find /tmp/a
+/tmp/a
+/tmp/a/kX
+/tmp/a/kX/xB
+/tmp/a/kX/xB/kXxBgilLlXi4SJHY9JoWnmJAtRoO5oE084UXV6TsQ20.mft
+/tmp/a/mft
+/tmp/a/mft/rpki.ripe.net
+/tmp/a/mft/rpki.ripe.net/repository
+/tmp/a/mft/rpki.ripe.net/repository/ripe-ncc-ta.mft
 .Ed
 .Sh STANDARDS
 .Rs

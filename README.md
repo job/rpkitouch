@@ -101,7 +101,7 @@ The options are as follows:
 **-n**
 
 > No-op.
-> The file's modification time is computed but not set.
+> The file's modification time is computed but not set and no copies are made.
 > Can be combined with
 > **-d**
 > and
@@ -151,12 +151,21 @@ derived timestamps:
 	$ find . -type f -exec rpkitouch {} \+
 
 Copy a signed object to
-*/tmp*
+*/tmp/a*
 with the Base64 encoded SHA-256 message digest as its target file name.
 
-	$ rpkitouch -d /tmp rpki.ripe.net/repository/ripe-ncc-ta.mft
-	$ ls /tmp/cH/GJ
-	cHGJX_X5v17fw2SLUy5eL6SRGQdj_ZwVizbByy9-W5Y.mft
+	$ rpkitouch -vd /tmp/a rpki.ripe.net/repository/ripe-ncc-ta.mft
+	rpki.ripe.net/repository/ripe-ncc-ta.mft kX/xB/kXxBgilLlXi4SJHY9JoWnmJAtRoO5oE084UXV6TsQ20.mft 1744024405 (271880)
+	
+	$ find /tmp/a
+	/tmp/a
+	/tmp/a/kX
+	/tmp/a/kX/xB
+	/tmp/a/kX/xB/kXxBgilLlXi4SJHY9JoWnmJAtRoO5oE084UXV6TsQ20.mft
+	/tmp/a/mft
+	/tmp/a/mft/rpki.ripe.net
+	/tmp/a/mft/rpki.ripe.net/repository
+	/tmp/a/mft/rpki.ripe.net/repository/ripe-ncc-ta.mft
 
 # STANDARDS
 
@@ -176,4 +185,4 @@ with the Base64 encoded SHA-256 message digest as its target file name.
 
 Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
 
-OpenBSD 7.6 - February 8, 2025
+OpenBSD 7.7 - April 10, 2025
