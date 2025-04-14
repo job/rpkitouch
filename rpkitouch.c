@@ -660,6 +660,7 @@ store(enum filetype ftype, char *fn, char *sia, unsigned char *content,
 	free(mftdir);
 	free(path);
 	free(tmppath);
+	free(mfttmppath);
 	return 0;
 }
 
