@@ -204,14 +204,10 @@ x509_get_sia(X509 *x, char **out_sia)
 	assert(*out_sia == NULL);
 
 	info = X509_get_ext_d2i(x, NID_sinfo_access, &crit, NULL);
-	if (info == NULL) {
-		warnx("X509_get_ext_d2i");
+	if (info == NULL)
 		goto out;
-	}
-	if (crit != 0) {
-		warnx("SIA malformed");
+	if (crit != 0)
 		goto out;
-	}
 
 	for (i = 0; i < sk_ACCESS_DESCRIPTION_num(info); i++) {
 		ASN1_IA5STRING *uri;
@@ -239,7 +235,8 @@ x509_get_sia(X509 *x, char **out_sia)
 		if (uri->length > MAX_URI_LENGTH)
 			goto out;
 
-		if (uri->length <= 10) /* rsync://... */
+		/* rsync://x.net/x.mft */
+		if (uri->length <= 20)
 			goto out;
 
 		for (s = 0; s < uri->length; s++) {
