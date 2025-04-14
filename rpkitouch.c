@@ -21,6 +21,7 @@
 #include <sys/stat.h>
 
 #include <assert.h>
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -39,6 +40,10 @@
 int noop;
 int outdirfd;
 int verbose;
+
+#define MAX_URI_LENGTH 2048
+#define RSYNC_PROTO "rsync://"
+#define RSYNC_PROTO_LEN (sizeof(RSYNC_PROTO) - 1)
 
 enum filetype {
 	TYPE_CER,	/* Certificate */
@@ -72,7 +77,9 @@ const struct {
 	{ .ext = ".tal", .type = TYPE_TAL },
 };
 
+ASN1_OBJECT *notify_oid;
 ASN1_OBJECT *sign_time_oid;
+ASN1_OBJECT *signedobj_oid;
 
 int mkpathat(int, const char *);
 int mkstempat(int, char *);
@@ -80,8 +87,12 @@ void usage(void);
 
 static void
 setup_oids(void) {
+	if ((notify_oid = OBJ_txt2obj("1.3.6.1.5.5.7.48.13", 1)) == NULL)
+		errx(1, "OBJ_txt2obj for %s failed", "1.3.6.1.5.5.7.48.13");
 	if ((sign_time_oid = OBJ_txt2obj("1.2.840.113549.1.9.5", 1)) == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "1.2.840.113549.1.9.5");
+	if ((signedobj_oid = OBJ_txt2obj("1.3.6.1.5.5.7.48.11", 1)) == NULL)
+		errx(1, "OBJ_txt2obj for %s failed", "1.3.6.1.5.5.7.48.11");
 }
 
 static unsigned char *
@@ -178,15 +189,103 @@ cms_get_signtime_attr(const char *fn, X509_ATTRIBUTE *attr, time_t *signtime)
 	return 1;
 }
 
-static time_t
-get_cms_signtime(const char *fn, unsigned char *content, size_t len)
+/*
+ * Parse the Subject Information Access (SIA) extension for an EE cert.
+ * Returns 0 on failure, out_sia has to be freed after use.
+ */
+static int
+x509_get_sia(X509 *x, char **out_sia)
+{
+	ACCESS_DESCRIPTION		*ad;
+	AUTHORITY_INFO_ACCESS		*info;
+	ASN1_OBJECT			*oid;
+	int				 i, crit, rc = 0;
+
+	assert(*out_sia == NULL);
+
+	info = X509_get_ext_d2i(x, NID_sinfo_access, &crit, NULL);
+	if (info == NULL) {
+		warnx("X509_get_ext_d2i");
+		goto out;
+	}
+	if (crit != 0) {
+		warnx("SIA malformed");
+		goto out;
+	}
+
+	for (i = 0; i < sk_ACCESS_DESCRIPTION_num(info); i++) {
+		ASN1_IA5STRING *uri;
+		int s;
+
+		ad = sk_ACCESS_DESCRIPTION_value(info, i);
+
+		/*
+		 * Ignore rpkiNotify accessMethods.
+		 * See also https://www.rfc-editor.org/errata/eid7239.
+		 */
+		oid = ad->method;
+		if (OBJ_cmp(oid, notify_oid) == 0)
+			continue;
+
+		if (OBJ_cmp(oid, signedobj_oid) != 0)
+			goto out;
+
+		if (ad->location->type != GEN_URI)
+			goto out;
+
+		uri = ad->location->d.uniformResourceIdentifier;
+
+
+		if (uri->length > MAX_URI_LENGTH)
+			goto out;
+
+		if (uri->length <= 10) /* rsync://... */
+			goto out;
+
+		for (s = 0; s < uri->length; s++) {
+			if (!isalnum((unsigned char)uri->data[s]) &&
+			    !ispunct((unsigned char)uri->data[s]))
+				goto out;
+		}
+
+		if (strstr(uri->data, "/.") != NULL)
+			goto out;
+
+		if (strncasecmp(uri->data, RSYNC_PROTO, RSYNC_PROTO_LEN) != 0)
+			goto out;
+
+		if ((*out_sia = strndup(uri->data + RSYNC_PROTO_LEN,
+		    uri->length)) == NULL)
+			err(1, NULL);
+	}
+
+	if (*out_sia == NULL)
+		goto out;
+
+	rc = 1;
+
+ out:
+	AUTHORITY_INFO_ACCESS_free(info);
+	return rc;
+}
+
+/*
+ * Extract CMS signing-time and the EE cert's SignedObject SIA.
+ * Return 1 on failure.
+ */
+static int
+parse_signed_object(const char *fn, unsigned char *content, size_t len,
+time_t *out_signtime, char **out_sia)
 {
 	CMS_ContentInfo *cms = NULL;
 	STACK_OF(CMS_SignerInfo) *sinfos;
 	CMS_SignerInfo *si;
+	STACK_OF(X509) *certs = NULL;
+	X509 *x;
+	char *sia = NULL;
 	const ASN1_OBJECT *obj;
 	const unsigned char *der, *oder;
-	int i, has_st = 0, nattrs;
+	int i, has_st = 0, nattrs, rc = 1;
 	time_t time = 0;
 
 	oder = der = content;
@@ -245,13 +344,25 @@ get_cms_signtime(const char *fn, unsigned char *content, size_t len)
 			}
 			if (!cms_get_signtime_attr(fn, attr, &time))
 				goto out;
+			*out_signtime = time;
 			break;
 		}
 	}
 
+	certs = CMS_get0_signers(cms);
+	if (certs == NULL || sk_X509_num(certs) != 1)
+		goto out;
+	x = sk_X509_value(certs, 0);
+
+	if (x509_get_sia(x, &sia) != 1)
+		goto out;
+	*out_sia = sia;
+
+	rc = 0;
  out:
+	sk_X509_free(certs);
 	CMS_ContentInfo_free(cms);
-	return time;
+	return rc;
 }
 
 static time_t
@@ -319,6 +430,7 @@ get_crl_thisupdate(const char *fn, unsigned char *content, size_t len)
 	X509_CRL_free(x);
 	return time;
 }
+
 
 static int
 set_mtime(int fd, const char *fn, time_t mtime)
@@ -441,8 +553,8 @@ write_file(char *path, unsigned char *content, off_t content_len, time_t mtime)
 }
 
 static int
-store(enum filetype ftype, char *fn, unsigned char *content, off_t content_len,
-    time_t mtime)
+store(enum filetype ftype, char *fn, char *sia, unsigned char *content,
+    off_t content_len, time_t mtime)
 {
 	unsigned char md[SHA256_DIGEST_LENGTH];
 	char cpath[6], *path = NULL, *tfn = NULL, *tmppath = NULL;
@@ -513,7 +625,7 @@ store(enum filetype ftype, char *fn, unsigned char *content, off_t content_len,
 	if (ftype != TYPE_MFT)
 		goto out;
 
-	if ((tfn = strdup(fn)) == NULL)
+	if ((tfn = strdup(sia)) == NULL)
 		err(1, "strdup");
 	if (asprintf(&mftdir, "mft/%s", dirname(tfn)) == -1)
 		err(1, "asprintf");
@@ -523,13 +635,9 @@ store(enum filetype ftype, char *fn, unsigned char *content, off_t content_len,
 			err(1, "mkpathat %s", mftdir);
 	}
 
-	/*
-	 * XXX: here we should use the actual SIA Signed instead of name
-	 * through argv.
-	 */
 	free(tmppath);
 	tmppath = NULL;
-	if (asprintf(&tmppath, "mft/%s", fn) == -1)
+	if (asprintf(&tmppath, "mft/%s", sia) == -1)
 		err(1, "asprintf");
 
 	memset(&st, 0, sizeof(st));
@@ -576,7 +684,7 @@ main(int argc, char *argv[])
 			noop = 1;
 			break;
 		case 'V':
-			printf("version 1.5\n");
+			printf("version 1.6\n");
 			exit(0);
 		case 'v':
 			verbose = 1;
@@ -600,7 +708,7 @@ main(int argc, char *argv[])
 	}
 
 	for (rc = 0; *argv; ++argv) {
-		char *fn;
+		char *fn, *sia = NULL;
 		size_t fnsz;
 		size_t content_len;
 		time_t otime, time;
@@ -638,7 +746,9 @@ main(int argc, char *argv[])
 		case TYPE_ROA:
 		case TYPE_SPL:
 		case TYPE_TAK:
-			time = get_cms_signtime(fn, content, content_len);
+			if (parse_signed_object(fn, content, content_len,
+			    &time, &sia))
+				rc = 1;
 			break;
 		case TYPE_TAL:
 			continue;
@@ -660,11 +770,12 @@ main(int argc, char *argv[])
 		}
 
 		if (outdir != NULL) {
-			if (store(ftype, fn, content, content_len, time) != 0)
+			if (store(ftype, fn, sia, content, content_len, time) != 0)
 				err(1, "failed to store %s", fn);
 		}
 
 		free(content);
+		free(sia);
 	}
 
 	return rc;
