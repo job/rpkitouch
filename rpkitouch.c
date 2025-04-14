@@ -711,7 +711,7 @@ main(int argc, char *argv[])
 		char *fn, *sia = NULL;
 		size_t fnsz;
 		size_t content_len;
-		time_t otime, time;
+		time_t otime, time = 0;
 		enum filetype ftype;
 		unsigned char *content = NULL;
 
