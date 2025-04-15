@@ -216,8 +216,8 @@ x509_get_sia(X509 *x, char **out_sia)
 		ad = sk_ACCESS_DESCRIPTION_value(info, i);
 
 		/*
-		 * Ignore rpkiNotify accessMethods.
-		 * See also https://www.rfc-editor.org/errata/eid7239.
+		 * Ignore and skip rpkiNotify accessMethods.
+		 * See https://www.rfc-editor.org/errata/eid7239.
 		 */
 		oid = ad->method;
 		if (OBJ_cmp(oid, notify_oid) == 0)
@@ -230,7 +230,6 @@ x509_get_sia(X509 *x, char **out_sia)
 			goto out;
 
 		uri = ad->location->d.uniformResourceIdentifier;
-
 
 		if (uri->length > MAX_URI_LENGTH)
 			goto out;
