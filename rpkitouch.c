@@ -244,13 +244,13 @@ x509_get_sia(X509 *x, char **out_sia)
 				goto out;
 		}
 
-		if (strstr(uri->data, "/.") != NULL)
+		if (strstr((char *)uri->data, "/.") != NULL)
 			goto out;
 
-		if (strncasecmp(uri->data, RSYNC_PROTO, RSYNC_PROTO_LEN) != 0)
+		if (strncasecmp((char *)uri->data, RSYNC_PROTO, RSYNC_PROTO_LEN) != 0)
 			goto out;
 
-		if ((*out_sia = strndup(uri->data + RSYNC_PROTO_LEN,
+		if ((*out_sia = strndup((char *)uri->data + RSYNC_PROTO_LEN,
 		    uri->length)) == NULL)
 			err(1, NULL);
 	}
@@ -608,7 +608,7 @@ store(enum filetype ftype, char *fn, char *sia, unsigned char *content,
 
 		if (verbose) {
 			delay = time(NULL) - mtime;
-			printf("%s %s %lld (%lld)\n", fn, path,
+			warnx("%s %s %lld (%lld)", fn, path,
 			    (long long)mtime, (long long)delay);
 		}
 	}
@@ -648,9 +648,11 @@ store(enum filetype ftype, char *fn, char *sia, unsigned char *content,
 
 		if (verbose) {
 			delay = time(NULL) - mtime;
-			printf("%s %lld (%lld)\n", tmppath, (long long)mtime,
+			warnx("%s %lld (%lld)", tmppath, (long long)mtime,
 			    (long long)delay);
 		}
+	} else {
+		printf("%s\n", tmppath);
 	}
 
  out:
@@ -762,7 +764,7 @@ main(int argc, char *argv[])
 			if (set_mtime(AT_FDCWD, fn, time))
 				rc = 1;
 			if (verbose)
-				printf("%s %lld -> %lld\n", fn,
+				warnx("%s %lld -> %lld", fn,
 				    (long long)otime, (long long)time);
 		}
 
