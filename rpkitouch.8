@@ -21,7 +21,7 @@
 .Nd set file modification times to internal RPKI timestamps
 .Sh SYNOPSIS
 .Nm rpkitouch
-.Op Fl hnVv
+.Op Fl hnpVv
 .Op Fl d Ar directory
 .Ar
 .Sh DESCRIPTION
@@ -116,6 +116,10 @@ and
 to see what
 .Nm
 would change.
+.It Fl p
+Print a hexadecimal representation of the object's bucket, SHA-256 message
+digest, the CMS signing-time as seconds from the Epoch, and the object's
+SubjectInfoAccess.
 .It Fl V
 Display the version number and exit.
 .It Fl v

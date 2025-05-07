@@ -37,9 +37,10 @@
 #include <openssl/cms.h>
 #include <openssl/sha.h>
 
-int noop;
+int noop = 0;
+int print = 0;
 int outdirfd;
-int verbose;
+int verbose =0;
 
 #define MAX_URI_LENGTH 2048
 #define RSYNC_PROTO "rsync://"
@@ -93,6 +94,25 @@ setup_oids(void) {
 		errx(1, "OBJ_txt2obj for %s failed", "1.2.840.113549.1.9.5");
 	if ((signedobj_oid = OBJ_txt2obj("1.3.6.1.5.5.7.48.11", 1)) == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "1.3.6.1.5.5.7.48.11");
+}
+
+static char *
+hex_encode(const unsigned char *in, size_t insz)
+{
+	const char hex[] = "0123456789ABCDEF";
+	size_t i;
+	char *out;
+
+	if ((out = calloc(2, insz + 1)) == NULL)
+		err(1, NULL);
+
+	for (i = 0; i < insz; i++) {
+		out[i * 2] = hex[in[i] >> 4];
+		out[i * 2 + 1] = hex[in[i] & 0xf];
+	}
+	out[i * 2] = '\0';
+
+	return out;
 }
 
 static unsigned char *
@@ -672,7 +692,7 @@ main(int argc, char *argv[])
 	size_t i;
 	char *outdir = NULL;
 
-	while ((c = getopt(argc, argv, "d:hNnVv")) != -1)
+	while ((c = getopt(argc, argv, "d:hNnpVv")) != -1)
 		switch (c) {
 		case 'd':
 			outdir = optarg;
@@ -681,6 +701,9 @@ main(int argc, char *argv[])
 			break;
 		case 'n':
 			noop = 1;
+			break;
+		case 'p':
+			print = 1;
 			break;
 		case 'V':
 			printf("version 1.6\n");
@@ -757,8 +780,23 @@ main(int argc, char *argv[])
 			continue;
 		}
 
+		if (print) {
+			unsigned char md[SHA256_DIGEST_LENGTH];
+			char *h;
+
+			SHA256(content, content_len, md);
+
+			h = hex_encode(md, SHA256_DIGEST_LENGTH);
+
+			printf("%c%c %s %lld %s\n", h[0], h[1], h,
+			    (long long)time, sia);
+
+			free(h);
+			goto cleanup;
+		}
+
 		if (time == 0)
-			continue;
+			goto cleanup;
 
 		if (otime != time && outdir == NULL) {
 			if (set_mtime(AT_FDCWD, fn, time))
@@ -773,6 +811,7 @@ main(int argc, char *argv[])
 				err(1, "failed to store %s", fn);
 		}
 
+ cleanup:
 		free(content);
 		free(sia);
 	}
@@ -783,6 +822,6 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	fprintf(stderr, "usage: rpkitouch [-hnVv] [-d directory] file ...\n");
+	fprintf(stderr, "usage: rpkitouch [-hnpVv] [-d directory] file ...\n");
 	exit(1);
 }

@@ -7,7 +7,7 @@ RPKITOUCH(8) - System Manager's Manual
 # SYNOPSIS
 
 **rpkitouch**
-\[**-hnVv**]
+\[**-hnpVv**]
 \[**-d**&nbsp;*directory*]
 *file&nbsp;...*
 
@@ -110,6 +110,12 @@ The options are as follows:
 > **rpkitouch**
 > would change.
 
+**-p**
+
+> Print a hexadecimal representation of the object's bucket, SHA-256 message
+> digest, the CMS signing-time as seconds from the Epoch, and the object's
+> SubjectInfoAccess.
+
 **-V**
 
 > Display the version number and exit.
@@ -185,4 +191,4 @@ with the Base64 encoded SHA-256 message digest as its target file name.
 
 Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
 
-OpenBSD 7.7 - April 10, 2025
+OpenBSD 7.7 - May 7, 2025
