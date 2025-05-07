@@ -782,15 +782,24 @@ main(int argc, char *argv[])
 
 		if (print) {
 			unsigned char md[SHA256_DIGEST_LENGTH];
-			char *h;
+			unsigned char *b;
+			char *h, *fqdn, *path;
 
 			SHA256(content, content_len, md);
 
+			if (b64uri_encode(md, SHA256_DIGEST_LENGTH, &b) != 0)
+				err(1, "b64uri_encode");
+
 			h = hex_encode(md, SHA256_DIGEST_LENGTH);
+			fqdn = sia;
+			path = strchr(sia, '/');
+			path[0] = '\0';
 
-			printf("%c%c %s %lld %s\n", h[0], h[1], h,
-			    (long long)time, sia);
+			printf("%s_%c%c %c%c/%c%c/%s.mft %lld %s/%s\n", fqdn,
+			    h[0], h[1], b[0], b[1], b[2], b[3], b,
+			    (long long)time, fqdn, ++path);
 
+			free(b);
 			free(h);
 			goto cleanup;
 		}
