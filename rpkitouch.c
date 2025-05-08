@@ -58,6 +58,7 @@ enum filetype {
 	TYPE_TAK,	/* Trust Anchor Key */
 	TYPE_TAL,	/* Trust Anchor Locator */
 	TYPE_PART,	/* replication protocol partition */
+	TYPE_INDEX,	/* index of partitions */
 	TYPE_UNKNOWN,
 };
 
@@ -79,6 +80,7 @@ const struct {
 	{ .ext = ".tak", .type = TYPE_TAK },
 	{ .ext = ".tal", .type = TYPE_TAL },
 	{ .ext = ".par", .type = TYPE_PART },
+	{ .ext = ".idx", .type = TYPE_INDEX },
 };
 
 ASN1_OBJECT *notify_oid;
@@ -631,7 +633,7 @@ store(enum filetype ftype, char *fn, char *sia, unsigned char *content,
 		if (write_file(path, content, content_len, mtime) != 0)
 			errx(1, "write_file %s failed", path);
 
-		if (verbose && ftype != TYPE_PART) {
+		if (verbose && ftype != TYPE_PART && ftype != TYPE_INDEX) {
 			delay = time(NULL) - mtime;
 			warnx("%s %s %lld (%lld)", fn, path,
 			    (long long)mtime, (long long)delay);
@@ -780,6 +782,7 @@ main(int argc, char *argv[])
 			    &time, &sia))
 				rc = 1;
 			break;
+		case TYPE_INDEX:
 		case TYPE_PART:
 			break;
 		case TYPE_TAL:
@@ -802,10 +805,13 @@ main(int argc, char *argv[])
 			snprintf(sharddir, sizeof(sharddir), "%c%c/%c%c",
 			    b[0], b[1], b[2], b[3]);
 
-			part = strchr(fn, '_');
-			part++;
-
-			printf("%c%c %s/%s.par\n", part[0], part[1], sharddir, b);
+			if ((part = strchr(fn, '_')) != NULL) {
+				part++;
+				printf("%c%c %s/%s.par\n", part[0], part[1],
+				    sharddir, b);
+			} else {
+				printf("%s/%s.idx\n", sharddir, b);
+			}
 
 			if (outdir != NULL) {
 				if (store(ftype, fn, NULL, content,
