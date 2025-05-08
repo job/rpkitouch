@@ -38,6 +38,7 @@
 #include <openssl/sha.h>
 
 int noop = 0;
+int hashonly = 0;
 int partprint = 0;
 int print = 0;
 int outdirfd;
@@ -658,6 +659,9 @@ store(enum filetype ftype, char *fn, char *sia, unsigned char *content,
 			err(1, "set_atime %s", path);
 	}
 
+	if (hashonly)
+		goto out;
+
 	/*
 	 * Now also write Manifests into their named location (the SIA SignedObject).
 	 * Only overwrite if the on-disk copy is older.
@@ -721,6 +725,9 @@ main(int argc, char *argv[])
 		switch (c) {
 		case 'd':
 			outdir = optarg;
+			break;
+		case 'H':
+			hashonly = 1;
 			break;
 		case 'N': /* deprecated */
 			break;
@@ -896,6 +903,6 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	fprintf(stderr, "usage: rpkitouch [-hnpVv] [-d directory] file ...\n");
+	fprintf(stderr, "usage: rpkitouch [-HhnpVv] [-d directory] file ...\n");
 	exit(1);
 }

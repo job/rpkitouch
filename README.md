@@ -7,7 +7,7 @@ RPKITOUCH(8) - System Manager's Manual
 # SYNOPSIS
 
 **rpkitouch**
-\[**-hnpVv**]
+\[**-HhnpVv**]
 \[**-d**&nbsp;*directory*]
 *file&nbsp;...*
 
@@ -93,6 +93,13 @@ The options are as follows:
 > using a content-addressable file naming scheme.
 > To improve performance, existing files are only overwritten if the size or
 > last modification timestamp differ.
+
+**-H**
+
+> Only store objects by hash, don't write out a copy of Manifests by name of
+> their SIA.
+> Must be used with
+> **-d**.
 
 **-h**
 
@@ -191,4 +198,4 @@ with the Base64 encoded SHA-256 message digest as its target file name.
 
 Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
 
-OpenBSD 7.7 - May 7, 2025
+OpenBSD 7.7 - May 8, 2025

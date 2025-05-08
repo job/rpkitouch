@@ -21,7 +21,7 @@
 .Nd set file modification times to internal RPKI timestamps
 .Sh SYNOPSIS
 .Nm rpkitouch
-.Op Fl hnpVv
+.Op Fl HhnpVv
 .Op Fl d Ar directory
 .Ar
 .Sh DESCRIPTION
@@ -104,6 +104,11 @@ and copy its contents to
 using a content-addressable file naming scheme.
 To improve performance, existing files are only overwritten if the size or
 last modification timestamp differ.
+.It Fl H
+Only store objects by hash, don't write out a copy of Manifests by name of
+their SIA.
+Must be used with
+.Fl d .
 .It Fl h
 Display usage.
 .It Fl n
