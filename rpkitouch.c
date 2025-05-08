@@ -38,6 +38,7 @@
 #include <openssl/sha.h>
 
 int noop = 0;
+int partprint = 0;
 int print = 0;
 int outdirfd;
 int verbose =0;
@@ -56,6 +57,7 @@ enum filetype {
 	TYPE_SPL,	/* Signed Prefix List */
 	TYPE_TAK,	/* Trust Anchor Key */
 	TYPE_TAL,	/* Trust Anchor Locator */
+	TYPE_PART,	/* replication protocol partition */
 	TYPE_UNKNOWN,
 };
 
@@ -76,6 +78,7 @@ const struct {
 	{ .ext = ".spl", .type = TYPE_SPL },
 	{ .ext = ".tak", .type = TYPE_TAK },
 	{ .ext = ".tal", .type = TYPE_TAL },
+	{ .ext = ".par", .type = TYPE_PART },
 };
 
 ASN1_OBJECT *notify_oid;
@@ -600,9 +603,11 @@ store(enum filetype ftype, char *fn, char *sia, unsigned char *content,
 			    cfn, ext_tab[i].ext) == -1) {
 				err(1, "asprintf");
 			}
-			if (asprintf(&mfttmppath, "mft/%s/.%s%s.XXXXXXXXXX",
-			    cpath, cfn, ext_tab[i].ext) == -1) {
-				err(1, "asprintf");
+			if (ftype == TYPE_MFT) {
+				if (asprintf(&mfttmppath, "mft/%s/.%s%s.XXXXXXXXXX",
+				    cpath, cfn, ext_tab[i].ext) == -1) {
+					err(1, "asprintf");
+				}
 			}
 			break;
 		}
@@ -626,7 +631,7 @@ store(enum filetype ftype, char *fn, char *sia, unsigned char *content,
 		if (write_file(path, content, content_len, mtime) != 0)
 			errx(1, "write_file %s failed", path);
 
-		if (verbose) {
+		if (verbose && ftype != TYPE_PART) {
 			delay = time(NULL) - mtime;
 			warnx("%s %s %lld (%lld)", fn, path,
 			    (long long)mtime, (long long)delay);
@@ -692,7 +697,7 @@ main(int argc, char *argv[])
 	size_t i;
 	char *outdir = NULL;
 
-	while ((c = getopt(argc, argv, "d:hNnpVv")) != -1)
+	while ((c = getopt(argc, argv, "d:hNnpPVv")) != -1)
 		switch (c) {
 		case 'd':
 			outdir = optarg;
@@ -704,6 +709,9 @@ main(int argc, char *argv[])
 			break;
 		case 'p':
 			print = 1;
+			break;
+		case 'P':
+			partprint = 1;
 			break;
 		case 'V':
 			printf("version 1.6\n");
@@ -772,12 +780,42 @@ main(int argc, char *argv[])
 			    &time, &sia))
 				rc = 1;
 			break;
+		case TYPE_PART:
+			break;
 		case TYPE_TAL:
 			continue;
 		default:
 			warnx("%s: unsupported file", fn);
 			rc = 1;
 			continue;
+		}
+
+		if (partprint) {
+			unsigned char md[SHA256_DIGEST_LENGTH];
+			unsigned char *b;
+			char sharddir[6], *dest = NULL, *part;
+
+			SHA256(content, content_len, md);
+			if (b64uri_encode(md, SHA256_DIGEST_LENGTH, &b) != 0)
+				err(1, "b64uri_encode");
+
+			snprintf(sharddir, sizeof(sharddir), "%c%c/%c%c",
+			    b[0], b[1], b[2], b[3]);
+
+			part = strchr(fn, '_');
+			part++;
+
+			printf("%c%c %s/%s.par\n", part[0], part[1], sharddir, b);
+
+			if (outdir != NULL) {
+				if (store(ftype, fn, NULL, content,
+				    content_len, UTIME_NOW) != 0)
+					err(1, "failed to store %s", fn);
+			}
+
+			free(dest);
+			free(b);
+			goto cleanup;
 		}
 
 		if (print) {
