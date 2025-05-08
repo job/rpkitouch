@@ -721,7 +721,7 @@ main(int argc, char *argv[])
 	size_t i;
 	char *outdir = NULL;
 
-	while ((c = getopt(argc, argv, "d:hNnpPVv")) != -1)
+	while ((c = getopt(argc, argv, "d:HhNnpPVv")) != -1)
 		switch (c) {
 		case 'd':
 			outdir = optarg;
