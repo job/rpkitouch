@@ -452,6 +452,21 @@ get_crl_thisupdate(const char *fn, unsigned char *content, size_t len)
 	return time;
 }
 
+static int
+set_atime(int fd, const char *fn)
+{
+	struct timespec ts[2];
+
+	ts[0].tv_nsec = UTIME_NOW;
+	ts[1].tv_nsec = UTIME_OMIT;
+
+	if (utimensat(fd, fn, ts, 0) == -1) {
+		warn("%s: utimensat failed", fn);
+		return -1;
+	}
+
+	return 0;
+}
 
 static int
 set_mtime(int fd, const char *fn, time_t mtime)
@@ -461,7 +476,7 @@ set_mtime(int fd, const char *fn, time_t mtime)
 	if (noop)
 		return 0;
 
-	ts[0].tv_nsec = UTIME_OMIT;
+	ts[0].tv_nsec = UTIME_NOW;
 	ts[1].tv_sec = mtime;
 	ts[1].tv_nsec = 0;
 
@@ -638,6 +653,9 @@ store(enum filetype ftype, char *fn, char *sia, unsigned char *content,
 			warnx("%s %s %lld (%lld)", fn, path,
 			    (long long)mtime, (long long)delay);
 		}
+	} else {
+		if (set_atime(outdirfd, path))
+			err(1, "set_atime %s", path);
 	}
 
 	/*
@@ -857,6 +875,9 @@ main(int argc, char *argv[])
 			if (verbose)
 				warnx("%s %lld -> %lld", fn,
 				    (long long)otime, (long long)time);
+		} else {
+			if (set_atime(AT_FDCWD, fn))
+				rc = 1;
 		}
 
 		if (outdir != NULL) {
