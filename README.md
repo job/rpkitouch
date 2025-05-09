@@ -84,6 +84,10 @@ Files may not contain trailing data beyond the internal length markers.
 
 The options are as follows:
 
+**-c**
+
+> Print the object's content-addressable storage path name.
+
 **-d** *directory*
 
 > Calculate the SHA-256 message digest for
@@ -198,4 +202,4 @@ with the Base64 encoded SHA-256 message digest as its target file name.
 
 Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
 
-OpenBSD 7.7 - May 8, 2025
+OpenBSD 7.7 - May 9, 2025

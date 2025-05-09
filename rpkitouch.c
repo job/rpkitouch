@@ -37,6 +37,7 @@
 #include <openssl/cms.h>
 #include <openssl/sha.h>
 
+int casprint = 0;
 int noop = 0;
 int hashonly = 0;
 int partprint = 0;
@@ -721,8 +722,11 @@ main(int argc, char *argv[])
 	size_t i;
 	char *outdir = NULL;
 
-	while ((c = getopt(argc, argv, "d:HhNnpPVv")) != -1)
+	while ((c = getopt(argc, argv, "cd:HhNnpPVv")) != -1)
 		switch (c) {
+		case 'c':
+			casprint = 1;
+			break;
 		case 'd':
 			outdir = optarg;
 			break;
@@ -755,6 +759,13 @@ main(int argc, char *argv[])
 	argv += optind;
 
 	if (*argv == NULL)
+		usage();
+
+	if (casprint && partprint)
+		usage();
+	if (casprint && print)
+		usage();
+	if (partprint && print)
 		usage();
 
 	setup_oids();
@@ -790,6 +801,24 @@ main(int argc, char *argv[])
 		if ((content = load_file(fn, &content_len, &otime)) == NULL)
 			continue;
 
+		if (casprint) {
+			unsigned char md[SHA256_DIGEST_LENGTH];
+			unsigned char *b;
+			char sharddir[6];
+
+			SHA256(content, content_len, md);
+			if (b64uri_encode(md, SHA256_DIGEST_LENGTH, &b) != 0)
+				err(1, "b64uri_encode");
+
+			snprintf(sharddir, sizeof(sharddir), "%c%c/%c%c",
+			    b[0], b[1], b[2], b[3]);
+
+			printf("%s/%s%s\n", sharddir, b, fn + fnsz - 4);
+
+			free(b);
+			goto cleanup;
+		}
+
 		switch (ftype) {
 		case TYPE_CER:
 			time = get_cert_notbefore(fn, content, content_len);
@@ -818,7 +847,7 @@ main(int argc, char *argv[])
 			continue;
 		}
 
-		if (partprint) {
+		if (partprint && (ftype == TYPE_PART || ftype == TYPE_INDEX)) {
 			unsigned char md[SHA256_DIGEST_LENGTH];
 			unsigned char *b;
 			char sharddir[6], *dest = NULL, *part;
@@ -860,13 +889,17 @@ main(int argc, char *argv[])
 				err(1, "b64uri_encode");
 
 			h = hex_encode(md, SHA256_DIGEST_LENGTH);
-			fqdn = sia;
-			path = strchr(sia, '/');
-			path[0] = '\0';
 
-			printf("%s_%c%c %c%c/%c%c/%s.mft %lld %s/%s\n", fqdn,
-			    h[0], h[1], b[0], b[1], b[2], b[3], b,
-			    (long long)time, fqdn, ++path);
+			if (sia != NULL) {
+				fqdn = sia;
+				if ((path = strchr(sia, '/')) == NULL)
+					goto cleanup;
+				path[0] = '\0';
+
+				printf("%s_%c%c %c%c/%c%c/%s.mft %lld %s/%s\n", fqdn,
+				    h[0], h[1], b[0], b[1], b[2], b[3], b,
+				    (long long)time, fqdn, ++path);
+			}
 
 			free(b);
 			free(h);
@@ -903,6 +936,7 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	fprintf(stderr, "usage: rpkitouch [-HhnpVv] [-d directory] file ...\n");
+	fprintf(stderr, "usage: rpkitouch [-cHhnpVv] [-d directory] file "
+	    "...\n");
 	exit(1);
 }
