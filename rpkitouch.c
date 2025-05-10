@@ -859,7 +859,7 @@ main(int argc, char *argv[])
 			snprintf(sharddir, sizeof(sharddir), "%c%c/%c%c",
 			    b[0], b[1], b[2], b[3]);
 
-			if ((part = strchr(fn, '_')) != NULL) {
+			if ((part = strchr(fn, '@')) != NULL) {
 				part++;
 				printf("%c%c %s/%s.par\n", part[0], part[1],
 				    sharddir, b);
@@ -896,7 +896,7 @@ main(int argc, char *argv[])
 					goto cleanup;
 				path[0] = '\0';
 
-				printf("%s_%c%c %c%c/%c%c/%s.mft %lld %s/%s\n", fqdn,
+				printf("%s@%c%c %c%c/%c%c/%s.mft %lld %s/%s\n", fqdn,
 				    h[0], h[1], b[0], b[1], b[2], b[3], b,
 				    (long long)time, fqdn, ++path);
 			}
