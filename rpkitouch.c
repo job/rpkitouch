@@ -881,7 +881,7 @@ main(int argc, char *argv[])
 		if (print) {
 			unsigned char md[SHA256_DIGEST_LENGTH];
 			unsigned char *b;
-			char *h, *fqdnmod, *module, *path;
+			char *h, *fqdn, *path;
 
 			SHA256(content, content_len, md);
 
@@ -891,16 +891,14 @@ main(int argc, char *argv[])
 			h = hex_encode(md, SHA256_DIGEST_LENGTH);
 
 			if (sia != NULL) {
-				fqdnmod = sia;
-				if ((module = strchr(sia, '/')) == NULL)
-					goto cleanup;
-				if ((path = strchr(module + 1, '/')) == NULL)
+				fqdn = sia;
+				if ((path = strchr(sia, '/')) == NULL)
 					goto cleanup;
 				path[0] = '\0';
 
-				printf("%s@%c%c %c%c/%c%c/%s.mft %lld %s/%s\n", fqdnmod,
+				printf("%s@%c%c %c%c/%c%c/%s.mft %lld %s/%s\n", fqdn,
 				    h[0], h[1], b[0], b[1], b[2], b[3], b,
-				    (long long)time, fqdnmod, ++path);
+				    (long long)time, fqdn, ++path);
 			}
 
 			free(b);
