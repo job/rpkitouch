@@ -34,7 +34,9 @@
 #include <unistd.h>
 
 #include <openssl/asn1.h>
+#include <openssl/asn1t.h>
 #include <openssl/cms.h>
+#include <openssl/safestack.h>
 #include <openssl/sha.h>
 
 int casprint = 0;
@@ -45,6 +47,7 @@ int print = 0;
 int outdirfd;
 int verbose =0;
 
+#define GENTIME_LENGTH 15
 #define MAX_URI_LENGTH 2048
 #define RSYNC_PROTO "rsync://"
 #define RSYNC_PROTO_LEN (sizeof(RSYNC_PROTO) - 1)
@@ -88,6 +91,28 @@ const struct {
 ASN1_OBJECT *notify_oid;
 ASN1_OBJECT *sign_time_oid;
 ASN1_OBJECT *signedobj_oid;
+ASN1_OBJECT *manifest_oid;
+
+typedef struct {
+	ASN1_INTEGER *version;
+	ASN1_INTEGER *manifestNumber;
+	ASN1_GENERALIZEDTIME *thisUpdate;
+	ASN1_GENERALIZEDTIME *nextUpdate;
+	ASN1_OBJECT *fileHashAlg;
+	STACK_OF(ASN1_SEQUENCE) *fileList;
+} Manifest;
+
+ASN1_SEQUENCE(Manifest) = {
+	ASN1_EXP_OPT(Manifest, version, ASN1_INTEGER, 0),
+	ASN1_SIMPLE(Manifest, manifestNumber, ASN1_INTEGER),
+	ASN1_SIMPLE(Manifest, thisUpdate, ASN1_GENERALIZEDTIME),
+	ASN1_SIMPLE(Manifest, nextUpdate, ASN1_GENERALIZEDTIME),
+	ASN1_SIMPLE(Manifest, fileHashAlg, ASN1_OBJECT),
+	ASN1_SEQUENCE_OF(Manifest, fileList, ASN1_SEQUENCE),
+} ASN1_SEQUENCE_END(Manifest);
+
+DECLARE_ASN1_FUNCTIONS(Manifest);
+IMPLEMENT_ASN1_FUNCTIONS(Manifest);
 
 int mkpathat(int, const char *);
 int mkstempat(int, char *);
@@ -101,6 +126,10 @@ setup_oids(void) {
 		errx(1, "OBJ_txt2obj for %s failed", "1.2.840.113549.1.9.5");
 	if ((signedobj_oid = OBJ_txt2obj("1.3.6.1.5.5.7.48.11", 1)) == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "1.3.6.1.5.5.7.48.11");
+	if ((manifest_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.26", 1))
+	    == NULL)
+		errx(1, "OBJ_txt2obj for %s failed",
+		    "1.2.840.113549.1.9.16.1.26");
 }
 
 static char *
@@ -274,7 +303,8 @@ x509_get_sia(X509 *x, char **out_sia)
 		if (strstr((char *)uri->data, "/.") != NULL)
 			goto out;
 
-		if (strncasecmp((char *)uri->data, RSYNC_PROTO, RSYNC_PROTO_LEN) != 0)
+		if (strncasecmp((char *)uri->data, RSYNC_PROTO,
+		    RSYNC_PROTO_LEN) != 0)
 			goto out;
 
 		if ((*out_sia = strndup((char *)uri->data + RSYNC_PROTO_LEN,
@@ -292,13 +322,16 @@ x509_get_sia(X509 *x, char **out_sia)
 	return rc;
 }
 
+#define POSTACTION_EXPIRED	0x01
+#define POSTACTION_FAILURE	0x02
+
 /*
  * Extract CMS signing-time and the EE cert's SignedObject SIA.
- * Return 1 on failure.
+ * Return POSTACTION bitfield.
  */
 static int
 parse_signed_object(const char *fn, unsigned char *content, size_t len,
-time_t *out_signtime, char **out_sia)
+    time_t *out_signtime, char **out_sia)
 {
 	CMS_ContentInfo *cms = NULL;
 	STACK_OF(CMS_SignerInfo) *sinfos;
@@ -308,8 +341,10 @@ time_t *out_signtime, char **out_sia)
 	char *sia = NULL;
 	const ASN1_OBJECT *obj;
 	const unsigned char *der, *oder;
-	int i, has_st = 0, nattrs, rc = 1;
-	time_t time = 0;
+	int i, has_st = 0, nattrs, rc = 0;
+	time_t signtime = 0;
+
+	rc |= POSTACTION_FAILURE;
 
 	oder = der = content;
 	if ((cms = d2i_CMS_ContentInfo(NULL, &der, len)) == NULL) {
@@ -365,9 +400,9 @@ time_t *out_signtime, char **out_sia)
 				warnx("%s: duplicate signing-time attr", fn);
 				goto out;
 			}
-			if (!cms_get_signtime_attr(fn, attr, &time))
+			if (!cms_get_signtime_attr(fn, attr, &signtime))
 				goto out;
-			*out_signtime = time;
+			*out_signtime = signtime;
 			break;
 		}
 	}
@@ -377,16 +412,212 @@ time_t *out_signtime, char **out_sia)
 		goto out;
 	x = sk_X509_value(certs, 0);
 
+	if (X509_check_purpose(x, -1, 0) <= 0) {
+		warnx("%s: could not cache X509v3 extensions", fn);
+		goto out;
+	}
+
 	if (x509_get_sia(x, &sia) != 1)
 		goto out;
 	*out_sia = sia;
 
-	rc = 0;
+	rc &= ~POSTACTION_FAILURE;
  out:
 	sk_X509_free(certs);
 	CMS_ContentInfo_free(cms);
 	return rc;
 }
+
+static char *
+mft_convert_seqnum(const ASN1_INTEGER *i)
+{
+	BIGNUM *bn = NULL;
+	char *s = NULL;
+
+	if (i == NULL)
+		goto out;
+
+	if ((bn = ASN1_INTEGER_to_BN(i, NULL)) == NULL)
+		goto out;
+
+	if (BN_is_negative(bn))
+		goto out;
+
+	if (BN_num_bytes(bn) > 20 || BN_is_bit_set(bn, 159))
+		goto out;
+
+	if ((s = BN_bn2hex(bn)) == NULL)
+		goto out;
+
+ out:
+	BN_free(bn);
+	return s;
+}
+
+/*
+ * Extract the Manifest signing-time and the EE cert's SignedObject SIA.
+ * Return POSTACTION bitfield.
+ */
+static int
+parse_manifest(const char *fn, unsigned char *content, size_t len,
+    time_t *out_signtime, char **out_sia, char **out_seqnum)
+{
+	CMS_ContentInfo *cms = NULL;
+	STACK_OF(CMS_SignerInfo) *sinfos;
+	CMS_SignerInfo *si;
+	STACK_OF(X509) *certs = NULL;
+	X509 *x;
+	const ASN1_TIME *at;
+	char *sia = NULL, *seqnum = NULL;
+	const ASN1_OBJECT *obj;
+	const unsigned char *der, *oder;
+	int i, has_st = 0, nattrs, ret = POSTACTION_FAILURE;
+	time_t now, signtime = 0, expiry = 0;
+	ASN1_OCTET_STRING **os = NULL;
+	unsigned char *econtent_der = NULL;
+	const unsigned char *p;
+	size_t econtent_der_len;
+	Manifest *mft = NULL;
+
+	oder = der = content;
+	if ((cms = d2i_CMS_ContentInfo(NULL, &der, len)) == NULL) {
+		warnx("%s: d2i_CMS_ContentInfo failed", fn);
+		goto out;
+	}
+	if (der != oder + len) {
+		warnx("%s: %td bytes trailing garbage", fn, oder + len - der);
+		goto out;
+	}
+
+	if (!CMS_verify(cms, NULL, NULL, NULL, NULL,
+	    CMS_NO_SIGNER_CERT_VERIFY)) {
+		warnx("%s: CMS_verify failed", fn);
+		goto out;
+	}
+
+	if ((sinfos = CMS_get0_SignerInfos(cms)) == NULL) {
+		if ((obj = CMS_get0_type(cms)) == NULL) {
+			warnx("%s: RFC 6488: missing content-type", fn);
+			goto out;
+		}
+		warnx("%s: RFC 6488: no signerInfo in CMS object", fn);
+		goto out;
+	}
+
+	if (sk_CMS_SignerInfo_num(sinfos) != 1) {
+		warnx("%s: multiple signerInfos", fn);
+		goto out;
+	}
+	si = sk_CMS_SignerInfo_value(sinfos, 0);
+
+	nattrs = CMS_signed_get_attr_count(si);
+	if (nattrs <= 0) {
+		warnx("%s: CMS_signed_get_attr_count failed", fn);
+		goto out;
+	}
+	for (i = 0; i < nattrs; i++) {
+		X509_ATTRIBUTE *attr;
+
+		attr = CMS_signed_get_attr(si, i);
+		if (attr == NULL || X509_ATTRIBUTE_count(attr) != 1) {
+			warnx("%s: bad signed attribute encoding", fn);
+			goto out;
+		}
+
+		if ((obj = X509_ATTRIBUTE_get0_object(attr)) == NULL) {
+			warnx("%s: bad signed object", fn);
+			goto out;
+		}
+		if (OBJ_cmp(obj, sign_time_oid) == 0) {
+			if (has_st++ != 0) {
+				warnx("%s: duplicate signing-time attr", fn);
+				goto out;
+			}
+			if (!cms_get_signtime_attr(fn, attr, &signtime))
+				goto out;
+			*out_signtime = signtime;
+			break;
+		}
+	}
+
+	certs = CMS_get0_signers(cms);
+	if (certs == NULL || sk_X509_num(certs) != 1)
+		goto out;
+	x = sk_X509_value(certs, 0);
+
+	if (X509_check_purpose(x, -1, 0) <= 0) {
+		warnx("%s: could not cache X509v3 extensions", fn);
+		goto out;
+	}
+
+	if ((at = X509_get0_notAfter(x)) == NULL) {
+		warnx("%s: X509_get0_notAfter failed", fn);
+		goto out;
+	}
+
+	if (!asn1time_to_time(at, &expiry)) {
+		warnx("%s: failed to convert ASN1_TIME", fn);
+		goto out;
+	}
+
+	now = time(NULL);
+	if (expiry < now)
+		ret |= POSTACTION_EXPIRED;
+
+	if (x509_get_sia(x, &sia) != 1)
+		goto out;
+	*out_sia = sia;
+
+	obj = CMS_get0_eContentType(cms);
+	if (obj == NULL) {
+		warnx("%s: eContentType is NULL", fn);
+		goto out;
+	}
+	if (OBJ_cmp(obj, manifest_oid) != 0) {
+		char buf[128], obuf[128];
+
+		OBJ_obj2txt(buf, sizeof(buf), obj, 1);
+		OBJ_obj2txt(obuf, sizeof(obuf), manifest_oid, 1);
+		warnx("%s: eContentType: unknown OID: %s, want %s", fn, buf,
+		    obuf);
+		goto out;
+	}
+
+	if ((os = CMS_get0_content(cms)) == NULL || *os == NULL) {
+		warnx("%s: CMS_get0_content failed", fn);
+		goto out;
+	}
+
+	econtent_der_len = (*os)->length;
+	if ((econtent_der = malloc(econtent_der_len)) == NULL)
+		err(1, NULL);
+	memcpy(econtent_der, (*os)->data, econtent_der_len);
+
+	p = econtent_der;
+	if ((mft = d2i_Manifest(NULL, &p, econtent_der_len)) == NULL) {
+		warnx("%s: parsing eContent failed", fn);
+		goto out;
+	}
+	if (p != econtent_der + econtent_der_len) {
+		warnx("%s: bytes trailing in eContent", fn);
+		goto out;
+	}
+
+	if ((seqnum = mft_convert_seqnum(mft->manifestNumber)) == NULL) {
+		warnx("%s: manifestNumber conversion failure", fn);
+		goto out;
+	}
+	*out_seqnum = seqnum;
+
+	ret &= ~POSTACTION_FAILURE;
+ out:
+	free(econtent_der);
+	Manifest_free(mft);
+	sk_X509_free(certs);
+	CMS_ContentInfo_free(cms);
+	return ret;
+}
+
 
 static time_t
 get_cert_notbefore(const char *fn, unsigned char *content, size_t len)
@@ -403,6 +634,11 @@ get_cert_notbefore(const char *fn, unsigned char *content, size_t len)
 	}
 	if (der != oder + len) {
 		warnx("%s: %td bytes trailing garbage", fn, oder + len - der);
+		goto out;
+	}
+
+	if (X509_check_purpose(x, -1, 0) <= 0) {
+		warnx("%s: could not cache X509v3 extensions", fn);
 		goto out;
 	}
 
@@ -454,40 +690,35 @@ get_crl_thisupdate(const char *fn, unsigned char *content, size_t len)
 	return time;
 }
 
-static int
+static void
 set_atime(int fd, const char *fn)
 {
 	struct timespec ts[2];
 
+	if (noop)
+		return;
+
 	ts[0].tv_nsec = UTIME_NOW;
 	ts[1].tv_nsec = UTIME_OMIT;
 
-	if (utimensat(fd, fn, ts, 0) == -1) {
-		warn("%s: utimensat failed", fn);
-		return -1;
-	}
-
-	return 0;
+	if (utimensat(fd, fn, ts, 0) == -1)
+		err(1, "utimensat %s", fn);
 }
 
-static int
+static void
 set_mtime(int fd, const char *fn, time_t mtime)
 {
 	struct timespec ts[2];
 
 	if (noop)
-		return 0;
+		return;
 
 	ts[0].tv_nsec = UTIME_NOW;
 	ts[1].tv_sec = mtime;
 	ts[1].tv_nsec = 0;
 
-	if (utimensat(fd, fn, ts, 0) == -1) {
-		warn("%s: utimensat failed", fn);
-		return -1;
-	}
-
-	return 0;
+	if (utimensat(fd, fn, ts, 0) == -1)
+		err(1, "utimensat %s", fn);
 }
 
 /*
@@ -528,17 +759,16 @@ b64uri_encode(const unsigned char *in, size_t inlen, unsigned char **out)
 
 /*
  * Write content to a temp file and then atomically move it into place.
- * Return 0 on success.
  */
-static int
+static void
 write_file(char *path, unsigned char *content, off_t content_len, time_t mtime)
 {
 	char *dir, *dn, *file, *bn, *tmpbn;
 	struct timespec ts[2];
-	int fd, rc = 1;
+	int fd;
 
 	if (noop)
-		return 0;
+		return;
 
 	if ((dir = strdup(path)) == NULL)
 		err(1, "strdup");
@@ -571,23 +801,17 @@ write_file(char *path, unsigned char *content, off_t content_len, time_t mtime)
 	if (futimens(fd, ts))
 		err(1, "futimens %s/%s", dn, tmpbn);
 
-	if (close(fd) != 0) {
-		warnx("close failed %s/%s", dn, tmpbn);
-		goto out;
-	}
+	if (close(fd) != 0)
+		err(1, "close failed %s/%s", dn, tmpbn);
 
 	if (renameat(outdirfd, tmpbn, outdirfd, path) == -1) {
-		warnx("%s: rename to %s failed", tmpbn, path);
 		unlink(tmpbn);
-		goto out;
+		err(1, "%s: rename to %s failed", tmpbn, path);
 	}
 
-	rc = 0;
- out:
 	free(dir);
 	free(file);
 	free(tmpbn);
-	return rc;
 }
 
 static int
@@ -623,8 +847,9 @@ store(enum filetype ftype, char *fn, char *sia, unsigned char *content,
 				err(1, "asprintf");
 			}
 			if (ftype == TYPE_MFT) {
-				if (asprintf(&mfttmppath, "mft/%s/.%s%s.XXXXXXXXXX",
-				    cpath, cfn, ext_tab[i].ext) == -1) {
+				if (asprintf(&mfttmppath,
+				    "mft/%s/.%s%s.XXXXXXXXXX", cpath, cfn,
+				    ext_tab[i].ext) == -1) {
 					err(1, "asprintf");
 				}
 			}
@@ -647,24 +872,22 @@ store(enum filetype ftype, char *fn, char *sia, unsigned char *content,
 	 * last data modification timestamp.
 	 */
 	if (st.st_size != content_len || st.st_mtim.tv_sec != mtime) {
-		if (write_file(path, content, content_len, mtime) != 0)
-			errx(1, "write_file %s failed", path);
+		write_file(path, content, content_len, mtime);
 
 		if (verbose && ftype != TYPE_PART && ftype != TYPE_INDEX) {
 			delay = time(NULL) - mtime;
 			warnx("%s %s %lld (%lld)", fn, path,
 			    (long long)mtime, (long long)delay);
 		}
-	} else {
-		if (set_atime(outdirfd, path))
-			err(1, "set_atime %s", path);
-	}
+	} else
+		set_atime(outdirfd, path);
 
 	if (hashonly)
 		goto out;
 
 	/*
-	 * Now also write Manifests into their named location (the SIA SignedObject).
+	 * Now also write Manifests into their named location (using the
+	 * SIA SignedObject).
 	 * Only overwrite if the on-disk copy is older.
 	 */
 
@@ -673,6 +896,7 @@ store(enum filetype ftype, char *fn, char *sia, unsigned char *content,
 
 	if ((tfn = strdup(sia)) == NULL)
 		err(1, "strdup");
+
 	if (asprintf(&mftdir, "mft/%s", dirname(tfn)) == -1)
 		err(1, "asprintf");
 
@@ -693,16 +917,13 @@ store(enum filetype ftype, char *fn, char *sia, unsigned char *content,
 	}
 
 	if (st.st_mtim.tv_sec < mtime) {
-		if (write_file(tmppath, content, content_len, mtime) != 0)
-			errx(1, "write_file %s failed", tmppath);
+		write_file(tmppath, content, content_len, mtime);
 
 		if (verbose) {
 			delay = time(NULL) - mtime;
 			warnx("%s %lld (%lld)", tmppath, (long long)mtime,
 			    (long long)delay);
 		}
-	} else {
-		printf("%s\n", tmppath);
 	}
 
  out:
@@ -745,7 +966,7 @@ main(int argc, char *argv[])
 			partprint = 1;
 			break;
 		case 'V':
-			printf("version 1.6\n");
+			printf("version 1.7\n");
 			exit(0);
 		case 'v':
 			verbose = 1;
@@ -776,7 +997,8 @@ main(int argc, char *argv[])
 	}
 
 	for (rc = 0; *argv; ++argv) {
-		char *fn, *sia = NULL;
+		int ret = 0;
+		char *fn, *sia = NULL, *seqnum = NULL;
 		size_t fnsz;
 		size_t content_len;
 		time_t otime, time = 0;
@@ -828,12 +1050,18 @@ main(int argc, char *argv[])
 			break;
 		case TYPE_ASPA:
 		case TYPE_GBR:
-		case TYPE_MFT:
 		case TYPE_ROA:
 		case TYPE_SPL:
 		case TYPE_TAK:
-			if (parse_signed_object(fn, content, content_len,
-			    &time, &sia))
+			ret = parse_signed_object(fn, content, content_len,
+			    &time, &sia);
+			if (ret & POSTACTION_FAILURE)
+				rc = 1;
+			break;
+		case TYPE_MFT:
+			ret = parse_manifest(fn, content, content_len, &time,
+			    &sia, &seqnum);
+			if (ret & POSTACTION_FAILURE)
 				rc = 1;
 			break;
 		case TYPE_INDEX:
@@ -890,44 +1118,41 @@ main(int argc, char *argv[])
 
 			h = hex_encode(md, SHA256_DIGEST_LENGTH);
 
-			if (sia != NULL) {
+			if (sia != NULL && seqnum != NULL) {
 				fqdn = sia;
 				if ((path = strchr(sia, '/')) == NULL)
-					goto cleanup;
+					errx(1, "%s: malformed sia", fn);
 				path[0] = '\0';
 
-				printf("%s@%c%c %c%c/%c%c/%s.mft %lld %s/%s\n", fqdn,
-				    h[0], h[1], b[0], b[1], b[2], b[3], b,
-				    (long long)time, fqdn, ++path);
+				printf("%s@%c%c %c%c/%c%c/%s.mft %s %s/%s\n",
+				    fqdn, h[0], h[1], b[0], b[1], b[2], b[3], b,
+				    seqnum, fqdn, ++path);
+				--path;
+				path[0] = '/';
 			}
 
 			free(b);
 			free(h);
-			goto cleanup;
 		}
 
 		if (time == 0)
 			goto cleanup;
 
 		if (otime != time && outdir == NULL) {
-			if (set_mtime(AT_FDCWD, fn, time))
-				rc = 1;
 			if (verbose)
 				warnx("%s %lld -> %lld", fn,
 				    (long long)otime, (long long)time);
-		} else {
-			if (set_atime(AT_FDCWD, fn))
-				rc = 1;
-		}
+			set_mtime(AT_FDCWD, fn, time);
+		} else
+			set_atime(AT_FDCWD, fn);
 
-		if (outdir != NULL) {
-			if (store(ftype, fn, sia, content, content_len, time) != 0)
-				err(1, "failed to store %s", fn);
-		}
+		if (!(ret & POSTACTION_FAILURE) && outdir != NULL)
+			store(ftype, fn, sia, content, content_len, time);
 
  cleanup:
 		free(content);
 		free(sia);
+		free(seqnum);
 	}
 
 	return rc;
