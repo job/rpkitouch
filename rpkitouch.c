@@ -19,6 +19,7 @@
 
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <sys/queue.h>
 
 #include <assert.h>
 #include <ctype.h>
@@ -41,13 +42,11 @@
 
 #include "asn1.h"
 
-int casprint = 0;
+int count = 0;
+int erikmode = 0;
 int noop = 0;
-int hashonly = 0;
-int partprint = 0;
-int print = 0;
 int outdirfd;
-int verbose =0;
+int verbose = 0;
 
 #define GENTIME_LENGTH 15
 #define MAX_URI_LENGTH 2048
@@ -64,8 +63,6 @@ enum filetype {
 	TYPE_SPL,	/* Signed Prefix List */
 	TYPE_TAK,	/* Trust Anchor Key */
 	TYPE_TAL,	/* Trust Anchor Locator */
-	TYPE_PART,	/* replication protocol partition */
-	TYPE_INDEX,	/* index of partitions */
 	TYPE_UNKNOWN,
 };
 
@@ -85,10 +82,17 @@ const struct {
 	{ .ext = ".roa", .type = TYPE_ROA },
 	{ .ext = ".spl", .type = TYPE_SPL },
 	{ .ext = ".tak", .type = TYPE_TAK },
-	{ .ext = ".tal", .type = TYPE_TAL },
-	{ .ext = ".par", .type = TYPE_PART },
-	{ .ext = ".idx", .type = TYPE_INDEX },
+	{ .ext = ".tal", .type = TYPE_TAL }
 };
+
+struct file {
+	SLIST_ENTRY(file) entry;
+	int id;
+	enum filetype type;
+	char *name;
+};
+
+static SLIST_HEAD(, file)	files = SLIST_HEAD_INITIALIZER(files);
 
 ASN1_OBJECT *notify_oid;
 ASN1_OBJECT *sign_time_oid;
@@ -312,14 +316,13 @@ x509_get_sia(X509 *x, char **out_sia)
  */
 static int
 parse_signed_object(const char *fn, unsigned char *content, size_t len,
-    time_t *out_signtime, char **out_sia)
+    time_t *out_signtime)
 {
 	CMS_ContentInfo *cms = NULL;
 	STACK_OF(CMS_SignerInfo) *sinfos;
 	CMS_SignerInfo *si;
 	STACK_OF(X509) *certs = NULL;
 	X509 *x;
-	char *sia = NULL;
 	const ASN1_OBJECT *obj;
 	const unsigned char *der, *oder;
 	int i, has_st = 0, nattrs, rc = 0;
@@ -397,10 +400,6 @@ parse_signed_object(const char *fn, unsigned char *content, size_t len,
 		warnx("%s: could not cache X509v3 extensions", fn);
 		goto out;
 	}
-
-	if (x509_get_sia(x, &sia) != 1)
-		goto out;
-	*out_sia = sia;
 
 	rc &= ~POSTACTION_FAILURE;
  out:
@@ -855,16 +854,13 @@ store(enum filetype ftype, char *fn, char *sia, unsigned char *content,
 	if (st.st_size != content_len || st.st_mtim.tv_sec != mtime) {
 		write_file(path, content, content_len, mtime);
 
-		if (verbose && ftype != TYPE_PART && ftype != TYPE_INDEX) {
+		if (verbose) {
 			delay = time(NULL) - mtime;
 			warnx("%s %s %lld (%lld)", fn, path,
 			    (long long)mtime, (long long)delay);
 		}
 	} else
 		set_atime(outdirfd, path);
-
-	if (hashonly)
-		goto out;
 
 	/*
 	 * Now also write Manifests into their named location (using the
@@ -917,34 +913,122 @@ store(enum filetype ftype, char *fn, char *sia, unsigned char *content,
 	return 0;
 }
 
+static enum filetype
+detect_ftype_from_fn(char *fn)
+{
+	enum filetype ftype = TYPE_UNKNOWN;
+	size_t fn_len, i;
+
+	fn_len = strlen(fn);
+	if (fn_len < 5) {
+		warnx("%s: unsupported file", fn);
+		goto out;
+	}
+
+	for (i = 0; i < sizeof(ext_tab) / sizeof(ext_tab[0]); i++) {
+		if (strcasecmp(fn + (fn_len - 4), ext_tab[i].ext) == 0) {
+			ftype = ext_tab[i].type;
+			break;
+		}
+	}
+
+ out:
+	return ftype;
+}
+
+/*
+ * Adjust mod-times on the disk.
+ */
+static int
+touch(struct file *f)
+{
+	int ret = 0;
+	size_t content_len;
+	time_t otime, time = 0;
+	unsigned char *content = NULL;
+
+	if ((content = load_file(f->name, &content_len, &otime)) == NULL)
+		return 1;
+
+	switch (f->type) {
+	case TYPE_CER:
+		time = get_cert_notbefore(f->name, content, content_len);
+		break;
+	case TYPE_CRL:
+		time = get_crl_thisupdate(f->name, content, content_len);
+		break;
+	case TYPE_ASPA:
+	case TYPE_GBR:
+	case TYPE_MFT:
+	case TYPE_ROA:
+	case TYPE_SPL:
+	case TYPE_TAK:
+		ret = parse_signed_object(f->name, content, content_len,
+		    &time);
+		if (ret & POSTACTION_FAILURE)
+			ret = 1;
+		break;
+	case TYPE_TAL:
+		return 0;
+	default:
+		warnx("%s: unsupported file", f->name);
+		return 0;
+	}
+
+	if (time == 0)
+		goto cleanup;
+
+	if (otime != time) {
+		if (verbose)
+			warnx("%s %lld -> %lld", f->name,
+			    (long long)otime, (long long)time);
+		set_mtime(AT_FDCWD, f->name, time);
+	} else
+		set_atime(AT_FDCWD, f->name);
+
+ cleanup:
+	free(content);
+
+	return ret;
+}
+
+static void
+parse_stdin_input(void)
+{
+	char *line = NULL;
+	size_t linesize = 0;
+	ssize_t linelen;
+	struct file *f;
+
+	while ((linelen = getdelim(&line, &linesize, '\0', stdin)) != -1) {
+		if ((f = malloc(sizeof(struct file))) == NULL)
+			err(1, NULL);
+		f->id = ++count;
+		f->type = detect_ftype_from_fn(line);
+		if ((f->name = strdup(line)) == NULL)
+			err(1, NULL);
+		SLIST_INSERT_HEAD(&files, f, entry);
+	}
+
+	if (ferror(stdin))
+		err(1, "getdelim");
+
+	free(line);
+}
+
 int
 main(int argc, char *argv[])
 {
-	int c, rc;
-	size_t i;
+	int c, rc = 0;
 	char *outdir = NULL;
 
-	while ((c = getopt(argc, argv, "cd:HhNnpPVv")) != -1)
+	while ((c = getopt(argc, argv, "d:hnVv")) != -1)
 		switch (c) {
-		case 'c':
-			casprint = 1;
-			break;
 		case 'd':
 			outdir = optarg;
 			break;
-		case 'H':
-			hashonly = 1;
-			break;
-		case 'N': /* deprecated */
-			break;
 		case 'n':
 			noop = 1;
-			break;
-		case 'p':
-			print = 1;
-			break;
-		case 'P':
-			partprint = 1;
 			break;
 		case 'V':
 			printf("version 1.7\n");
@@ -960,16 +1044,6 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (*argv == NULL)
-		usage();
-
-	if (casprint && partprint)
-		usage();
-	if (casprint && print)
-		usage();
-	if (partprint && print)
-		usage();
-
 	setup_oids();
 
 	if (outdir != NULL && !noop) {
@@ -977,163 +1051,19 @@ main(int argc, char *argv[])
 			err(1, "output directory %s", outdir);
 	}
 
-	for (rc = 0; *argv; ++argv) {
-		int ret = 0;
-		char *fn, *sia = NULL, *seqnum = NULL;
-		size_t fnsz;
-		size_t content_len;
-		time_t otime, time = 0;
-		enum filetype ftype;
-		unsigned char *content = NULL;
+	if (*argv == NULL) {
+		erikmode = 1;
+		parse_stdin_input();
+	} else for (; *argv != NULL; ++argv) {
+		struct file *f;
 
-		fn = *argv;
-		fnsz = strlen(fn);
-		if (fnsz < 5) {
-			warnx("%s: unsupported file", fn);
-			continue;
-		}
+		if ((f = calloc(1, sizeof(struct file))) == NULL)
+			err(1, NULL);
 
-		ftype = TYPE_UNKNOWN;
-		for (i = 0; i < sizeof(ext_tab) / sizeof(ext_tab[0]); i++) {
-			if (strcasecmp(fn + fnsz - 4, ext_tab[i].ext) == 0) {
-				ftype = ext_tab[i].type;
-				break;
-			}
-		}
-
-		if ((content = load_file(fn, &content_len, &otime)) == NULL)
-			continue;
-
-		if (casprint) {
-			unsigned char md[SHA256_DIGEST_LENGTH];
-			unsigned char *b;
-			char sharddir[6];
-
-			SHA256(content, content_len, md);
-			if (b64uri_encode(md, SHA256_DIGEST_LENGTH, &b) != 0)
-				err(1, "b64uri_encode");
-
-			snprintf(sharddir, sizeof(sharddir), "%c%c/%c%c",
-			    b[0], b[1], b[2], b[3]);
-
-			printf("%s/%s%s\n", sharddir, b, fn + fnsz - 4);
-
-			free(b);
-			goto cleanup;
-		}
-
-		switch (ftype) {
-		case TYPE_CER:
-			time = get_cert_notbefore(fn, content, content_len);
-			break;
-		case TYPE_CRL:
-			time = get_crl_thisupdate(fn, content, content_len);
-			break;
-		case TYPE_ASPA:
-		case TYPE_GBR:
-		case TYPE_ROA:
-		case TYPE_SPL:
-		case TYPE_TAK:
-			ret = parse_signed_object(fn, content, content_len,
-			    &time, &sia);
-			if (ret & POSTACTION_FAILURE)
-				rc = 1;
-			break;
-		case TYPE_MFT:
-			ret = parse_manifest(fn, content, content_len, &time,
-			    &sia, &seqnum);
-			if (ret & POSTACTION_FAILURE)
-				rc = 1;
-			break;
-		case TYPE_INDEX:
-		case TYPE_PART:
-			break;
-		case TYPE_TAL:
-			continue;
-		default:
-			warnx("%s: unsupported file", fn);
-			rc = 1;
-			continue;
-		}
-
-		if (partprint && (ftype == TYPE_PART || ftype == TYPE_INDEX)) {
-			unsigned char md[SHA256_DIGEST_LENGTH];
-			unsigned char *b;
-			char sharddir[6], *dest = NULL, *part;
-
-			SHA256(content, content_len, md);
-			if (b64uri_encode(md, SHA256_DIGEST_LENGTH, &b) != 0)
-				err(1, "b64uri_encode");
-
-			snprintf(sharddir, sizeof(sharddir), "%c%c/%c%c",
-			    b[0], b[1], b[2], b[3]);
-
-			if ((part = strchr(fn, '@')) != NULL) {
-				part++;
-				printf("%c%c %s/%s.par\n", part[0], part[1],
-				    sharddir, b);
-			} else {
-				printf("%s/%s.idx\n", sharddir, b);
-			}
-
-			if (outdir != NULL) {
-				if (store(ftype, fn, NULL, content,
-				    content_len, UTIME_NOW) != 0)
-					err(1, "failed to store %s", fn);
-			}
-
-			free(dest);
-			free(b);
-			goto cleanup;
-		}
-
-		if (print) {
-			unsigned char md[SHA256_DIGEST_LENGTH];
-			unsigned char *b;
-			char *h, *fqdn, *path;
-
-			SHA256(content, content_len, md);
-
-			if (b64uri_encode(md, SHA256_DIGEST_LENGTH, &b) != 0)
-				err(1, "b64uri_encode");
-
-			h = hex_encode(md, SHA256_DIGEST_LENGTH);
-
-			if (sia != NULL && seqnum != NULL) {
-				fqdn = sia;
-				if ((path = strchr(sia, '/')) == NULL)
-					errx(1, "%s: malformed sia", fn);
-				path[0] = '\0';
-
-				printf("%s@%c%c %c%c/%c%c/%s.mft %s %s/%s\n",
-				    fqdn, h[0], h[1], b[0], b[1], b[2], b[3], b,
-				    seqnum, fqdn, ++path);
-				--path;
-				path[0] = '/';
-			}
-
-			free(b);
-			free(h);
-		}
-
-		if (time == 0)
-			goto cleanup;
-
-		if (otime != time && outdir == NULL) {
-			if (verbose)
-				warnx("%s %lld -> %lld", fn,
-				    (long long)otime, (long long)time);
-			set_mtime(AT_FDCWD, fn, time);
-		} else
-			set_atime(AT_FDCWD, fn);
-
-		if (!(ret & POSTACTION_FAILURE) && outdir != NULL)
-			store(ftype, fn, sia, content, content_len, time);
-
- cleanup:
-		free(content);
-		free(sia);
-		free(seqnum);
+		f->id = ++count;
+		f->type = detect_ftype_from_fn(*argv);
+		f->name = *argv;
+		touch(f);
 	}
 
 	return rc;
@@ -1142,7 +1072,6 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	fprintf(stderr, "usage: rpkitouch [-cHhnpVv] [-d directory] file "
-	    "...\n");
+	fprintf(stderr, "usage: rpkitouch [-nVv] [-d directory] file ...\n");
 	exit(1);
 }

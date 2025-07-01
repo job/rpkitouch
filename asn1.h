@@ -50,8 +50,8 @@ typedef struct {
 	ASN1_INTEGER *version;
 	ASN1_IA5STRING *indexScope;
 	ASN1_GENERALIZEDTIME *indexTime;
-	ASN1_INTEGER *indexNumber;
 	ASN1_OBJECT *hashAlg;
+	ASN1_BIT_STRING *previousIndex;
 	STACK_OF(PartitionListEntry) *partitionList;
 } ErikIndex;
 
@@ -59,8 +59,8 @@ ASN1_SEQUENCE(ErikIndex) = {
 	ASN1_EXP_OPT(ErikIndex, version, ASN1_INTEGER, 0),
 	ASN1_SIMPLE(ErikIndex, indexScope, ASN1_IA5STRING),
 	ASN1_SIMPLE(ErikIndex, indexTime, ASN1_GENERALIZEDTIME),
-	ASN1_SIMPLE(ErikIndex, indexNumber, ASN1_INTEGER),
 	ASN1_SIMPLE(ErikIndex, hashAlg, ASN1_OBJECT),
+	ASN1_EXP_OPT(ErikIndex, previousIndex, ASN1_BIT_STRING, 0),
 	ASN1_SEQUENCE_OF(ErikIndex, partitionList, PartitionListEntry),
 } ASN1_SEQUENCE_END(ErikIndex);
 

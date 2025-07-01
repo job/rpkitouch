@@ -21,9 +21,11 @@
 .Nd set file modification times to internal RPKI timestamps
 .Sh SYNOPSIS
 .Nm rpkitouch
-.Op Fl HhnpVv
-.Op Fl d Ar directory
+.Op Fl nVv
 .Ar
+.Nm rpkitouch
+.Op Fl nv
+.Fl d Ar directory
 .Sh DESCRIPTION
 The
 .Nm
@@ -96,8 +98,6 @@ Files may not contain trailing data beyond the internal length markers.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
-.It Fl c
-Print the object's content-addressable storage path name.
 .It Fl d Ar directory
 Calculate the SHA-256 message digest for
 .Ar file
@@ -106,11 +106,6 @@ and copy its contents to
 using a content-addressable file naming scheme.
 To improve performance, existing files are only overwritten if the size or
 last modification timestamp differ.
-.It Fl H
-Only store objects by hash, don't write out a copy of Manifests by name of
-their SIA.
-Must be used with
-.Fl d .
 .It Fl h
 Display usage.
 .It Fl n
@@ -123,10 +118,6 @@ and
 to see what
 .Nm
 would change.
-.It Fl p
-Print a hexadecimal representation of the Manifest's Partition, the SHA-256
-message digest, the eContent's manifestNumber, and the Manifest EE cert's
-SubjectInfoAccess.
 .It Fl V
 Display the version number and exit.
 .It Fl v
@@ -197,6 +188,11 @@ $ find /tmp/a
 .Rs
 .%T A Profile for X.509 PKIX Resource Certificates
 .%R RFC 6487
+.Re
+.Pp
+.Rs
+.%T The Erik Synchronization Protocol for use with the RPKI
+.%R draft-spaghetti-sidrops-rpki-erik-protocol-00
 .Re
 .Sh AUTHORS
 .An -nosplit
