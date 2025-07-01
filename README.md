@@ -7,9 +7,11 @@ RPKITOUCH(8) - System Manager's Manual
 # SYNOPSIS
 
 **rpkitouch**
-\[**-HhnpVv**]
-\[**-d**&nbsp;*directory*]
-*file&nbsp;...*
+\[**-nVv**]
+*file&nbsp;...*  
+**rpkitouch**
+\[**-nv**]
+**-d**&nbsp;*directory*
 
 # DESCRIPTION
 
@@ -84,26 +86,19 @@ Files may not contain trailing data beyond the internal length markers.
 
 The options are as follows:
 
-**-c**
-
-> Print the object's content-addressable storage path name.
-
 **-d** *directory*
 
-> Calculate the SHA-256 message digest for
-> *file*
-> and copy its contents to
+> Read NUL
+> ('`\0`')
+> delimited filenames from the standard input and produce objects
+> for the
+> *Erik Synchronization Protocol*.
+> SHA-256 message digests are calculated for all objects and their content is
+> stored in
 > *directory*
 > using a content-addressable file naming scheme.
 > To improve performance, existing files are only overwritten if the size or
 > last modification timestamp differ.
-
-**-H**
-
-> Only store objects by hash, don't write out a copy of Manifests by name of
-> their SIA.
-> Must be used with
-> **-d**.
 
 **-h**
 
@@ -120,12 +115,6 @@ The options are as follows:
 > to see what
 > **rpkitouch**
 > would change.
-
-**-p**
-
-> Print a hexadecimal representation of the object's bucket, SHA-256 message
-> digest, the CMS signing-time as seconds from the Epoch, and the object's
-> SubjectInfoAccess.
 
 **-V**
 
@@ -198,8 +187,11 @@ with the Base64 encoded SHA-256 message digest as its target file name.
 *A Profile for X.509 PKIX Resource Certificates*,
 [RFC 6487](http://www.rfc-editor.org/rfc/rfc6487.html).
 
+*The Erik Synchronization Protocol for use with the RPKI*,
+draft-spaghetti-sidrops-rpki-erik-protocol-00.
+
 # AUTHORS
 
 Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
 
-OpenBSD 7.7 - May 9, 2025
+OpenBSD 7.7 - July 1, 2025 - RPKITOUCH(8)
