@@ -99,9 +99,13 @@ Files may not contain trailing data beyond the internal length markers.
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl d Ar directory
-Calculate the SHA-256 message digest for
-.Ar file
-and copy its contents to
+Read NUL
+.Pq Ql \e0
+delimited filenames from the standard input and produce objects
+for the
+.Em Erik Synchronization Protocol .
+SHA-256 message digests are calculated for all objects and their content is
+stored in
 .Ar directory
 using a content-addressable file naming scheme.
 To improve performance, existing files are only overwritten if the size or
