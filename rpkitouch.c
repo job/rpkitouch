@@ -307,16 +307,11 @@ x509_get_sia(X509 *x, char **out_sia)
 	return rc;
 }
 
-#define POSTACTION_EXPIRED	0x01
-#define POSTACTION_FAILURE	0x02
-
 /*
- * Extract CMS signing-time and the EE cert's SignedObject SIA.
- * Return POSTACTION bitfield.
+ * Extract CMS signing-time.
  */
-static int
-parse_signed_object(const char *fn, unsigned char *content, size_t len,
-    time_t *out_signtime)
+static time_t
+get_time_from_object(const char *fn, unsigned char *content, size_t len)
 {
 	CMS_ContentInfo *cms = NULL;
 	STACK_OF(CMS_SignerInfo) *sinfos;
@@ -325,10 +320,8 @@ parse_signed_object(const char *fn, unsigned char *content, size_t len,
 	X509 *x;
 	const ASN1_OBJECT *obj;
 	const unsigned char *der, *oder;
-	int i, has_st = 0, nattrs, rc = 0;
+	int i, has_st = 0, nattrs;
 	time_t signtime = 0;
-
-	rc |= POSTACTION_FAILURE;
 
 	oder = der = content;
 	if ((cms = d2i_CMS_ContentInfo(NULL, &der, len)) == NULL) {
@@ -386,7 +379,6 @@ parse_signed_object(const char *fn, unsigned char *content, size_t len,
 			}
 			if (!cms_get_signtime_attr(fn, attr, &signtime))
 				goto out;
-			*out_signtime = signtime;
 			break;
 		}
 	}
@@ -401,11 +393,10 @@ parse_signed_object(const char *fn, unsigned char *content, size_t len,
 		goto out;
 	}
 
-	rc &= ~POSTACTION_FAILURE;
  out:
 	sk_X509_free(certs);
 	CMS_ContentInfo_free(cms);
-	return rc;
+	return signtime;
 }
 
 static char *
@@ -451,7 +442,7 @@ parse_manifest(const char *fn, unsigned char *content, size_t len,
 	char *sia = NULL, *seqnum = NULL;
 	const ASN1_OBJECT *obj;
 	const unsigned char *der, *oder;
-	int i, has_st = 0, nattrs, ret = POSTACTION_FAILURE;
+	int i, has_st = 0, nattrs, ret = 0;
 	time_t now, signtime = 0, expiry = 0;
 	ASN1_OCTET_STRING **os = NULL;
 	unsigned char *econtent_der = NULL;
@@ -542,7 +533,7 @@ parse_manifest(const char *fn, unsigned char *content, size_t len,
 
 	now = time(NULL);
 	if (expiry < now)
-		ret |= POSTACTION_EXPIRED;
+		ret = 1;
 
 	if (x509_get_sia(x, &sia) != 1)
 		goto out;
@@ -589,7 +580,7 @@ parse_manifest(const char *fn, unsigned char *content, size_t len,
 	}
 	*out_seqnum = seqnum;
 
-	ret &= ~POSTACTION_FAILURE;
+	ret = 1;
  out:
 	free(econtent_der);
 	Manifest_free(mft);
@@ -942,7 +933,6 @@ detect_ftype_from_fn(char *fn)
 static int
 touch(struct file *f)
 {
-	int ret = 0;
 	size_t content_len;
 	time_t otime, time = 0;
 	unsigned char *content = NULL;
@@ -963,10 +953,7 @@ touch(struct file *f)
 	case TYPE_ROA:
 	case TYPE_SPL:
 	case TYPE_TAK:
-		ret = parse_signed_object(f->name, content, content_len,
-		    &time);
-		if (ret & POSTACTION_FAILURE)
-			ret = 1;
+		time = get_time_from_object(f->name, content, content_len);
 		break;
 	case TYPE_TAL:
 		return 0;
@@ -989,7 +976,7 @@ touch(struct file *f)
  cleanup:
 	free(content);
 
-	return ret;
+	return time;
 }
 
 static void
