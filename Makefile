@@ -34,7 +34,7 @@ test:
 	cd tests && ../rpkitouch -v $(TEST_FILES)
 	cd tests && ls -rl $(TEST_FILES) | awk '{ print $$5, $$6, $$7, $$8, $$9 }' | sort > outcome.txt
 	mkdir -p tests/c
-	cd tests && ../rpkitouch -d ./c $(TEST_FILES)
+	cd tests && find $(TEST_FILES) -print0 | ../rpkitouch -d ./c
 	find tests/c -type f | sort >> tests/outcome.txt
 	diff tests/outcome.txt tests/expected_outcome.txt
 	echo OK
