@@ -740,8 +740,9 @@ store_by_hash(struct file *f)
 	if (b64uri_encode(f->hash, SHA256_DIGEST_LENGTH, &b) != 0)
 		err(1, "b64uri_encode");
 
-	/* directory-based sharding */
-	if (asprintf(&dir, "static/%c%c/%c%c", b[0], b[1], b[2], b[3]) == -1)
+	/* 3 levels of directory-based sharding */
+	if (asprintf(&dir, "static/%c%c/%c%c/%c%c", b[0], b[1], b[2], b[3],
+	    b[4], b[5]) == -1)
 		err(1, NULL);
 
 	if (!noop) {
@@ -1005,10 +1006,6 @@ main(int argc, char *argv[])
 
 		return rc;
 	}
-
-	/*
-	 * Store by hash.
-	 */
 
 	SLIST_FOREACH(f, &files, entry) {
 		store_by_hash(f);
