@@ -766,8 +766,9 @@ store_by_hash(struct file *f)
 	if (st.st_size != f->content_len || st.st_mtim.tv_sec != f->signtime) {
 		if (verbose) {
 			delay = time(NULL) - f->signtime;
-			warnx("%s %s %lld (%lld)", f->name, path,
-			    (long long)f->signtime, (long long)delay);
+			warnx("%s %s (st: %lld sz: %zd d: %lld)", f->name, path,
+			    (long long)f->signtime, f->content_len,
+			    (long long)delay);
 		}
 		write_file(path, f->content, f->content_len, f->signtime);
 	} else
@@ -810,7 +811,8 @@ store_by_name(struct file *f)
 	if (st.st_mtim.tv_sec < f->signtime) {
 		if (verbose) {
 			delay = time(NULL) - f->signtime;
-			warnx("%s %lld (%lld)", path, (long long)f->signtime,
+			warnx("%s (st: %lld sz: %zd d: %lld)", path,
+			    (long long)f->signtime, f->content_len,
 			    (long long)delay);
 		}
 		write_file(path, f->content, f->content_len, f->signtime);
