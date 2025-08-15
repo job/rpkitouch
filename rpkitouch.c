@@ -641,7 +641,7 @@ set_mtime(int fd, const char *fn, time_t mtime)
  * RFC 4648 section 5
  */
 static int
-b64uri_encode(const unsigned char *in, size_t inlen, unsigned char **out)
+b64uri_encode(const unsigned char *in, size_t inlen, char **out)
 {
 	unsigned char *to;
 	size_t tolen = 0;
@@ -732,7 +732,7 @@ write_file(char *path, unsigned char *content, off_t content_len, time_t mtime)
 static int
 store_by_hash(struct file *f)
 {
-	unsigned char *b = NULL;
+	char *b = NULL;
 	char *dir = NULL, *path = NULL;
 	struct stat st;
 	time_t delay;
@@ -766,7 +766,7 @@ store_by_hash(struct file *f)
 	if (st.st_size != f->content_len || st.st_mtim.tv_sec != f->signtime) {
 		if (verbose) {
 			delay = time(NULL) - f->signtime;
-			warnx("%s %s (st:%lld sz:%zd d:%lld)", f->name, path,
+			warnx("%s %s (st:%lld sz:%zd d:%lld)", f->name, b,
 			    (long long)f->signtime, f->content_len,
 			    (long long)delay);
 		}
