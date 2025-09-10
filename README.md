@@ -8,10 +8,8 @@ RPKITOUCH(8) - System Manager's Manual
 
 **rpkitouch**
 \[**-nVv**]
-*file&nbsp;...*  
-**rpkitouch**
-\[**-nv**]
-**-d**&nbsp;*directory*
+\[**-d**&nbsp;*directory*]
+*file&nbsp;...*
 
 # DESCRIPTION
 
@@ -88,11 +86,6 @@ The options are as follows:
 
 **-d** *directory*
 
-> Read NUL
-> ('`\0`')
-> delimited filenames from the standard input and produce objects
-> for the
-> *Erik Synchronization Protocol*.
 > SHA-256 message digests are calculated for all objects and their content is
 > stored in
 > *directory*
@@ -130,18 +123,6 @@ The options are as follows:
 runs on all operating systems with a libcrypto library based on
 OpenSSL 1.1 or LibreSSL 3.6 or later.
 
-On Ubuntu/Debian install the
-*libssl-dev*
-package, on Redhat/Rocky/Fedora install the
-*openssl-devel*
-package, then simply issue
-'`make`'
-to build;
-on Centos 7 install
-*openssl11-devel*
-from EPEL and then build the program using this special target
-'`make centos7`'
-
 # EXIT STATUS
 
 The **rpkitouch** utility exits&#160;0 on success, and&#160;&gt;0 if an error occurs.
@@ -160,23 +141,23 @@ Copy a signed object to
 */tmp/a*
 with the Base64 encoded SHA-256 message digest as its target file name.
 
-	$ rpkitouch -vd /tmp/a rpki.ripe.net/repository/ripe-ncc-ta.mft
-	rpki.ripe.net/repository/ripe-ncc-ta.mft kX/xB/kXxBgilLlXi4SJHY9JoWnmJAtRoO5oE084UXV6TsQ20.mft 1744024405 (271880)
+	$ rpkitouch -vd /tmp/test ./rpki.ripe.net/repository/ripe-ncc-ta.mft
+	rpkitouch: rpki.ripe.net/repository/ripe-ncc-ta.mft wtBCe8WjLELuoatWY9WSsfwpx9TvFqsLXh1jHQOdzCE (st:1756387926 sz:1786 d:1126859)
+	rpkitouch: named/rpki.ripe.net/repository/ripe-ncc-ta.mft (st:1756387926 sz:1786 d:1126859)
 	
-	$ find /tmp/a
-	/tmp/a
-	/tmp/a/kX
-	/tmp/a/kX/xB
-	/tmp/a/kX/xB/kXxBgilLlXi4SJHY9JoWnmJAtRoO5oE084UXV6TsQ20.mft
-	/tmp/a/mft
-	/tmp/a/mft/rpki.ripe.net
-	/tmp/a/mft/rpki.ripe.net/repository
-	/tmp/a/mft/rpki.ripe.net/repository/ripe-ncc-ta.mft
+	$ find /tmp/test
+	/tmp/test
+	/tmp/test/static
+	/tmp/test/static/wt
+	/tmp/test/static/wt/BC
+	/tmp/test/static/wt/BC/e8
+	/tmp/test/static/wt/BC/e8/wtBCe8WjLELuoatWY9WSsfwpx9TvFqsLXh1jHQOdzCE
+	/tmp/test/named
+	/tmp/test/named/rpki.ripe.net
+	/tmp/test/named/rpki.ripe.net/repository
+	/tmp/test/named/rpki.ripe.net/repository/ripe-ncc-ta.mft
 
 # STANDARDS
-
-*On the Use of the CMS Signing-Time Attribute in RPKI Signed Objects*,
-[RFC 9589](http://www.rfc-editor.org/rfc/rfc9589.html).
 
 *Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile*,
 [RFC 5280](http://www.rfc-editor.org/rfc/rfc5280.html).
@@ -187,11 +168,11 @@ with the Base64 encoded SHA-256 message digest as its target file name.
 *A Profile for X.509 PKIX Resource Certificates*,
 [RFC 6487](http://www.rfc-editor.org/rfc/rfc6487.html).
 
-*The Erik Synchronization Protocol for use with the RPKI*,
-draft-spaghetti-sidrops-rpki-erik-protocol-00.
+*On the Use of the CMS Signing-Time Attribute in RPKI Signed Objects*,
+[RFC 9589](http://www.rfc-editor.org/rfc/rfc9589.html).
 
 # AUTHORS
 
 Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
 
-OpenBSD 7.7 - July 1, 2025 - RPKITOUCH(8)
+OpenBSD 7.7 - September 10, 2025 - RPKITOUCH(8)
