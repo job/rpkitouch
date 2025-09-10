@@ -175,7 +175,7 @@ store_by_hash(struct file *f)
 	char *b = NULL;
 	char *dir = NULL, *path = NULL;
 	struct stat st;
-	time_t delay;
+	time_t delay = 0;
 
 	if (!b64uri_encode(f->hash, SHA256_DIGEST_LENGTH, &b))
 		err(1, "b64uri_encode");
@@ -205,7 +205,8 @@ store_by_hash(struct file *f)
 	 */
 	if (st.st_size != f->content_len || st.st_mtim.tv_sec != f->signtime) {
 		if (verbose) {
-			delay = time(NULL) - f->signtime;
+			if (time(NULL) > f->signtime)
+				delay = time(NULL) - f->signtime;
 			warnx("%s %s (st:%lld sz:%lld d:%lld)", f->name, b,
 			    (long long)f->signtime, (long long)f->content_len,
 			    (long long)delay);
