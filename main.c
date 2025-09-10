@@ -194,6 +194,11 @@ main(int argc, char *argv[])
 		f->content = fc;
 		SHA256(f->content, f->content_len, f->hash);
 
+		if ((f->signtime = get_time_from_content(f)) == 0) {
+			file_free(f);
+			continue;
+		}
+
 		if (f->type == TYPE_MFT) {
 			parse_manifest(f);
 
@@ -202,7 +207,7 @@ main(int argc, char *argv[])
 					printf("%s/%s\n", f->sia_dirname,
 					    f->files[i].fn);
 				}
-				printf("%s/%s\n", f->sia_dirname, f->name);
+				printf("%s\n", f->name);
 			}
 		}
 
@@ -210,7 +215,16 @@ main(int argc, char *argv[])
 		 * Update the mod-time
 		 */
 
-		touch(f);
+		if (outdir == NULL) {
+			if (f->disktime != f->signtime) {
+				if (verbose) {
+					warnx("%s %lld -> %lld", f->name,
+					    (long long)f->disktime, (long long)f->signtime);
+				}
+				set_mtime(AT_FDCWD, f->name, f->signtime);
+			} else
+				set_atime(AT_FDCWD, f->name);
+		}
 
 		/*
 		 * Optionally, store the object using the content

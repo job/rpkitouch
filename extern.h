@@ -57,11 +57,7 @@ struct file {
 	int files_num;
 };
 
-int touch(struct file *);
-int store_by_hash(struct file *);
-int store_by_name(struct file *);
-
-int parse_manifest(struct file *f);
+int b64uri_encode(const unsigned char *, size_t, char **);
 
 unsigned char *load_file(const char *, off_t *, time_t *);
 void write_file(char *, unsigned char *, off_t, time_t);
@@ -69,10 +65,15 @@ void write_file(char *, unsigned char *, off_t, time_t);
 int mkpathat(int, const char *);
 int mkstempat(int, char *);
 
+int parse_manifest(struct file *f);
+
+time_t get_time_from_content(struct file *f);
+
 void set_atime(int, const char *);
 void set_mtime(int, const char *, time_t);
 
-int b64uri_encode(const unsigned char *, size_t, char **);
+int store_by_hash(struct file *);
+int store_by_name(struct file *);
 
 void usage(void);
 

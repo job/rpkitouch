@@ -332,7 +332,7 @@ get_crl_thisupdate(const char *fn, unsigned char *content, size_t len)
 	return time;
 }
 
-static time_t
+time_t
 get_time_from_content(struct file *f)
 {
 	time_t time = 0;
@@ -533,24 +533,4 @@ parse_manifest(struct file *f)
 	sk_X509_free(certs);
 	CMS_ContentInfo_free(cms);
 	return ret;
-}
-
-/*
- * Adjust mod-times on the filesystem.
- */
-int
-touch(struct file *f)
-{
-	if ((f->signtime = get_time_from_content(f)) == 0)
-		return 0;
-
-	if (f->disktime != f->signtime) {
-		if (verbose)
-			warnx("%s %lld -> %lld", f->name,
-			    (long long)f->disktime, (long long)f->signtime);
-		set_mtime(AT_FDCWD, f->name, f->signtime);
-	} else
-		set_atime(AT_FDCWD, f->name);
-
-	return 1;
 }
