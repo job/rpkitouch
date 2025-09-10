@@ -1,0 +1,210 @@
+/*
+ * Copyright (c) 2023-2025 Job Snijders <job@sobornost.net>
+ *
+ * Permission to use, copy, modify, and distribute this software for any
+ * purpose with or without fee is hereby granted, provided that the above
+ * copyright notice and this permission notice appear in all copies.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+ * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+ * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+ * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+ * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+ * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+ * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+*/
+
+#include <sys/queue.h>
+
+#include <err.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <openssl/objects.h>
+#include <openssl/sha.h>
+
+#include "extern.h"
+
+int noop = 0;
+int verbose = 0;
+int outdirfd;
+
+/*
+ * https://www.iana.org/assignments/rpki/rpki.xhtml
+ * .tal is not IANA registered, but added as convenience.
+ */
+const struct {
+	const char *ext;
+	enum filetype type;
+} ext_tab[] = {
+	{ .ext = ".asa", .type = TYPE_ASPA },
+	{ .ext = ".ccr", .type = TYPE_CCR },
+	{ .ext = ".cer", .type = TYPE_CER },
+	{ .ext = ".crl", .type = TYPE_CRL },
+	{ .ext = ".gbr", .type = TYPE_GBR },
+	{ .ext = ".mft", .type = TYPE_MFT },
+	{ .ext = ".roa", .type = TYPE_ROA },
+	{ .ext = ".spl", .type = TYPE_SPL },
+	{ .ext = ".tak", .type = TYPE_TAK },
+	{ .ext = ".tal", .type = TYPE_TAL }
+};
+
+ASN1_OBJECT *notify_oid;
+ASN1_OBJECT *sign_time_oid;
+ASN1_OBJECT *signedobj_oid;
+ASN1_OBJECT *manifest_oid;
+
+static void
+setup_oids(void) {
+	if ((notify_oid = OBJ_txt2obj("1.3.6.1.5.5.7.48.13", 1)) == NULL)
+		errx(1, "OBJ_txt2obj for %s failed", "notify_oid");
+	if ((sign_time_oid = OBJ_txt2obj("1.2.840.113549.1.9.5", 1)) == NULL)
+		errx(1, "OBJ_txt2obj for %s failed", "sign_time_oid");
+	if ((signedobj_oid = OBJ_txt2obj("1.3.6.1.5.5.7.48.11", 1)) == NULL)
+		errx(1, "OBJ_txt2obj for %s failed", "signedobj_oid");
+	if ((manifest_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.26", 1))
+	    == NULL)
+		errx(1, "OBJ_txt2obj for %s failed", "manifest_oid");
+}
+
+static enum filetype
+detect_ftype_from_fn(char *fn)
+{
+	enum filetype ftype = TYPE_UNKNOWN;
+	size_t fn_len, i;
+
+	fn_len = strlen(fn);
+	if (fn_len < 5) {
+		warnx("%s: unsupported file", fn);
+		goto out;
+	}
+
+	for (i = 0; i < sizeof(ext_tab) / sizeof(ext_tab[0]); i++) {
+		if (strcasecmp(fn + (fn_len - 4), ext_tab[i].ext) == 0) {
+			ftype = ext_tab[i].type;
+			break;
+		}
+	}
+
+ out:
+	return ftype;
+}
+
+static void
+file_free(struct file *f)
+{
+	if (f == NULL)
+		return;
+
+	free(f->name);
+	free(f->sia);
+	free(f->content);
+	free(f);
+}
+
+int
+main(int argc, char *argv[])
+{
+	int c, count = 0, rc = 0;
+	char *ccr1 = NULL, *ccr2 = NULL, *outdir = NULL;
+	struct file *f;
+
+	while ((c = getopt(argc, argv, "c:d:hnVv")) != -1)
+		switch (c) {
+		case 'c':
+			if (ccr1 == NULL) {
+				ccr1 = optarg;
+			} else if (ccr2 == NULL) {
+				ccr2 = optarg;
+			} else {
+				errx(1, "only 2 CCR files can be specified");
+			}
+			break;
+		case 'd':
+			outdir = optarg;
+			break;
+		case 'n':
+			noop = 1;
+			break;
+		case 'V':
+			printf("version 1.7\n");
+			exit(0);
+		case 'v':
+			verbose = 1;
+			break;
+		case 'h':
+		default:
+			usage();
+		}
+
+	argc -= optind;
+	argv += optind;
+
+	if (outdir == NULL && *argv == NULL)
+		usage();
+
+	if (ccr1 != NULL && ccr2 == NULL) {
+		warnx("must specify 2 CCR files");
+		usage();
+	}
+
+	setup_oids();
+
+	if (outdir != NULL && !noop) {
+		if ((outdirfd = open(outdir, O_RDONLY | O_DIRECTORY)) == -1)
+			err(1, "output directory %s", outdir);
+	}
+
+	for (; *argv != NULL; ++argv) {
+		unsigned char *fc;
+
+		if ((f = calloc(1, sizeof(struct file))) == NULL)
+			err(1, NULL);
+
+		f->id = ++count;
+		f->type = detect_ftype_from_fn(*argv);
+		if ((f->name = strdup(*argv)) == NULL)
+			err(1, NULL);
+
+		fc = load_file(f->name, &f->content_len, &f->disktime);
+		if (fc == NULL)
+			errx(1, "%s: load_file failed", f->name);
+
+		f->content = fc;
+		SHA256(f->content, f->content_len, f->hash);
+
+		/*
+		 * Update the mod-time
+		 */
+
+		touch(f);
+
+		/*
+		 * Optionally, store the object using the content
+		 * addressable scheme.
+		 */
+		if (outdir != NULL) {
+			store_by_hash(f);
+
+			if (f->type == TYPE_MFT) {
+				parse_manifest(f);
+				store_by_name(f);
+			}
+		}
+
+		file_free(f);
+	}
+
+	return rc;
+}
+
+void
+usage(void)
+{
+	fprintf(stderr, "usage: rpkitouch [-nVv] [-d dir] file ...\n");
+	fprintf(stderr, "       rpkitouch [-nv] -c ccr1 -c ccr2 -d dir\n");
+	exit(1);
+}

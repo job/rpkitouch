@@ -17,179 +17,46 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <sys/queue.h>
-
 #include <assert.h>
 #include <ctype.h>
 #include <err.h>
-#include <errno.h>
 #include <fcntl.h>
-#include <libgen.h>
-#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <unistd.h>
 
-#include <openssl/asn1.h>
 #include <openssl/asn1t.h>
 #include <openssl/cms.h>
 #include <openssl/safestack.h>
-#include <openssl/sha.h>
 
+#include "extern.h"
 #include "asn1.h"
-
-int count = 0;
-int erikmode = 0;
-int noop = 0;
-int outdirfd;
-int verbose = 0;
 
 #define GENTIME_LENGTH 15
 #define MAX_URI_LENGTH 2048
 #define RSYNC_PROTO "rsync://"
 #define RSYNC_PROTO_LEN (sizeof(RSYNC_PROTO) - 1)
 
-enum filetype {
-	TYPE_CER,	/* Certificate */
-	TYPE_CRL,	/* Certificate Revocation List */
-	TYPE_ASPA,	/* Autonomous System Provider Authorisation */
-	TYPE_GBR,	/* Ghostbuster Record */
-	TYPE_MFT,	/* Manifest */
-	TYPE_ROA,	/* Route Origin Authorization */
-	TYPE_SPL,	/* Signed Prefix List */
-	TYPE_TAK,	/* Trust Anchor Key */
-	TYPE_TAL,	/* Trust Anchor Locator */
-	TYPE_UNKNOWN,
-};
+ASN1_ITEM_EXP Manifest_it;
+ASN1_ITEM_EXP FileAndHash_it;
 
-/*
- * https://www.iana.org/assignments/rpki/rpki.xhtml
- * .tal is not IANA registered, but added as convenience.
- */
-const struct {
-	const char *ext;
-	enum filetype type;
-} ext_tab[] = {
-	{ .ext = ".cer", .type = TYPE_CER },
-	{ .ext = ".crl", .type = TYPE_CRL },
-	{ .ext = ".asa", .type = TYPE_ASPA },
-	{ .ext = ".gbr", .type = TYPE_GBR },
-	{ .ext = ".mft", .type = TYPE_MFT },
-	{ .ext = ".roa", .type = TYPE_ROA },
-	{ .ext = ".spl", .type = TYPE_SPL },
-	{ .ext = ".tak", .type = TYPE_TAK },
-	{ .ext = ".tal", .type = TYPE_TAL }
-};
+ASN1_SEQUENCE(Manifest) = {
+	ASN1_EXP_OPT(Manifest, version, ASN1_INTEGER, 0),
+	ASN1_SIMPLE(Manifest, manifestNumber, ASN1_INTEGER),
+	ASN1_SIMPLE(Manifest, thisUpdate, ASN1_GENERALIZEDTIME),
+	ASN1_SIMPLE(Manifest, nextUpdate, ASN1_GENERALIZEDTIME),
+	ASN1_SIMPLE(Manifest, fileHashAlg, ASN1_OBJECT),
+	ASN1_SEQUENCE_OF(Manifest, fileList, FileAndHash),
+} ASN1_SEQUENCE_END(Manifest);
 
-struct file {
-	SLIST_ENTRY(file) entry;
-	int id;
-	enum filetype type;
-	time_t disktime;
-	time_t signtime;
-	unsigned char hash[SHA256_DIGEST_LENGTH];
-	ssize_t content_len;
-	char *name;
-	unsigned char *content;
-	char *sia;
-	unsigned char *seqnum;
-};
+IMPLEMENT_ASN1_FUNCTIONS(Manifest);
 
-static SLIST_HEAD(, file)	files = SLIST_HEAD_INITIALIZER(files);
+ASN1_SEQUENCE(FileAndHash) = {
+	ASN1_SIMPLE(FileAndHash, file, ASN1_IA5STRING),
+	ASN1_SIMPLE(FileAndHash, hash, ASN1_BIT_STRING),
+} ASN1_SEQUENCE_END(FileAndHash);
 
-ASN1_OBJECT *notify_oid;
-ASN1_OBJECT *sign_time_oid;
-ASN1_OBJECT *signedobj_oid;
-ASN1_OBJECT *manifest_oid;
-
-int mkpathat(int, const char *);
-int mkstempat(int, char *);
-void usage(void);
-
-static void
-setup_oids(void) {
-	if ((notify_oid = OBJ_txt2obj("1.3.6.1.5.5.7.48.13", 1)) == NULL)
-		errx(1, "OBJ_txt2obj for %s failed", "1.3.6.1.5.5.7.48.13");
-	if ((sign_time_oid = OBJ_txt2obj("1.2.840.113549.1.9.5", 1)) == NULL)
-		errx(1, "OBJ_txt2obj for %s failed", "1.2.840.113549.1.9.5");
-	if ((signedobj_oid = OBJ_txt2obj("1.3.6.1.5.5.7.48.11", 1)) == NULL)
-		errx(1, "OBJ_txt2obj for %s failed", "1.3.6.1.5.5.7.48.11");
-	if ((manifest_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.26", 1))
-	    == NULL)
-		errx(1, "OBJ_txt2obj for %s failed",
-		    "1.2.840.113549.1.9.16.1.26");
-}
-
-static char *
-hex_encode(const unsigned char *in, size_t insz)
-{
-	const char hex[] = "0123456789ABCDEF";
-	size_t i;
-	char *out;
-
-	if ((out = calloc(2, insz + 1)) == NULL)
-		err(1, NULL);
-
-	for (i = 0; i < insz; i++) {
-		out[i * 2] = hex[in[i] >> 4];
-		out[i * 2 + 1] = hex[in[i] & 0xf];
-	}
-	out[i * 2] = '\0';
-
-	return out;
-}
-
-static unsigned char *
-load_file(const char *fn, size_t *len, time_t *time)
-{
-	unsigned char *buf = NULL;
-	struct stat st;
-	ssize_t n;
-	size_t size;
-	int fd, saved_errno;
-
-	*len = 0;
-	*time = 0;
-
-	memset(&st, 0, sizeof(st));
-
-	if ((fd = open(fn, O_RDONLY)) == -1)
-		return NULL;
-	if (fstat(fd, &st) != 0)
-		goto err;
-	if (st.st_size <= 0) {
-		errno = EFBIG;
-		goto err;
-	}
-
-	size = (size_t)st.st_size;
-	if ((buf = malloc(size)) == NULL)
-		goto err;
-
-	n = read(fd, buf, size);
-	if (n == -1)
-		goto err;
-	if ((size_t)n != size) {
-		errno = EIO;
-		goto err;
-	}
-
-	close(fd);
-	*len = size;
-	*time = st.st_mtim.tv_sec;
-	return buf;
-
- err:
-	saved_errno = errno;
-	close(fd);
-	free(buf);
-	errno = saved_errno;
-	return NULL;
-}
 
 static int
 asn1time_to_time(const ASN1_TIME *at, time_t *t)
@@ -244,10 +111,10 @@ cms_get_signtime_attr(const char *fn, X509_ATTRIBUTE *attr, time_t *signtime)
 static int
 x509_get_sia(X509 *x, char **out_sia)
 {
-	ACCESS_DESCRIPTION		*ad;
-	AUTHORITY_INFO_ACCESS		*info;
-	ASN1_OBJECT			*oid;
-	int				 i, crit, rc = 0;
+	ACCESS_DESCRIPTION *ad;
+	AUTHORITY_INFO_ACCESS *info;
+	ASN1_OBJECT *oid;
+	int i, crit, rc = 0;
 
 	assert(*out_sia == NULL);
 
@@ -419,7 +286,7 @@ mft_convert_seqnum(const ASN1_INTEGER *i)
 	return s;
 }
 
-static int
+int
 parse_manifest(struct file *f)
 {
 	CMS_ContentInfo *cms = NULL;
@@ -438,6 +305,7 @@ parse_manifest(struct file *f)
 	Manifest *mft = NULL;
 
 	fn = f->name;
+
 	oder = der = f->content;
 	if ((cms = d2i_CMS_ContentInfo(NULL, &der, f->content_len)) == NULL) {
 		warnx("%s: d2i_CMS_ContentInfo failed", fn);
@@ -533,7 +401,6 @@ parse_manifest(struct file *f)
 	return ret;
 }
 
-
 static time_t
 get_cert_notbefore(const char *fn, unsigned char *content, size_t len)
 {
@@ -605,249 +472,6 @@ get_crl_thisupdate(const char *fn, unsigned char *content, size_t len)
 	return time;
 }
 
-static void
-set_atime(int fd, const char *fn)
-{
-	struct timespec ts[2];
-
-	if (noop)
-		return;
-
-	ts[0].tv_nsec = UTIME_NOW;
-	ts[1].tv_nsec = UTIME_OMIT;
-
-	if (utimensat(fd, fn, ts, 0) == -1)
-		err(1, "utimensat %s", fn);
-}
-
-static void
-set_mtime(int fd, const char *fn, time_t mtime)
-{
-	struct timespec ts[2];
-
-	if (noop)
-		return;
-
-	ts[0].tv_nsec = UTIME_NOW;
-	ts[1].tv_sec = mtime;
-	ts[1].tv_nsec = 0;
-
-	if (utimensat(fd, fn, ts, 0) == -1)
-		err(1, "utimensat %s", fn);
-}
-
-/*
- * Base 64 encoding with URL and filename safe alphabet.
- * RFC 4648 section 5
- */
-static int
-b64uri_encode(const unsigned char *in, size_t inlen, char **out)
-{
-	unsigned char *to;
-	size_t tolen = 0;
-	char *c = NULL;
-
-	*out = NULL;
-
-	if (inlen >= INT_MAX / 2)
-		return -1;
-
-	tolen = ((inlen + 2) / 3) * 4 + 1;
-
-	if ((to = malloc(tolen)) == NULL)
-		return -1;
-
-	EVP_EncodeBlock(to, in, inlen);
-	*out = to;
-
-	c = (char *)to;
-	while ((c = strchr(c, '+')) != NULL)
-		*c = '-';
-	c = (char *)to;
-	while ((c = strchr(c, '/')) != NULL)
-		*c = '_';
-	if ((c = strchr((char *)to, '=')) != NULL)
-		*c = '\0';
-
-	return 0;
-}
-
-/*
- * Write content to a temp file and then atomically move it into place.
- */
-static void
-write_file(char *path, unsigned char *content, off_t content_len, time_t mtime)
-{
-	char *dir, *dn, *file, *bn, *tmpbn;
-	struct timespec ts[2];
-	int fd;
-
-	if (noop)
-		return;
-
-	if ((dir = strdup(path)) == NULL)
-		err(1, "strdup");
-	if ((dn = dirname(dir)) == NULL)
-		err(1, "dirname");
-
-	if ((file = strdup(path)) == NULL)
-		err(1, "strdup");
-	if ((bn = basename(file)) == NULL)
-		err(1, "basename");
-
-	if (asprintf(&tmpbn, "%s/.%s.XXXXXXXXXX", dn, bn) == -1)
-		err(1, "asprintf");
-
-	if (mkpathat(outdirfd, dn) == -1)
-		err(1, "mkpathat %s", dn);
-
-	if ((fd = mkstempat(outdirfd, tmpbn)) == -1)
-		err(1, "mkstempat %s", tmpbn);
-
-	(void)fchmod(fd, 0644);
-
-	if (write(fd, content, content_len) != content_len)
-		err(1, "write %s/%s", dn, tmpbn);
-
-	ts[0].tv_nsec = UTIME_OMIT;
-	ts[1].tv_sec = mtime;
-	ts[1].tv_nsec = 0;
-
-	if (futimens(fd, ts))
-		err(1, "futimens %s/%s", dn, tmpbn);
-
-	if (close(fd) != 0)
-		err(1, "close failed %s/%s", dn, tmpbn);
-
-	if (renameat(outdirfd, tmpbn, outdirfd, path) == -1) {
-		unlink(tmpbn);
-		err(1, "%s: rename to %s failed", tmpbn, path);
-	}
-
-	free(dir);
-	free(file);
-	free(tmpbn);
-}
-
-static int
-store_by_hash(struct file *f)
-{
-	char *b = NULL;
-	char *dir = NULL, *path = NULL;
-	struct stat st;
-	time_t delay;
-
-	if (b64uri_encode(f->hash, SHA256_DIGEST_LENGTH, &b) != 0)
-		err(1, "b64uri_encode");
-
-	/* 3 levels of directory-based sharding */
-	if (asprintf(&dir, "static/%c%c/%c%c/%c%c", b[0], b[1], b[2], b[3],
-	    b[4], b[5]) == -1)
-		err(1, NULL);
-
-	if (!noop) {
-		if (mkpathat(outdirfd, dir) == -1)
-			err(1, "mkpathat %s", dir);
-	}
-
-	if (asprintf(&path, "%s/%s", dir, b) == -1)
-		err(1, "asprintf");
-
-	memset(&st, 0, sizeof(struct stat));
-	if (fstatat(outdirfd, path, &st, 0) != 0) {
-		if (errno != ENOTDIR && errno != ENOENT)
-			err(1, "fstatat %s", path);
-	}
-
-	/*
-	 * Skip files that already are of the same size and have the same
-	 * last data modification timestamp.
-	 */
-	if (st.st_size != f->content_len || st.st_mtim.tv_sec != f->signtime) {
-		if (verbose) {
-			delay = time(NULL) - f->signtime;
-			warnx("%s %s (st:%lld sz:%zd d:%lld)", f->name, b,
-			    (long long)f->signtime, f->content_len,
-			    (long long)delay);
-		}
-		write_file(path, f->content, f->content_len, f->signtime);
-	} else
-		set_atime(outdirfd, path);
-
-	return 0;
-}
-
-/*
- * Store Manifests into their named location (using the SIA SignedObject).
- * Only overwrite if the on-disk copy is older.
- */
-static int
-store_by_name(struct file *f)
-{
-	char *dir = NULL, *path = NULL, *sia = NULL;
-	struct stat st;
-	time_t delay;
-
-	if ((sia = strdup(f->sia)) == NULL)
-		err(1, NULL);
-
-	if (asprintf(&dir, "named/%s", dirname(sia)) == -1)
-		err(1, "asprintf");
-
-	if (!noop) {
-		if (mkpathat(outdirfd, dir) == -1)
-			err(1, "mkpathat %s", dir);
-	}
-
-	if (asprintf(&path, "named/%s", f->sia) == -1)
-		err(1, "asprintf");
-
-	memset(&st, 0, sizeof(st));
-	if (fstatat(outdirfd, path, &st, 0) != 0) {
-		if (errno != ENOTDIR && errno != ENOENT)
-			err(1, "fstatat %s", path);
-	}
-
-	if (st.st_mtim.tv_sec < f->signtime) {
-		if (verbose) {
-			delay = time(NULL) - f->signtime;
-			warnx("%s (st:%lld sz:%zd d:%lld)", path,
-			    (long long)f->signtime, f->content_len,
-			    (long long)delay);
-		}
-		write_file(path, f->content, f->content_len, f->signtime);
-	}
-
-	free(dir);
-	free(sia);
-	free(path);
-
-	return 0;
-}
-
-static enum filetype
-detect_ftype_from_fn(char *fn)
-{
-	enum filetype ftype = TYPE_UNKNOWN;
-	size_t fn_len, i;
-
-	fn_len = strlen(fn);
-	if (fn_len < 5) {
-		warnx("%s: unsupported file", fn);
-		goto out;
-	}
-
-	for (i = 0; i < sizeof(ext_tab) / sizeof(ext_tab[0]); i++) {
-		if (strcasecmp(fn + (fn_len - 4), ext_tab[i].ext) == 0) {
-			ftype = ext_tab[i].type;
-			break;
-		}
-	}
-
- out:
-	return ftype;
-}
-
 static time_t
 get_time_from_content(struct file *f)
 {
@@ -888,10 +512,10 @@ get_time_from_content(struct file *f)
 /*
  * Adjust mod-times on the filesystem.
  */
-static int
+int
 touch(struct file *f)
 {
-	if (f->signtime == 0)
+	if ((f->signtime = get_time_from_content(f)) == 0)
 		return 0;
 
 	if (f->disktime != f->signtime) {
@@ -903,129 +527,4 @@ touch(struct file *f)
 		set_atime(AT_FDCWD, f->name);
 
 	return 1;
-}
-
-static void
-parse_stdin_input(void)
-{
-	char *line = NULL;
-	size_t linesize = 0;
-	ssize_t linelen;
-	struct file *f;
-	unsigned char *fc;
-
-	while ((linelen = getdelim(&line, &linesize, '\0', stdin)) != -1) {
-		if ((f = malloc(sizeof(struct file))) == NULL)
-			err(1, NULL);
-		f->id = ++count;
-		f->type = detect_ftype_from_fn(line);
-		if ((f->name = strdup(line)) == NULL)
-			err(1, NULL);
-		fc = load_file(f->name, &f->content_len, &f->disktime);
-		if (fc == NULL)
-			errx(1, "%s: load_file failed", f->name);
-		f->content = fc;
-		f->signtime = get_time_from_content(f);
-		SHA256(f->content, f->content_len, f->hash);
-		SLIST_INSERT_HEAD(&files, f, entry);
-	}
-
-	if (ferror(stdin))
-		err(1, "getdelim");
-
-	free(line);
-}
-
-int
-main(int argc, char *argv[])
-{
-	int c, rc = 0;
-	char *outdir = NULL;
-	struct file *f;
-
-	while ((c = getopt(argc, argv, "d:hnVv")) != -1)
-		switch (c) {
-		case 'd':
-			outdir = optarg;
-			break;
-		case 'n':
-			noop = 1;
-			break;
-		case 'V':
-			printf("version 1.7\n");
-			exit(0);
-		case 'v':
-			verbose = 1;
-			break;
-		case 'h':
-		default:
-			usage();
-		}
-
-	argc -= optind;
-	argv += optind;
-
-	setup_oids();
-
-	if (outdir != NULL && !noop) {
-		if ((outdirfd = open(outdir, O_RDONLY | O_DIRECTORY)) == -1)
-			err(1, "output directory %s", outdir);
-	}
-
-	if (outdir == NULL && *argv == NULL)
-		usage();
-	if (outdir != NULL && *argv != NULL)
-		usage();
-
-	if (outdir != NULL && *argv == NULL) {
-		parse_stdin_input();
-	} else {
-		for (; *argv != NULL; ++argv) {
-			unsigned char *fc;
-
-			if ((f = calloc(1, sizeof(struct file))) == NULL)
-				err(1, NULL);
-
-			f->id = ++count;
-			f->type = detect_ftype_from_fn(*argv);
-			if ((f->name = strdup(*argv)) == NULL)
-				err(1, NULL);
-			fc = load_file(f->name, &f->content_len, &f->disktime);
-			if (fc == NULL)
-				errx(1, "%s: load_file failed", f->name);
-			f->content = fc;
-			f->signtime = get_time_from_content(f);
-			SLIST_INSERT_HEAD(&files, f, entry);
-		}
-
-		/*
-		 * Update the mod-times.
-		 */
-
-		SLIST_FOREACH(f, &files, entry) {
-			touch(f);
-		}
-
-		return rc;
-	}
-
-	SLIST_FOREACH(f, &files, entry) {
-		store_by_hash(f);
-
-		if (f->type == TYPE_MFT) {
-			parse_manifest(f);
-			store_by_name(f);
-		}
-	}
-
-	return rc;
-}
-
-void
-usage(void)
-{
-	fprintf(stderr, "usage: rpkitouch [-nVv] file ...\n");
-	fprintf(stderr, "usage: find . -type f -print0 | rpkitouch [-nv] -d "
-	    "directory\n");
-	exit(1);
 }

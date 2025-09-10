@@ -1,5 +1,5 @@
 PROG=	rpkitouch
-SRCS=	rpkitouch.c mkdir.c mktemp.c
+SRCS=	main.c touch.c ccr.c mkdir.c mktemp.c util.c
 MAN=	rpkitouch.8
 
 LDADD+= -lc -lcrypto
@@ -15,7 +15,7 @@ CFLAGS+= -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_GNU_SOURCE
 all:
 	cc -o $(PROG) $(CFLAGS) $(SRCS) $(LDADD)
 	mandoc -Tlint $(MAN)
-	ctags rpkitouch.c
+	ctags $(SRCS)
 
 centos7:
 	cc -O2 -pipe -Wall -Wmissing-prototypes -Wmissing-declarations -Wshadow -Wpointer-arith -Wsign-compare -Werror-implicit-function-declaration -MD -MP -D_GNU_SOURCE $$(pkg-config --cflags-only-I openssl11) $$(pkg-config --libs-only-L openssl11) -o rpkitouch rpkitouch.c -lc -lcrypto
@@ -34,7 +34,7 @@ test:
 	cd tests && ../rpkitouch -v $(TEST_FILES)
 	cd tests && ls -rl $(TEST_FILES) | awk '{ print $$5, $$6, $$7, $$8, $$9 }' | sort > outcome.txt
 	mkdir -p tests/c
-	cd tests && find $(TEST_FILES) -print0 | ../rpkitouch -v -d ./c
+	cd tests && find $(TEST_FILES) | xargs ../rpkitouch -v -d ./c
 	find tests/c -type f | sort >> tests/outcome.txt
 	diff tests/outcome.txt tests/expected_outcome.txt
 	echo OK

@@ -15,102 +15,99 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
+#ifndef RPKITOUCH_ASN1_H
+#define RPKITOUCH_ASN1_H
+
 #include <openssl/asn1t.h>
 #include <openssl/safestack.h>
 
 /*
- * From draft-spaghetti-sidrops-rpki-erik-protocol-00
+ * Erik protocol component
+ * reference: draft-spaghetti-sidrops-rpki-erik-protocol-01
  */
 
-typedef struct {
-	ASN1_INTEGER *partitionIdentifier;
-	ASN1_BIT_STRING *hash;
-} PartitionListEntry;
-
-ASN1_SEQUENCE(PartitionListEntry) = {
-	ASN1_SIMPLE(PartitionListEntry, partitionIdentifier, ASN1_INTEGER),
-	ASN1_SIMPLE(PartitionListEntry, hash, ASN1_BIT_STRING),
-} ASN1_SEQUENCE_END(PartitionListEntry);
-
-#ifndef DEFINE_STACK_OF
-#define sk_PartitionListEntry_dup(sk)	SKM_sk_dup(PartitionListEntry, (sk))
-#define sk_PartitionListEntry_free(sk)	SKM_sk_free(PartitionListEntry, (sk))
-#define sk_PartitionListEntry_num(sk)	SKM_sk_num(PartitionListEntry, (sk))
-#define sk_PartitionListEntry_set_cmp_func(sk, cmp) \
-    SKM_sk_set_cmp_func(PartitionListEntry, (sk), (cmp))
-#define sk_PartitionListEntry_sort(sk)	SKM_sk_sort(PartitionListEntry, (sk))
-#define sk_PartitionListEntry_value(sk, i) \
-    SKM_sk_value(PartitionListEntry, (sk), (i))
-#endif
-
-DECLARE_ASN1_FUNCTIONS(PartitionListEntry);
-IMPLEMENT_ASN1_FUNCTIONS(PartitionListEntry);
+extern ASN1_ITEM_EXP ManifestRefs_it;
+extern ASN1_ITEM_EXP ManifestRef_it;
 
 typedef struct {
-	ASN1_INTEGER *version;
-	ASN1_IA5STRING *indexScope;
-	ASN1_GENERALIZEDTIME *indexTime;
-	ASN1_OBJECT *hashAlg;
-	ASN1_BIT_STRING *previousIndex;
-	STACK_OF(PartitionListEntry) *partitionList;
-} ErikIndex;
-
-ASN1_SEQUENCE(ErikIndex) = {
-	ASN1_EXP_OPT(ErikIndex, version, ASN1_INTEGER, 0),
-	ASN1_SIMPLE(ErikIndex, indexScope, ASN1_IA5STRING),
-	ASN1_SIMPLE(ErikIndex, indexTime, ASN1_GENERALIZEDTIME),
-	ASN1_SIMPLE(ErikIndex, hashAlg, ASN1_OBJECT),
-	ASN1_EXP_OPT(ErikIndex, previousIndex, ASN1_BIT_STRING, 0),
-	ASN1_SEQUENCE_OF(ErikIndex, partitionList, PartitionListEntry),
-} ASN1_SEQUENCE_END(ErikIndex);
-
-DECLARE_ASN1_FUNCTIONS(ErikIndex);
-IMPLEMENT_ASN1_FUNCTIONS(ErikIndex);
-
-typedef struct {
-	ASN1_BIT_STRING *hash;
+	ASN1_OCTET_STRING *hash;
+	ASN1_INTEGER *size;
+	ASN1_OCTET_STRING *aki;
 	ASN1_INTEGER *manifestNumber;
-	ASN1_OCTET_STRING *location;
-} ManifestListEntry;
+	STACK_OF(ACCESS_DESCRIPTION) *location;
+} ManifestRef;
 
-DECLARE_STACK_OF(ManifestListEntry);
+DECLARE_STACK_OF(ManifestRef);
 
 #ifndef DEFINE_STACK_OF
-#define sk_ManifestListEntry_dup(sk)	SKM_sk_dup(ManifestListEntry, (sk))
-#define sk_ManifestListEntry_free(sk)	SKM_sk_free(ManifestListEntry, (sk))
-#define sk_ManifestListEntry_num(sk)	SKM_sk_num(ManifestListEntry, (sk))
-#define sk_ManifestListEntry_set_cmp_func(sk, cmp) \
-    SKM_sk_set_cmp_func(ManifestListEntry, (sk), (cmp))
-#define sk_ManifestListEntry_sort(sk)	SKM_sk_sort(ManifestListEntry, (sk))
-#define sk_ManifestListEntry_value(sk, i) \
-    SKM_sk_value(ManifestListEntry, (sk), (i))
+#define sk_ManifestRef_num(st) SKM_sk_num(ManifestRef, (st))
+#define sk_ManifestRef_value(st, i) SKM_sk_value(ManifestRef, (st), (i))
 #endif
 
-ASN1_SEQUENCE(ManifestListEntry) = {
-	ASN1_SIMPLE(ManifestListEntry, hash, ASN1_OCTET_STRING),
-	ASN1_SIMPLE(ManifestListEntry, manifestNumber, ASN1_INTEGER),
-	ASN1_SIMPLE(ManifestListEntry, location, ASN1_OCTET_STRING),
-} ASN1_SEQUENCE_END(ManifestListEntry)
+DECLARE_ASN1_FUNCTIONS(ManifestRef);
 
-DECLARE_ASN1_FUNCTIONS(ManifestListEntry);
-IMPLEMENT_ASN1_FUNCTIONS(ManifestListEntry);
+/*
+ * Canonical Cache Representation (CCR)
+ * reference: TBD
+ */
+
+extern ASN1_ITEM_EXP ContentInfo_it;
+extern ASN1_ITEM_EXP CanonicalCacheRepresentation_it;
+
+typedef struct {
+	STACK_OF(ManifestRef) *mftrefs;
+	ASN1_GENERALIZEDTIME *mostRecentUpdate;
+	ASN1_OCTET_STRING *hash;
+} ManifestState;
+
+DECLARE_ASN1_FUNCTIONS(ManifestState);
+
+typedef STACK_OF(ManifestRef) ManifestRefs;
+DECLARE_ASN1_FUNCTIONS(ManifestRefs);
 
 typedef struct {
 	ASN1_INTEGER *version;
-	ASN1_GENERALIZEDTIME *partitionTime;
 	ASN1_OBJECT *hashAlg;
-	STACK_OF(ManifestListEntry) *manifestList;
-} ErikPartition;
+	ASN1_GENERALIZEDTIME *producedAt;
+	ManifestState *mfts;
+	ASN1_SEQUENCE_ANY *vrps;
+	ASN1_SEQUENCE_ANY *vaps;
+	ASN1_SEQUENCE_ANY *tas;
+} CanonicalCacheRepresentation;
 
-ASN1_SEQUENCE(ErikPartition) = {
-	ASN1_EXP_OPT(ErikPartition, version, ASN1_INTEGER, 0),
-	ASN1_SIMPLE(ErikPartition, partitionTime, ASN1_GENERALIZEDTIME),
-	ASN1_SIMPLE(ErikPartition, hashAlg, ASN1_OBJECT),
-	ASN1_SEQUENCE_OF(ErikPartition, manifestList, ManifestListEntry),
-} ASN1_SEQUENCE_END(ErikPartition);
+DECLARE_ASN1_FUNCTIONS(CanonicalCacheRepresentation);
 
-DECLARE_ASN1_FUNCTIONS(ErikPartition);
-IMPLEMENT_ASN1_FUNCTIONS(ErikPartition);
+typedef struct {
+	ASN1_OBJECT *contentType;
+	ASN1_OCTET_STRING *content;
+} ContentInfo;
+
+DECLARE_ASN1_FUNCTIONS(ContentInfo);
+
+/*
+ * RPKI Manifest
+ * reference: RFC 9286.
+ */
+
+extern ASN1_ITEM_EXP FileAndHash_it;
+extern ASN1_ITEM_EXP Manifest_it;
+
+typedef struct {
+	ASN1_IA5STRING *file;
+	ASN1_BIT_STRING	*hash;
+} FileAndHash;
+
+DECLARE_STACK_OF(FileAndHash);
+
+#ifndef DEFINE_STACK_OF
+#define sk_FileAndHash_dup(sk) SKM_sk_dup(FileAndHash, (sk))
+#define sk_FileAndHash_free(sk) SKM_sk_free(FileAndHash, (sk))
+#define sk_FileAndHash_num(sk) SKM_sk_num(FileAndHash, (sk))
+#define sk_FileAndHash_value(sk, i) SKM_sk_value(FileAndHash, (sk), (i))
+#define sk_FileAndHash_sort(sk) SKM_sk_sort(FileAndHash, (sk))
+#define sk_FileAndHash_set_cmp_func(sk, cmp) \
+    SKM_sk_set_cmp_func(FileAndHash, (sk), (cmp))
+#endif
 
 typedef struct {
 	ASN1_INTEGER *version;
@@ -118,17 +115,9 @@ typedef struct {
 	ASN1_GENERALIZEDTIME *thisUpdate;
 	ASN1_GENERALIZEDTIME *nextUpdate;
 	ASN1_OBJECT *fileHashAlg;
-	STACK_OF(ASN1_SEQUENCE) *fileList;
+	STACK_OF(FileAndHash) *fileList;
 } Manifest;
 
-ASN1_SEQUENCE(Manifest) = {
-	ASN1_EXP_OPT(Manifest, version, ASN1_INTEGER, 0),
-	ASN1_SIMPLE(Manifest, manifestNumber, ASN1_INTEGER),
-	ASN1_SIMPLE(Manifest, thisUpdate, ASN1_GENERALIZEDTIME),
-	ASN1_SIMPLE(Manifest, nextUpdate, ASN1_GENERALIZEDTIME),
-	ASN1_SIMPLE(Manifest, fileHashAlg, ASN1_OBJECT),
-	ASN1_SEQUENCE_OF(Manifest, fileList, ASN1_SEQUENCE),
-} ASN1_SEQUENCE_END(Manifest);
-
 DECLARE_ASN1_FUNCTIONS(Manifest);
-IMPLEMENT_ASN1_FUNCTIONS(Manifest);
+
+#endif /* ! RPKITOUCH_ASN1_H */

@@ -22,10 +22,8 @@
 .Sh SYNOPSIS
 .Nm rpkitouch
 .Op Fl nVv
+.Op Fl d Ar directory
 .Ar
-.Nm rpkitouch
-.Op Fl nv
-.Fl d Ar directory
 .Sh DESCRIPTION
 The
 .Nm
@@ -99,11 +97,6 @@ Files may not contain trailing data beyond the internal length markers.
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl d Ar directory
-Read NUL
-.Pq Ql \e0
-delimited filenames from the standard input and produce objects
-for the
-.Em Erik Synchronization Protocol .
 SHA-256 message digests are calculated for all objects and their content is
 stored in
 .Ar directory
@@ -131,19 +124,6 @@ Verbose operation.
 .Nm
 runs on all operating systems with a libcrypto library based on
 OpenSSL 1.1 or LibreSSL 3.6 or later.
-.Pp
-On Ubuntu/Debian install the
-.Em libssl-dev
-package, on Redhat/Rocky/Fedora install the
-.Em openssl-devel
-package, then simply issue
-.Ql make
-to build;
-on Centos 7 install
-.Em openssl11-devel
-from EPEL and then build the program using this special target
-.Ql make centos7
-.
 .Sh EXIT STATUS
 .Ex -std rpkitouch
 .Sh EXAMPLES
@@ -160,25 +140,23 @@ Copy a signed object to
 .Pa /tmp/a
 with the Base64 encoded SHA-256 message digest as its target file name.
 .Bd -literal -offset indent
-$ rpkitouch -vd /tmp/a rpki.ripe.net/repository/ripe-ncc-ta.mft
-rpki.ripe.net/repository/ripe-ncc-ta.mft kX/xB/kXxBgilLlXi4SJHY9JoWnmJAtRoO5oE084UXV6TsQ20.mft 1744024405 (271880)
+$ rpkitouch -vd /tmp/test ./rpki.ripe.net/repository/ripe-ncc-ta.mft
+rpkitouch: rpki.ripe.net/repository/ripe-ncc-ta.mft wtBCe8WjLELuoatWY9WSsfwpx9TvFqsLXh1jHQOdzCE (st:1756387926 sz:1786 d:1126859)
+rpkitouch: named/rpki.ripe.net/repository/ripe-ncc-ta.mft (st:1756387926 sz:1786 d:1126859)
 
-$ find /tmp/a
-/tmp/a
-/tmp/a/kX
-/tmp/a/kX/xB
-/tmp/a/kX/xB/kXxBgilLlXi4SJHY9JoWnmJAtRoO5oE084UXV6TsQ20.mft
-/tmp/a/mft
-/tmp/a/mft/rpki.ripe.net
-/tmp/a/mft/rpki.ripe.net/repository
-/tmp/a/mft/rpki.ripe.net/repository/ripe-ncc-ta.mft
+$ find /tmp/test
+/tmp/test
+/tmp/test/static
+/tmp/test/static/wt
+/tmp/test/static/wt/BC
+/tmp/test/static/wt/BC/e8
+/tmp/test/static/wt/BC/e8/wtBCe8WjLELuoatWY9WSsfwpx9TvFqsLXh1jHQOdzCE
+/tmp/test/named
+/tmp/test/named/rpki.ripe.net
+/tmp/test/named/rpki.ripe.net/repository
+/tmp/test/named/rpki.ripe.net/repository/ripe-ncc-ta.mft
 .Ed
 .Sh STANDARDS
-.Rs
-.%T On the Use of the CMS Signing-Time Attribute in RPKI Signed Objects
-.%R RFC 9589
-.Re
-.Pp
 .Rs
 .%T Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile
 .%R RFC 5280
@@ -195,8 +173,8 @@ $ find /tmp/a
 .Re
 .Pp
 .Rs
-.%T The Erik Synchronization Protocol for use with the RPKI
-.%R draft-spaghetti-sidrops-rpki-erik-protocol-00
+.%T On the Use of the CMS Signing-Time Attribute in RPKI Signed Objects
+.%R RFC 9589
 .Re
 .Sh AUTHORS
 .An -nosplit
