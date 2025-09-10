@@ -32,6 +32,11 @@ enum filetype {
 	TYPE_UNKNOWN,
 };
 
+struct fileandhash {
+	char *fn;
+	char *hash;
+};
+
 struct file {
 	int id;
 	enum filetype type;
@@ -42,7 +47,14 @@ struct file {
 	unsigned char *content;
 	char *name;
 	char *sia;
+	char *sia_dirname;
+
+	/*
+	 * specific to MFT files
+	 */
 	char *seqnum;
+	struct fileandhash *files;
+	int files_num;
 };
 
 int touch(struct file *);
@@ -59,6 +71,8 @@ int mkstempat(int, char *);
 
 void set_atime(int, const char *);
 void set_mtime(int, const char *, time_t);
+
+int b64uri_encode(const unsigned char *, size_t, char **);
 
 void usage(void);
 

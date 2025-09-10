@@ -21,7 +21,7 @@
 .Nd set file modification times to internal RPKI timestamps
 .Sh SYNOPSIS
 .Nm rpkitouch
-.Op Fl nVv
+.Op Fl npVv
 .Op Fl d Ar directory
 .Ar
 .Sh DESCRIPTION
@@ -115,6 +115,9 @@ and
 to see what
 .Nm
 would change.
+.It Fl p
+Print the directory path derived from the SIA and the filenames contained in a
+Manifest's payload, followed by the Manifest's filename itself.
 .It Fl V
 Display the version number and exit.
 .It Fl v

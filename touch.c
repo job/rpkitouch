@@ -21,6 +21,7 @@
 #include <ctype.h>
 #include <err.h>
 #include <fcntl.h>
+#include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -260,147 +261,6 @@ get_time_from_sobject(const char *fn, unsigned char *content, size_t len)
 	return signtime;
 }
 
-static char *
-mft_convert_seqnum(const ASN1_INTEGER *i)
-{
-	BIGNUM *bn = NULL;
-	char *s = NULL;
-
-	if (i == NULL)
-		goto out;
-
-	if ((bn = ASN1_INTEGER_to_BN(i, NULL)) == NULL)
-		goto out;
-
-	if (BN_is_negative(bn))
-		goto out;
-
-	if (BN_num_bytes(bn) > 20 || BN_is_bit_set(bn, 159))
-		goto out;
-
-	if ((s = BN_bn2hex(bn)) == NULL)
-		goto out;
-
- out:
-	BN_free(bn);
-	return s;
-}
-
-int
-parse_manifest(struct file *f)
-{
-	CMS_ContentInfo *cms = NULL;
-	STACK_OF(X509) *certs = NULL;
-	X509 *x;
-	const ASN1_TIME *at;
-	char *fn, *sia = NULL, *seqnum = NULL;
-	const ASN1_OBJECT *obj;
-	const unsigned char *der, *oder;
-	int ret = 0;
-	time_t now, expiry = 0;
-	ASN1_OCTET_STRING **os = NULL;
-	unsigned char *econtent_der = NULL;
-	const unsigned char *p;
-	size_t econtent_der_len;
-	Manifest *mft = NULL;
-
-	fn = f->name;
-
-	oder = der = f->content;
-	if ((cms = d2i_CMS_ContentInfo(NULL, &der, f->content_len)) == NULL) {
-		warnx("%s: d2i_CMS_ContentInfo failed", fn);
-		goto out;
-	}
-	if (der != oder + f->content_len) {
-		warnx("%s: %td bytes trailing garbage", fn,
-		    oder + f->content_len - der);
-		goto out;
-	}
-
-	if (!CMS_verify(cms, NULL, NULL, NULL, NULL,
-	    CMS_NO_SIGNER_CERT_VERIFY)) {
-		warnx("%s: CMS_verify failed", fn);
-		goto out;
-	}
-
-	certs = CMS_get0_signers(cms);
-	if (certs == NULL || sk_X509_num(certs) != 1)
-		goto out;
-	x = sk_X509_value(certs, 0);
-
-	if (X509_check_purpose(x, -1, 0) <= 0) {
-		warnx("%s: could not cache X509v3 extensions", fn);
-		goto out;
-	}
-
-	if ((at = X509_get0_notAfter(x)) == NULL) {
-		warnx("%s: X509_get0_notAfter failed", fn);
-		goto out;
-	}
-
-	if (!asn1time_to_time(at, &expiry)) {
-		warnx("%s: failed to convert ASN1_TIME", fn);
-		goto out;
-	}
-
-	now = time(NULL);
-	if (expiry < now)
-		ret = 1;
-
-	if (x509_get_sia(x, &sia) != 1)
-		goto out;
-	f->sia = sia;
-
-	obj = CMS_get0_eContentType(cms);
-	if (obj == NULL) {
-		warnx("%s: eContentType is NULL", fn);
-		goto out;
-	}
-	if (OBJ_cmp(obj, manifest_oid) != 0) {
-		char buf[128], obuf[128];
-
-		OBJ_obj2txt(buf, sizeof(buf), obj, 1);
-		OBJ_obj2txt(obuf, sizeof(obuf), manifest_oid, 1);
-		warnx("%s: eContentType: unknown OID: %s, want %s", fn, buf,
-		    obuf);
-		goto out;
-	}
-
-	if ((os = CMS_get0_content(cms)) == NULL || *os == NULL) {
-		warnx("%s: CMS_get0_content failed", fn);
-		goto out;
-	}
-
-	econtent_der_len = (*os)->length;
-	if ((econtent_der = malloc(econtent_der_len)) == NULL)
-		err(1, NULL);
-	memcpy(econtent_der, (*os)->data, econtent_der_len);
-
-	p = econtent_der;
-	if ((mft = d2i_Manifest(NULL, &p, econtent_der_len)) == NULL) {
-		warnx("%s: parsing eContent failed", fn);
-		goto out;
-	}
-	if (p != econtent_der + econtent_der_len) {
-		warnx("%s: bytes trailing in eContent", fn);
-		goto out;
-	}
-
-	if ((seqnum = mft_convert_seqnum(mft->manifestNumber)) == NULL) {
-		warnx("%s: manifestNumber conversion failure", fn);
-		goto out;
-	}
-	f->seqnum = seqnum;
-
-	ret = 1;
- out:
-	free(econtent_der);
-	Manifest_free(mft);
-	sk_X509_free(certs);
-	CMS_ContentInfo_free(cms);
-	return ret;
-}
-
 static time_t
 get_cert_notbefore(const char *fn, unsigned char *content, size_t len)
 {
@@ -507,6 +367,172 @@ get_time_from_content(struct file *f)
 	}
 
 	return time;
+}
+
+static char *
+mft_convert_seqnum(const ASN1_INTEGER *i)
+{
+	BIGNUM *bn = NULL;
+	char *s = NULL;
+
+	if (i == NULL)
+		goto out;
+
+	if ((bn = ASN1_INTEGER_to_BN(i, NULL)) == NULL)
+		goto out;
+
+	if (BN_is_negative(bn))
+		goto out;
+
+	if (BN_num_bytes(bn) > 20 || BN_is_bit_set(bn, 159))
+		goto out;
+
+	if ((s = BN_bn2hex(bn)) == NULL)
+		goto out;
+
+ out:
+	BN_free(bn);
+	return s;
+}
+
+int
+parse_manifest(struct file *f)
+{
+	CMS_ContentInfo *cms = NULL;
+	STACK_OF(X509) *certs = NULL;
+	X509 *x;
+	const ASN1_TIME *at;
+	char *fn, *sia = NULL, *sia_dir = NULL, *seqnum = NULL;
+	const ASN1_OBJECT *obj;
+	const unsigned char *der, *oder;
+	int i, ret = 0;
+	time_t now, expiry = 0;
+	ASN1_OCTET_STRING **os = NULL;
+	unsigned char *econtent_der = NULL;
+	const unsigned char *p;
+	size_t econtent_der_len;
+	Manifest *mft = NULL;
+
+	fn = f->name;
+
+	oder = der = f->content;
+	if ((cms = d2i_CMS_ContentInfo(NULL, &der, f->content_len)) == NULL) {
+		warnx("%s: d2i_CMS_ContentInfo failed", fn);
+		goto out;
+	}
+	if (der != oder + f->content_len) {
+		warnx("%s: %td bytes trailing garbage", fn,
+		    oder + f->content_len - der);
+		goto out;
+	}
+
+	if (!CMS_verify(cms, NULL, NULL, NULL, NULL,
+	    CMS_NO_SIGNER_CERT_VERIFY)) {
+		warnx("%s: CMS_verify failed", fn);
+		goto out;
+	}
+
+	certs = CMS_get0_signers(cms);
+	if (certs == NULL || sk_X509_num(certs) != 1)
+		goto out;
+	x = sk_X509_value(certs, 0);
+
+	if (X509_check_purpose(x, -1, 0) <= 0) {
+		warnx("%s: could not cache X509v3 extensions", fn);
+		goto out;
+	}
+
+	if ((at = X509_get0_notAfter(x)) == NULL) {
+		warnx("%s: X509_get0_notAfter failed", fn);
+		goto out;
+	}
+
+	if (!asn1time_to_time(at, &expiry)) {
+		warnx("%s: failed to convert ASN1_TIME", fn);
+		goto out;
+	}
+
+	now = time(NULL);
+	if (expiry < now)
+		ret = 1;
+
+	if (x509_get_sia(x, &sia) != 1)
+		goto out;
+	f->sia = sia;
+
+	sia_dir = strdup(sia);
+	if (asprintf(&f->sia_dirname, "%s", dirname(sia_dir)) == -1)
+		err(1, "asprintf");
+	free(sia_dir);
+
+	obj = CMS_get0_eContentType(cms);
+	if (obj == NULL) {
+		warnx("%s: eContentType is NULL", fn);
+		goto out;
+	}
+	if (OBJ_cmp(obj, manifest_oid) != 0) {
+		char buf[128], obuf[128];
+
+		OBJ_obj2txt(buf, sizeof(buf), obj, 1);
+		OBJ_obj2txt(obuf, sizeof(obuf), manifest_oid, 1);
+		warnx("%s: eContentType: unknown OID: %s, want %s", fn, buf,
+		    obuf);
+		goto out;
+	}
+
+	if ((os = CMS_get0_content(cms)) == NULL || *os == NULL) {
+		warnx("%s: CMS_get0_content failed", fn);
+		goto out;
+	}
+
+	econtent_der_len = (*os)->length;
+	if ((econtent_der = malloc(econtent_der_len)) == NULL)
+		err(1, NULL);
+	memcpy(econtent_der, (*os)->data, econtent_der_len);
+
+	p = econtent_der;
+	if ((mft = d2i_Manifest(NULL, &p, econtent_der_len)) == NULL) {
+		warnx("%s: parsing eContent failed", fn);
+		goto out;
+	}
+	if (p != econtent_der + econtent_der_len) {
+		warnx("%s: bytes trailing in eContent", fn);
+		goto out;
+	}
+
+	if ((seqnum = mft_convert_seqnum(mft->manifestNumber)) == NULL) {
+		warnx("%s: manifestNumber conversion failure", fn);
+		goto out;
+	}
+	f->seqnum = seqnum;
+
+	f->files_num = sk_FileAndHash_num(mft->fileList);
+
+	if ((f->files = calloc(f->files_num, sizeof(struct fileandhash))) == NULL)
+		err(1, NULL);
+
+	for (i = 0; i < f->files_num; i++) {
+		const FileAndHash *fah = sk_FileAndHash_value(mft->fileList, i);
+
+		f->files[i].fn = strndup(fah->file->data, fah->file->length);
+		if (f->files[i].fn == NULL)
+			err(1, NULL);
+
+		if (fah->hash->length != SHA256_DIGEST_LENGTH)
+			goto out;
+
+		if (!b64uri_encode(fah->hash->data, fah->hash->length,
+		    &f->files[i].hash))
+			err(1, NULL);
+	}
+
+	ret = 1;
+ out:
+	free(econtent_der);
+	Manifest_free(mft);
+	sk_X509_free(certs);
+	CMS_ContentInfo_free(cms);
+	return ret;
 }
 
 /*

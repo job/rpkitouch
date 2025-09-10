@@ -80,7 +80,7 @@ load_file(const char *fn, off_t *len, time_t *time)
  * Base 64 encoding with URL and filename safe alphabet.
  * RFC 4648 section 5
  */
-static int
+int
 b64uri_encode(const unsigned char *in, size_t inlen, char **out)
 {
 	char *to;
@@ -90,12 +90,12 @@ b64uri_encode(const unsigned char *in, size_t inlen, char **out)
 	*out = NULL;
 
 	if (inlen >= INT_MAX / 2)
-		return -1;
+		return 0;
 
 	tolen = ((inlen + 2) / 3) * 4 + 1;
 
 	if ((to = malloc(tolen)) == NULL)
-		return -1;
+		return 0;
 
 	EVP_EncodeBlock(to, in, inlen);
 	*out = to;
@@ -109,7 +109,7 @@ b64uri_encode(const unsigned char *in, size_t inlen, char **out)
 	if ((c = strchr((char *)to, '=')) != NULL)
 		*c = '\0';
 
-	return 0;
+	return 1;
 }
 
 /*
@@ -177,7 +177,7 @@ store_by_hash(struct file *f)
 	struct stat st;
 	time_t delay;
 
-	if (b64uri_encode(f->hash, SHA256_DIGEST_LENGTH, &b) != 0)
+	if (!b64uri_encode(f->hash, SHA256_DIGEST_LENGTH, &b))
 		err(1, "b64uri_encode");
 
 	/* 3 levels of directory-based sharding */
@@ -224,14 +224,11 @@ store_by_hash(struct file *f)
 int
 store_by_name(struct file *f)
 {
-	char *dir = NULL, *path = NULL, *sia = NULL;
+	char *dir = NULL, *path = NULL;
 	struct stat st;
 	time_t delay;
 
-	if ((sia = strdup(f->sia)) == NULL)
-		err(1, NULL);
-
-	if (asprintf(&dir, "named/%s", dirname(sia)) == -1)
+	if (asprintf(&dir, "named/%s", f->sia_dirname) == -1)
 		err(1, "asprintf");
 
 	if (!noop) {
@@ -259,7 +256,6 @@ store_by_name(struct file *f)
 	}
 
 	free(dir);
-	free(sia);
 	free(path);
 
 	return 0;

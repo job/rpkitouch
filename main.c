@@ -29,6 +29,7 @@
 #include "extern.h"
 
 int noop = 0;
+int print = 0;
 int verbose = 0;
 int outdirfd;
 
@@ -96,9 +97,17 @@ detect_ftype_from_fn(char *fn)
 static void
 file_free(struct file *f)
 {
+	int i;
+
 	if (f == NULL)
 		return;
 
+	for (i = 0; i < f->files_num; i++) {
+		free(f->files[i].fn);
+		free(f->files[i].hash);
+	}
+
+	free(f->files);
 	free(f->name);
 	free(f->sia);
 	free(f->content);
@@ -108,11 +117,11 @@ file_free(struct file *f)
 int
 main(int argc, char *argv[])
 {
-	int c, count = 0, rc = 0;
+	int c, count = 0, i, rc = 0;
 	char *ccr1 = NULL, *ccr2 = NULL, *outdir = NULL;
 	struct file *f;
 
-	while ((c = getopt(argc, argv, "c:d:hnVv")) != -1)
+	while ((c = getopt(argc, argv, "c:d:hnpVv")) != -1)
 		switch (c) {
 		case 'c':
 			if (ccr1 == NULL) {
@@ -128,6 +137,10 @@ main(int argc, char *argv[])
 			break;
 		case 'n':
 			noop = 1;
+			break;
+		case 'p':
+			noop = 1;
+			print = 1;
 			break;
 		case 'V':
 			printf("version 1.7\n");
@@ -145,6 +158,11 @@ main(int argc, char *argv[])
 
 	if (outdir == NULL && *argv == NULL)
 		usage();
+
+	if (outdir != NULL && print) {
+		warnx("cannot combine -p and -d");
+		usage();
+	}
 
 	if (ccr1 != NULL && ccr2 == NULL) {
 		warnx("must specify 2 CCR files");
@@ -176,6 +194,18 @@ main(int argc, char *argv[])
 		f->content = fc;
 		SHA256(f->content, f->content_len, f->hash);
 
+		if (f->type == TYPE_MFT) {
+			parse_manifest(f);
+
+			if (print) {
+				for (i = 0; i < f->files_num; i++) {
+					printf("%s/%s\n", f->sia_dirname,
+					    f->files[i].fn);
+				}
+				printf("%s/%s\n", f->sia_dirname, f->name);
+			}
+		}
+
 		/*
 		 * Update the mod-time
 		 */
@@ -189,10 +219,8 @@ main(int argc, char *argv[])
 		if (outdir != NULL) {
 			store_by_hash(f);
 
-			if (f->type == TYPE_MFT) {
-				parse_manifest(f);
+			if (f->type == TYPE_MFT)
 				store_by_name(f);
-			}
 		}
 
 		file_free(f);
@@ -204,7 +232,6 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	fprintf(stderr, "usage: rpkitouch [-nVv] [-d dir] file ...\n");
-	fprintf(stderr, "       rpkitouch [-nv] -c ccr1 -c ccr2 -d dir\n");
+	fprintf(stderr, "usage: rpkitouch [-npVv] [-d dir] file ...\n");
 	exit(1);
 }
