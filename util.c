@@ -83,7 +83,7 @@ load_file(const char *fn, off_t *len, time_t *time)
 static int
 b64uri_encode(const unsigned char *in, size_t inlen, char **out)
 {
-	unsigned char *to;
+	char *to;
 	size_t tolen = 0;
 	char *c = NULL;
 
@@ -207,7 +207,7 @@ store_by_hash(struct file *f)
 		if (verbose) {
 			delay = time(NULL) - f->signtime;
 			warnx("%s %s (st:%lld sz:%lld d:%lld)", f->name, b,
-			    (long long)f->signtime, f->content_len,
+			    (long long)f->signtime, (long long)f->content_len,
 			    (long long)delay);
 		}
 		write_file(path, f->content, f->content_len, f->signtime);
@@ -252,7 +252,7 @@ store_by_name(struct file *f)
 		if (verbose) {
 			delay = time(NULL) - f->signtime;
 			warnx("%s (st:%lld sz:%lld d:%lld)", path,
-			    (long long)f->signtime, f->content_len,
+			    (long long)f->signtime, (long long)f->content_len,
 			    (long long)delay);
 		}
 		write_file(path, f->content, f->content_len, f->signtime);

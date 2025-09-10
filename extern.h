@@ -42,7 +42,7 @@ struct file {
 	unsigned char *content;
 	char *name;
 	char *sia;
-	unsigned char *seqnum;
+	char *seqnum;
 };
 
 int touch(struct file *);

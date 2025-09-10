@@ -21,6 +21,10 @@
 #include <openssl/asn1t.h>
 #include <openssl/safestack.h>
 
+#ifndef DECLARE_STACK_OF
+#define DECLARE_STACK_OF DEFINE_STACK_OF
+#endif
+
 /*
  * Erik protocol component
  * reference: draft-spaghetti-sidrops-rpki-erik-protocol-01
