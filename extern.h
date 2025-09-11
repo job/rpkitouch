@@ -48,10 +48,6 @@ struct file {
 	char *name;
 	char *sia;
 	char *sia_dirname;
-
-	/*
-	 * specific to MFT files
-	 */
 	char *seqnum;
 	struct fileandhash *files;
 	int files_num;
@@ -65,6 +61,7 @@ void write_file(char *, unsigned char *, off_t, time_t);
 int mkpathat(int, const char *);
 int mkstempat(int, char *);
 
+int parse_ccr(struct file *f);
 int parse_manifest(struct file *f);
 
 time_t get_time_from_content(struct file *f);
@@ -77,10 +74,11 @@ int store_by_name(struct file *);
 
 void usage(void);
 
+extern ASN1_OBJECT *ccr_oid;
+extern ASN1_OBJECT *manifest_oid;
 extern ASN1_OBJECT *notify_oid;
 extern ASN1_OBJECT *sign_time_oid;
 extern ASN1_OBJECT *signedobj_oid;
-extern ASN1_OBJECT *manifest_oid;
 
 extern int noop;
 extern int verbose;

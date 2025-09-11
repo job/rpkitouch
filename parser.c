@@ -68,6 +68,10 @@ asn1time_to_time(const ASN1_TIME *at, time_t *t)
 	/* Error instead of silently falling back to current time. */
 	if (at == NULL)
 		return 0;
+
+	if (at->length != GENTIME_LENGTH)
+		return 0;
+
 	memset(&tm, 0, sizeof(tm));
 	if (!ASN1_TIME_to_tm(at, &tm))
 		return 0;
@@ -75,6 +79,60 @@ asn1time_to_time(const ASN1_TIME *at, time_t *t)
 		errx(1, "timegm failed");
 
 	return 1;
+}
+
+/*
+ * Parse the Subject Information Access (SIA) in a CCR.
+ * Returns 0 on failure, out_sia has to be freed after use.
+ */
+static int
+ccr_get_sia(STACK_OF(ACCESS_DESCRIPTION) *location, char **out_sia)
+{
+	ACCESS_DESCRIPTION *ad;
+	ASN1_IA5STRING *uri;
+	ASN1_OBJECT *oid;
+	int rc = 0, s;
+
+	assert(*out_sia == NULL);
+
+	if (sk_ACCESS_DESCRIPTION_num(location) != 1)
+		goto out;
+
+	ad = sk_ACCESS_DESCRIPTION_value(location, 0);
+
+	oid = ad->method;
+	if (OBJ_cmp(oid, signedobj_oid) != 0)
+		goto out;
+	if (ad->location->type != GEN_URI)
+		goto out;
+
+	uri = ad->location->d.uniformResourceIdentifier;
+	if (uri->length > MAX_URI_LENGTH)
+		goto out;
+
+	/* rsync://x.net/x.mft */
+	if (uri->length <= 20)
+		goto out;
+
+	for (s = 0; s < uri->length; s++) {
+		if (!isalnum((unsigned char)uri->data[s]) &&
+		    !ispunct((unsigned char)uri->data[s]))
+			goto out;
+	}
+
+	if (strstr((char *)uri->data, "/.") != NULL)
+		goto out;
+
+	if (strncasecmp((char *)uri->data, RSYNC_PROTO, RSYNC_PROTO_LEN) != 0)
+		goto out;
+
+	*out_sia = strndup((char *)uri->data + RSYNC_PROTO_LEN, uri->length);
+	if (*out_sia == NULL)
+		err(1, NULL);
+
+	rc = 1;
+ out:
+	return rc;
 }
 
 static int
@@ -533,4 +591,88 @@ parse_manifest(struct file *f)
 	sk_X509_free(certs);
 	CMS_ContentInfo_free(cms);
 	return ret;
+}
+
+int
+parse_ccr(struct file *f)
+{
+	const unsigned char *oder, *der;
+	ContentInfo *ci = NULL;
+	CanonicalCacheRepresentation *ccr = NULL;
+	long len;
+	time_t producedat = 0;
+	int i, rc = 0;
+
+	oder = der = f->content;
+	if ((ci = d2i_ContentInfo(NULL, &der, f->content_len)) == NULL) {
+		warnx("%s: d2i_ContentInfo failed", f->name);
+		goto out;
+	}
+	if (der != oder + f->content_len) {
+		warnx("%s: %td bytes trailing garbage", f->name,
+		    oder + f->content_len - der);
+		goto out;
+	}
+
+	if (OBJ_cmp(ci->contentType, ccr_oid) != 0) {
+		char buf[128];
+
+		OBJ_obj2txt(buf, sizeof(buf), ci->contentType, 1);
+		warnx("%s: unexpected OID: got %s, want 1.3.6.1.4.1.41948.825",
+		    f->name, buf);
+		goto out;
+	}
+
+	der = ASN1_STRING_get0_data(ci->content);
+	len = ASN1_STRING_length(ci->content);
+
+	oder = der;
+	if ((ccr = d2i_CanonicalCacheRepresentation(NULL, &der, len)) == NULL) {
+		warnx("%s: d2i_CanonicalCacheRepresentation failed", f->name);
+		goto out;
+	}
+	if (der != oder + len) {
+		warnx("%s: %td bytes trailing garbage", f->name, oder + len - der);
+		goto out;
+	}
+
+	if (!asn1time_to_time(ccr->producedAt, &producedat)) {
+		warnx("%s: failed to convert %s", f->name, "producedAt");
+		goto out;
+	}
+
+	if (f->disktime != producedat)
+		set_mtime(AT_FDCWD, f->name, producedat);
+
+	if (ccr->mfts == NULL || ccr->mfts->mftrefs == NULL) {
+		warnx("%s: missing Manifest state", f->name);
+		goto out;
+	}
+
+	f->files_num = sk_ManifestRef_num(ccr->mfts->mftrefs);
+
+	f->files = calloc(f->files_num, sizeof(struct fileandhash));
+	if (f->files == NULL)
+		err(1, NULL);
+
+	for (i = 0; i < f->files_num; i++) {
+		const ManifestRef *mr;
+
+		mr = sk_ManifestRef_value(ccr->mfts->mftrefs, i);
+
+		if (mr->hash->length != SHA256_DIGEST_LENGTH)
+			goto out;
+
+		if (!b64uri_encode(mr->hash->data, mr->hash->length,
+		    &f->files[i].hash))
+			err(1, NULL);
+
+		if (!ccr_get_sia(mr->location, &f->files[i].fn))
+			goto out;
+	}
+
+	rc = 1;
+ out:
+	ContentInfo_free(ci);
+	return rc;
 }

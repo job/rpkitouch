@@ -30,7 +30,6 @@
  * reference: draft-spaghetti-sidrops-rpki-erik-protocol-01
  */
 
-extern ASN1_ITEM_EXP ManifestRefs_it;
 extern ASN1_ITEM_EXP ManifestRef_it;
 
 typedef struct {
@@ -52,7 +51,7 @@ DECLARE_ASN1_FUNCTIONS(ManifestRef);
 
 /*
  * Canonical Cache Representation (CCR)
- * reference: TBD
+ * reference: draft-spaghetti-sidrops-rpki-ccr-00
  */
 
 extern ASN1_ITEM_EXP ContentInfo_it;
@@ -65,9 +64,6 @@ typedef struct {
 } ManifestState;
 
 DECLARE_ASN1_FUNCTIONS(ManifestState);
-
-typedef STACK_OF(ManifestRef) ManifestRefs;
-DECLARE_ASN1_FUNCTIONS(ManifestRefs);
 
 typedef struct {
 	ASN1_INTEGER *version;

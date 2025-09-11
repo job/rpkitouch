@@ -22,7 +22,6 @@
 
 ASN1_ITEM_EXP ContentInfo_it;
 ASN1_ITEM_EXP CanonicalCacheRepresentation_it;
-ASN1_ITEM_EXP ManifestRefs_it;
 ASN1_ITEM_EXP ManifestRef_it;
 
 /*
@@ -56,12 +55,6 @@ ASN1_SEQUENCE(ManifestState) = {
 } ASN1_SEQUENCE_END(ManifestState);
 
 IMPLEMENT_ASN1_FUNCTIONS(ManifestState);
-
-ASN1_ITEM_TEMPLATE(ManifestRefs) =
-    ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, mftrefs, ManifestRef)
-ASN1_ITEM_TEMPLATE_END(ManifestRefs);
-
-IMPLEMENT_ASN1_ENCODE_FUNCTIONS_fname(ManifestRefs, ManifestRefs, ManifestRefs);
 
 ASN1_SEQUENCE(ManifestRef) = {
 	ASN1_SIMPLE(ManifestRef, hash, ASN1_OCTET_STRING),

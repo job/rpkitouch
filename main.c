@@ -53,10 +53,11 @@ const struct {
 	{ .ext = ".tal", .type = TYPE_TAL }
 };
 
+ASN1_OBJECT *ccr_oid;
+ASN1_OBJECT *manifest_oid;
 ASN1_OBJECT *notify_oid;
 ASN1_OBJECT *sign_time_oid;
 ASN1_OBJECT *signedobj_oid;
-ASN1_OBJECT *manifest_oid;
 
 static void
 setup_oids(void) {
@@ -69,6 +70,8 @@ setup_oids(void) {
 	if ((manifest_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.26", 1))
 	    == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "manifest_oid");
+	if ((ccr_oid = OBJ_txt2obj("1.3.6.1.4.1.41948.825", 1)) == NULL)
+		errx(1, "OBJ_txt2obj for %s failed", "ccr_oid");
 }
 
 static enum filetype
@@ -120,6 +123,7 @@ main(int argc, char *argv[])
 	int c, count = 0, i, rc = 0;
 	char *ccr1 = NULL, *ccr2 = NULL, *outdir = NULL;
 	struct file *f;
+	unsigned char *fc;
 
 	while ((c = getopt(argc, argv, "c:d:hnpVv")) != -1)
 		switch (c) {
@@ -156,7 +160,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (outdir == NULL && *argv == NULL)
+	if (outdir == NULL && *argv == NULL && ccr1 == NULL)
 		usage();
 
 	if (outdir != NULL && print) {
@@ -176,9 +180,31 @@ main(int argc, char *argv[])
 			err(1, "output directory %s", outdir);
 	}
 
-	for (; *argv != NULL; ++argv) {
-		unsigned char *fc;
+	if (ccr1 != NULL) {
+		if ((f = calloc(1, sizeof(struct file))) == NULL)
+			err(1, NULL);
 
+		if ((f->type = detect_ftype_from_fn(ccr1)) != TYPE_CCR) {
+			warnx("-c only accepts .ccr");
+			usage();
+		}
+
+		f->name = ccr1;
+
+		fc = load_file(ccr1, &f->content_len, &f->disktime);
+		if (fc == NULL)
+			errx(1, "%s: load_file failed", f->name);
+		f->content = fc;
+
+		if (!parse_ccr(f)) {
+			warnx("%s: issue", ccr1);
+		}
+
+		for (i = 0; i < f->files_num; i++)
+			printf("%s %s\n", f->files[i].hash, f->files[i].fn);
+	}
+
+	for (; *argv != NULL; ++argv) {
 		if ((f = calloc(1, sizeof(struct file))) == NULL)
 			err(1, NULL);
 
@@ -238,6 +264,7 @@ main(int argc, char *argv[])
 		}
 
 		file_free(f);
+		f = NULL;
 	}
 
 	return rc;
@@ -246,6 +273,7 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	fprintf(stderr, "usage: rpkitouch [-npVv] [-d dir] file ...\n");
+	fprintf(stderr, "usage: rpkitouch [-npVv] [-c file1 -c file2] [-d dir]"
+	    " file ...\n");
 	exit(1);
 }
