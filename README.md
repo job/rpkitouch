@@ -182,6 +182,9 @@ with the Base64 encoded SHA-256 message digest as its target file name.
 *On the Use of the CMS Signing-Time Attribute in RPKI Signed Objects*,
 [RFC 9589](http://www.rfc-editor.org/rfc/rfc9589.html).
 
+*A Profile for RPKI Canonical Cache Representation*,
+https://datatracker.ietf.org/doc/html/draft-spaghetti-sidrops-rpki-ccr.
+
 # AUTHORS
 
 Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;

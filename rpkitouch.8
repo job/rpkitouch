@@ -21,8 +21,10 @@
 .Nd set file modification times to internal RPKI timestamps
 .Sh SYNOPSIS
 .Nm rpkitouch
+.Op Fl n
+.Fl c Ar ccr_file
+.Nm rpkitouch
 .Op Fl npVv
-.Op Fl c Ar ccr_file
 .Op Fl d Ar directory
 .Ar
 .Sh DESCRIPTION
@@ -182,6 +184,11 @@ $ find /tmp/test
 .Rs
 .%T On the Use of the CMS Signing-Time Attribute in RPKI Signed Objects
 .%R RFC 9589
+.Re
+.Pp
+.Rs
+.%T A Profile for RPKI Canonical Cache Representation
+.%R https://datatracker.ietf.org/doc/html/draft-spaghetti-sidrops-rpki-ccr
 .Re
 .Sh AUTHORS
 .An -nosplit

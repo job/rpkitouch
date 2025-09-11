@@ -268,6 +268,6 @@ void
 usage(void)
 {
 	fprintf(stderr, "usage: rpkitouch [-npVv] [-d dir] file ...\n");
-	fprintf(stderr, "       rpkitouch -c ccr_file\n");
+	fprintf(stderr, "       rpkitouch [-n] -c ccr_file\n");
 	exit(1);
 }
