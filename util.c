@@ -227,7 +227,7 @@ store_by_name(struct file *f)
 {
 	char *dir = NULL, *path = NULL;
 	struct stat st;
-	time_t delay;
+	time_t delay = 0;
 
 	if (asprintf(&dir, "named/%s", f->sia_dirname) == -1)
 		err(1, "asprintf");
@@ -248,7 +248,8 @@ store_by_name(struct file *f)
 
 	if (st.st_mtim.tv_sec < f->signtime) {
 		if (verbose) {
-			delay = time(NULL) - f->signtime;
+			if (time(NULL) > f->signtime)
+				delay = time(NULL) - f->signtime;
 			warnx("%s (st:%lld sz:%lld d:%lld)", path,
 			    (long long)f->signtime, (long long)f->content_len,
 			    (long long)delay);
