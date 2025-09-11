@@ -293,4 +293,3 @@ set_mtime(int fd, const char *fn, time_t mtime)
 	if (utimensat(fd, fn, ts, 0) == -1)
 		err(1, "utimensat %s", fn);
 }
-
