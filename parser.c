@@ -69,9 +69,6 @@ asn1time_to_time(const ASN1_TIME *at, time_t *t)
 	if (at == NULL)
 		return 0;
 
-	if (at->length != GENTIME_LENGTH)
-		return 0;
-
 	memset(&tm, 0, sizeof(tm));
 	if (!ASN1_TIME_to_tm(at, &tm))
 		return 0;
