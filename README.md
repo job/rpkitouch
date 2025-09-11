@@ -7,7 +7,8 @@ RPKITOUCH(8) - System Manager's Manual
 # SYNOPSIS
 
 **rpkitouch**
-\[**-nVv**]
+\[**-npVv**]
+\[**-c**&nbsp;*ccr\_file*]
 \[**-d**&nbsp;*directory*]
 *file&nbsp;...*
 
@@ -84,6 +85,11 @@ Files may not contain trailing data beyond the internal length markers.
 
 The options are as follows:
 
+**-c** *ccr\_file*
+
+> Print the ManifestRefs contained within
+> *ccr\_file*.
+
 **-d** *directory*
 
 > SHA-256 message digests are calculated for all objects and their content is
@@ -108,6 +114,11 @@ The options are as follows:
 > to see what
 > **rpkitouch**
 > would change.
+
+**-p**
+
+> Print the directory path derived from the SIA and the filenames contained in a
+> Manifest's payload, followed by the Manifest's filename itself.
 
 **-V**
 
@@ -175,4 +186,4 @@ with the Base64 encoded SHA-256 message digest as its target file name.
 
 Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
 
-OpenBSD 7.7 - September 10, 2025 - RPKITOUCH(8)
+OpenBSD 7.7 - September 11, 2025 - RPKITOUCH(8)

@@ -674,5 +674,7 @@ parse_ccr(struct file *f)
 	rc = 1;
  out:
 	ContentInfo_free(ci);
+	CanonicalCacheRepresentation_free(ccr);
+
 	return rc;
 }

@@ -22,6 +22,7 @@
 .Sh SYNOPSIS
 .Nm rpkitouch
 .Op Fl npVv
+.Op Fl c Ar ccr_file
 .Op Fl d Ar directory
 .Ar
 .Sh DESCRIPTION
@@ -96,6 +97,9 @@ Files may not contain trailing data beyond the internal length markers.
 .Pp
 The options are as follows:
 .Bl -tag -width Ds
+.It Fl c Ar ccr_file
+Print the ManifestRefs contained within
+.Ar ccr_file .
 .It Fl d Ar directory
 SHA-256 message digests are calculated for all objects and their content is
 stored in

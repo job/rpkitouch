@@ -121,20 +121,14 @@ int
 main(int argc, char *argv[])
 {
 	int c, count = 0, i, rc = 0;
-	char *ccr1 = NULL, *ccr2 = NULL, *outdir = NULL;
+	char *ccr_file = NULL, *outdir = NULL;
 	struct file *f;
 	unsigned char *fc;
 
 	while ((c = getopt(argc, argv, "c:d:hnpVv")) != -1)
 		switch (c) {
 		case 'c':
-			if (ccr1 == NULL) {
-				ccr1 = optarg;
-			} else if (ccr2 == NULL) {
-				ccr2 = optarg;
-			} else {
-				errx(1, "only 2 CCR files can be specified");
-			}
+			ccr_file = optarg;
 			break;
 		case 'd':
 			outdir = optarg;
@@ -160,18 +154,16 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (outdir == NULL && *argv == NULL && ccr1 == NULL)
+	if (outdir == NULL && *argv == NULL && ccr_file == NULL)
 		usage();
 
 	if (outdir != NULL && print) {
-		warnx("cannot combine -p and -d");
+		warnx("cannot combine -d and -p");
 		usage();
 	}
 
-	if (ccr1 != NULL && ccr2 == NULL) {
-		warnx("must specify 2 CCR files");
+	if (ccr_file != NULL && outdir != NULL)
 		usage();
-	}
 
 	setup_oids();
 
@@ -180,24 +172,26 @@ main(int argc, char *argv[])
 			err(1, "output directory %s", outdir);
 	}
 
-	if (ccr1 != NULL) {
+	if (ccr_file != NULL) {
 		if ((f = calloc(1, sizeof(struct file))) == NULL)
 			err(1, NULL);
 
-		if ((f->type = detect_ftype_from_fn(ccr1)) != TYPE_CCR) {
+		if ((f->type = detect_ftype_from_fn(ccr_file)) != TYPE_CCR) {
 			warnx("-c only accepts .ccr");
 			usage();
 		}
 
-		f->name = ccr1;
+		f->name = ccr_file;
 
-		fc = load_file(ccr1, &f->content_len, &f->disktime);
+		fc = load_file(ccr_file, &f->content_len, &f->disktime);
 		if (fc == NULL)
 			errx(1, "%s: load_file failed", f->name);
 		f->content = fc;
 
 		if (!parse_ccr(f)) {
-			warnx("%s: issue", ccr1);
+			warnx("%s: parsing failed", ccr_file);
+			file_free(f);
+			return 1;
 		}
 
 		for (i = 0; i < f->files_num; i++)
@@ -273,7 +267,7 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	fprintf(stderr, "usage: rpkitouch [-npVv] [-c file1 -c file2] [-d dir]"
-	    " file ...\n");
+	fprintf(stderr, "usage: rpkitouch [-npVv] [-d dir] file ...\n");
+	fprintf(stderr, "       rpkitouch -c ccr_file\n");
 	exit(1);
 }
