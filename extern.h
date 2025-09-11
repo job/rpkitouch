@@ -54,6 +54,7 @@ struct file {
 };
 
 int b64uri_encode(const unsigned char *, size_t, char **);
+char *hex_encode(const unsigned char *, size_t);
 
 unsigned char *load_file(const char *, off_t *, time_t *);
 void write_file(char *, unsigned char *, off_t, time_t);

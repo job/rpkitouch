@@ -660,9 +660,7 @@ parse_ccr(struct file *f)
 		if (mr->hash->length != SHA256_DIGEST_LENGTH)
 			goto out;
 
-		if (!b64uri_encode(mr->hash->data, mr->hash->length,
-		    &f->files[i].hash))
-			err(1, NULL);
+		f->files[i].hash = hex_encode(mr->hash->data, mr->hash->length);
 
 		if (!ccr_get_sia(mr->location, &f->files[i].fn))
 			goto out;

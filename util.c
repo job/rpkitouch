@@ -113,6 +113,29 @@ b64uri_encode(const unsigned char *in, size_t inlen, char **out)
 }
 
 /*
+ * Convert binary buffer of size dsz into an upper-case hex-string.
+ * Returns pointer to the newly allocated string. Function can't fail.
+ */
+char *
+hex_encode(const unsigned char *in, size_t insz)
+{
+	const char hex[] = "0123456789ABCDEF";
+	size_t i;
+	char *out;
+
+	if ((out = calloc(2, insz + 1)) == NULL)
+		err(1, NULL);
+
+	for (i = 0; i < insz; i++) {
+		out[i * 2] = hex[in[i] >> 4];
+		out[i * 2 + 1] = hex[in[i] & 0xf];
+	}
+	out[i * 2] = '\0';
+
+	return out;
+}
+
+/*
  * Write content to a temp file and then atomically move it into place.
  */
 void
