@@ -30,7 +30,10 @@
 .Sh DESCRIPTION
 The
 .Nm
-utility sets the last data modification time of
+utility can inspect
+.Em Canonical Cache Representation Pq CCR
+objects, generate content-addressable filesystem hierarchies, and set the last
+data modification time of
 .Ar file
 to the timestamp internal to the contained
 .Em RPKI
@@ -100,7 +103,8 @@ Files may not contain trailing data beyond the internal length markers.
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl c Ar ccr_file
-Print the ManifestRefs contained within
+Print the SHA-256 message digest and SIA field values of the ManifestRefs
+contained within
 .Ar ccr_file .
 .It Fl d Ar directory
 SHA-256 message digests are calculated for all objects and their content is
@@ -122,8 +126,8 @@ to see what
 .Nm
 would change.
 .It Fl p
-Print the directory path derived from the SIA and the filenames contained in a
-Manifest's payload, followed by the Manifest's filename itself.
+Print the directory path derived from the SIA and the FileAndHashes contained
+in a Manifest's payload, followed by the Manifest's own filename.
 .It Fl V
 Display the version number and exit.
 .It Fl v
