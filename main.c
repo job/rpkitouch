@@ -181,7 +181,7 @@ main(int argc, char *argv[])
 			usage();
 		}
 
-		f->name = ccr_file;
+		f->name = strdup(ccr_file);
 
 		fc = load_file(ccr_file, &f->content_len, &f->disktime);
 		if (fc == NULL)
@@ -253,12 +253,11 @@ main(int argc, char *argv[])
 		 * Optionally, store the object using the content
 		 * addressable scheme.
 		 */
-		if (outdir != NULL) {
+		if (outdir != NULL)
 			store_by_hash(f);
 
-			if (f->type == TYPE_MFT)
-				store_by_name(f);
-		}
+		if (outdir != NULL && f->type == TYPE_MFT)
+			store_by_name(f);
 
 		file_free(f);
 		f = NULL;

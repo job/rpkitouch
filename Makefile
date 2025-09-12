@@ -12,13 +12,14 @@ CFLAGS+= -Werror-implicit-function-declaration
 CFLAGS+= -MD -MP
 CFLAGS+= -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_GNU_SOURCE
 
-$(PROG):
+$(PROG): $(SRCS)
 	cc -o $(PROG) $(CFLAGS) $(SRCS) $(LDADD)
 
-all: $(PROG)
-	cc -o $(PROG) $(CFLAGS) $(SRCS) $(LDADD)
-	mandoc -Tlint $(MAN)
+tags:
 	ctags $(SRCS)
+
+all: $(PROG) tags
+	mandoc -Tlint $(MAN)
 
 install:
 	install -c -s -o root -g bin -m 555 rpkitouch /usr/local/bin/

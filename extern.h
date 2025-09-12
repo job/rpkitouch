@@ -42,6 +42,7 @@ struct file {
 	enum filetype type;
 	time_t disktime;
 	time_t signtime;
+	time_t thisupdate;
 	unsigned char hash[SHA256_DIGEST_LENGTH];
 	off_t content_len;
 	unsigned char *content;

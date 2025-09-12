@@ -466,7 +466,7 @@ parse_manifest(struct file *f)
 	const ASN1_OBJECT *obj;
 	const unsigned char *der, *oder;
 	int i, ret = 0;
-	time_t now, expiry = 0;
+	time_t expiry = 0, now;
 	ASN1_OCTET_STRING **os = NULL;
 	unsigned char *econtent_der = NULL;
 	const unsigned char *p;
@@ -557,6 +557,11 @@ parse_manifest(struct file *f)
 	}
 	if (p != econtent_der + econtent_der_len) {
 		warnx("%s: bytes trailing in eContent", fn);
+		goto out;
+	}
+
+	if (!asn1time_to_time(mft->thisUpdate, &f->thisupdate, 1)) {
+		warnx("%s: failed to convert %s", f->name, "thisUpdate");
 		goto out;
 	}
 

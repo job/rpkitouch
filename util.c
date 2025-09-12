@@ -210,15 +210,15 @@ store_by_name(struct file *f)
 			err(1, "fstatat %s", path);
 	}
 
-	if (st.st_mtim.tv_sec < f->signtime) {
+	if (st.st_mtim.tv_sec < f->thisupdate) {
 		if (verbose) {
-			if (time(NULL) > f->signtime)
-				delay = time(NULL) - f->signtime;
+			if (time(NULL) > f->thisupdate)
+				delay = time(NULL) - f->thisupdate;
 			warnx("%s (st:%lld sz:%lld d:%lld)", path,
-			    (long long)f->signtime, (long long)f->content_len,
+			    (long long)f->thisupdate, (long long)f->content_len,
 			    (long long)delay);
 		}
-		write_file(path, f->content, f->content_len, f->signtime);
+		write_file(path, f->content, f->content_len, f->thisupdate);
 	}
 
 	free(dir);
