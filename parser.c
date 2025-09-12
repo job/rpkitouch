@@ -119,7 +119,7 @@ asn1time_to_time(const ASN1_TIME *at, time_t *t, int expect_gen)
 }
 
 /*
- * Parse the Subject Information Access (SIA) in a CCR.
+ * Parse the Subject Information Access (SIA) in a CCR ManifestRef.
  * Returns 0 on failure, out_sia has to be freed after use.
  */
 static int
