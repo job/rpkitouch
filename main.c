@@ -177,7 +177,7 @@ main(int argc, char *argv[])
 			err(1, NULL);
 
 		if ((f->type = detect_ftype_from_fn(ccr_file)) != TYPE_CCR) {
-			warnx("-c only accepts .ccr");
+			warnx("%s: -c only accepts .ccr", ccr_file);
 			usage();
 		}
 
@@ -196,6 +196,9 @@ main(int argc, char *argv[])
 
 		for (i = 0; i < f->files_num; i++)
 			printf("%s %s\n", f->files[i].hash, f->files[i].fn);
+
+		file_free(f);
+		return 0;
 	}
 
 	for (; *argv != NULL; ++argv) {
