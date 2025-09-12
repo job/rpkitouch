@@ -60,7 +60,7 @@ ASN1_SEQUENCE(FileAndHash) = {
 
 
 static int
-asn1time_to_time(const ASN1_TIME *at, time_t *t)
+asn1time_to_time(const ASN1_TIME *at, time_t *t, int expect_gen)
 {
 	struct tm tm;
 
@@ -68,6 +68,11 @@ asn1time_to_time(const ASN1_TIME *at, time_t *t)
 	/* Error instead of silently falling back to current time. */
 	if (at == NULL)
 		return 0;
+
+	if (expect_gen) {
+		if (at->length != GENTIME_LENGTH)
+			return 0;
+	}
 
 	memset(&tm, 0, sizeof(tm));
 	if (!ASN1_TIME_to_tm(at, &tm))
@@ -152,7 +157,7 @@ cms_get_signtime_attr(const char *fn, X509_ATTRIBUTE *attr, time_t *signtime)
 		warnx("%s: GeneralizedTime instead of UTCtime", fn);
 	}
 
-	if (!asn1time_to_time(at, signtime)) {
+	if (!asn1time_to_time(at, signtime, 0)) {
 		warnx("%s: failed to convert %s", fn, time_str);
 		return 0;
 	}
@@ -344,7 +349,7 @@ get_cert_notbefore(const char *fn, unsigned char *content, size_t len)
 		goto out;
 	}
 
-	if (!asn1time_to_time(at, &time)) {
+	if (!asn1time_to_time(at, &time, 0)) {
 		warnx("%s: failed to convert ASN1_TIME", fn);
 		goto out;
 	}
@@ -377,7 +382,7 @@ get_crl_thisupdate(const char *fn, unsigned char *content, size_t len)
 		goto out;
 	}
 
-	if (!asn1time_to_time(at, &time)) {
+	if (!asn1time_to_time(at, &time, 0)) {
 		warnx("%s: failed to convert ASN1_TIME", fn);
 		goto out;
 	}
@@ -502,7 +507,7 @@ parse_manifest(struct file *f)
 		goto out;
 	}
 
-	if (!asn1time_to_time(at, &expiry)) {
+	if (!asn1time_to_time(at, &expiry, 0)) {
 		warnx("%s: failed to convert ASN1_TIME", fn);
 		goto out;
 	}
@@ -633,7 +638,7 @@ parse_ccr(struct file *f)
 		goto out;
 	}
 
-	if (!asn1time_to_time(ccr->producedAt, &producedat)) {
+	if (!asn1time_to_time(ccr->producedAt, &producedat, 1)) {
 		warnx("%s: failed to convert %s", f->name, "producedAt");
 		goto out;
 	}
