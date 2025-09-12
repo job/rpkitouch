@@ -37,10 +37,13 @@ test:
 	cd tests && find $(TEST_FILES) | xargs ../rpkitouch -v -d ./c
 	find tests/c -type f | sort >> tests/outcome.txt
 	diff tests/outcome.txt tests/expected_outcome.txt
+	./rpkitouch -c tests/test.ccr > tests/outcome-ccr.txt
+	diff tests/outcome-ccr.txt tests/expected_outcome-ccr.txt
 	echo OK
 
 clean:
 	-rm -rf rpkitouch rpkitouch.d tests/outcome.txt tests/c tags
+	-rm -rf tests/outcome-ccr.txt
 
 readme:
 	mandoc -T markdown rpkitouch.8 > README.md
