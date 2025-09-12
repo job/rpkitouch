@@ -23,6 +23,7 @@
 ASN1_ITEM_EXP ContentInfo_it;
 ASN1_ITEM_EXP CanonicalCacheRepresentation_it;
 ASN1_ITEM_EXP ManifestRef_it;
+ASN1_ITEM_EXP ManifestRefs_it;
 
 /*
  * Can't use CMS_ContentInfo since it is not backed by a public struct
@@ -65,3 +66,7 @@ ASN1_SEQUENCE(ManifestRef) = {
 } ASN1_SEQUENCE_END(ManifestRef);
 
 IMPLEMENT_ASN1_FUNCTIONS(ManifestRef);
+
+ASN1_ITEM_TEMPLATE(ManifestRefs) =
+    ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, mftrefs, ManifestRef)
+ASN1_ITEM_TEMPLATE_END(ManifestRefs);

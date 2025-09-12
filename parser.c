@@ -59,6 +59,41 @@ ASN1_SEQUENCE(FileAndHash) = {
 } ASN1_SEQUENCE_END(FileAndHash);
 
 
+static void
+hash_asn1_item(ASN1_OCTET_STRING *astr, const ASN1_ITEM *it, void *val)
+{
+	unsigned char hash[SHA256_DIGEST_LENGTH];
+
+	if (!ASN1_item_digest(it, EVP_sha256(), val, hash, NULL))
+		errx(1, "ASN1_item_digest");
+
+	if (!ASN1_OCTET_STRING_set(astr, hash, sizeof(hash)))
+		errx(1, "ASN1_STRING_set");
+}
+
+static char *
+validate_asn1_hash(const char *fn, const char *descr,
+    const ASN1_OCTET_STRING *hash, const ASN1_ITEM *it, void *val)
+{
+	ASN1_OCTET_STRING *astr = NULL;
+	char *hex = NULL;
+
+	if ((astr = ASN1_OCTET_STRING_new()) == NULL)
+		err(1, NULL);
+
+	hash_asn1_item(astr, it, val);
+
+	if (ASN1_OCTET_STRING_cmp(hash, astr) != 0) {
+		warnx("%s: corrupted %s state", fn, descr);
+		goto out;
+	}
+
+	hex = hex_encode(hash->data, hash->length);
+ out:
+	ASN1_OCTET_STRING_free(astr);
+	return hex;
+}
+
 static int
 asn1time_to_time(const ASN1_TIME *at, time_t *t, int expect_gen)
 {
@@ -651,8 +686,15 @@ parse_ccr(struct file *f)
 	if (f->disktime != producedat)
 		set_mtime(AT_FDCWD, f->name, producedat);
 
-	if (ccr->mfts == NULL || ccr->mfts->mftrefs == NULL) {
+	if (ccr->mfts == NULL || ccr->mfts->hash == NULL ||
+	    ccr->mfts->mftrefs == NULL) {
 		warnx("%s: missing Manifest state", f->name);
+		goto out;
+	}
+
+	if (validate_asn1_hash(f->name, "ManifestState", ccr->mfts->hash,
+	    ASN1_ITEM_rptr(ManifestRefs), ccr->mfts->mftrefs) == NULL) {
+		warnx("%s: ManifestState hash mismatch", f->name);
 		goto out;
 	}
 

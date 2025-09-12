@@ -31,6 +31,7 @@
  */
 
 extern ASN1_ITEM_EXP ManifestRef_it;
+extern ASN1_ITEM_EXP ManifestRefs_it;
 
 typedef struct {
 	ASN1_OCTET_STRING *hash;
@@ -48,6 +49,10 @@ DECLARE_STACK_OF(ManifestRef);
 #endif
 
 DECLARE_ASN1_FUNCTIONS(ManifestRef);
+
+typedef STACK_OF(ManifestRef) ManifestRefs;
+
+DECLARE_ASN1_FUNCTIONS(ManifestRefs);
 
 /*
  * Canonical Cache Representation (CCR)
