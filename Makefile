@@ -12,7 +12,10 @@ CFLAGS+= -Werror-implicit-function-declaration
 CFLAGS+= -MD -MP
 CFLAGS+= -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_GNU_SOURCE
 
-all:
+$(PROG):
+	cc -o $(PROG) $(CFLAGS) $(SRCS) $(LDADD)
+
+all: $(PROG)
 	cc -o $(PROG) $(CFLAGS) $(SRCS) $(LDADD)
 	mandoc -Tlint $(MAN)
 	ctags $(SRCS)
@@ -26,7 +29,7 @@ TEST_FILES += t7xg6ZtXdcYhy-YGTMk_ONTD31E.cer yqgF26w2R0m5sRVZCrbvD5cM29g.mft
 TEST_FILES += 5EjPZ8Kw2_h5hRqKpwmjdnq7Tq8.roa yqgF26w2R0m5sRVZCrbvD5cM29g.crl
 TEST_FILES += 9X0AhXWTJDl8lJhfOwvnac-42CA.spl
 
-test: all
+test: $(PROG)
 	cd tests && touch $(TEST_FILES)
 	cd tests && ../rpkitouch -v $(TEST_FILES)
 	cd tests && ls -rl $(TEST_FILES) | awk '{ print $$5, $$6, $$7, $$8, $$9 }' | sort > outcome.txt
