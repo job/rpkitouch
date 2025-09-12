@@ -7,12 +7,12 @@ LDADD+= -lc -lcrypto
 CFLAGS+= -O2 -pipe
 CFLAGS+= -Wall
 CFLAGS+= -Wmissing-prototypes -Wmissing-declarations
-CFLAGS+= -Wshadow -Wpointer-arith -Wsign-compare
+CFLAGS+= -Wshadow -Wpointer-arith -Wsign-compare -Wpointer-sign
 CFLAGS+= -Werror-implicit-function-declaration
 CFLAGS+= -MD -MP
 CFLAGS+= -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_GNU_SOURCE
 
-$(PROG): $(SRCS)
+$(PROG): $(SRCS) extern.h
 	cc -o $(PROG) $(CFLAGS) $(SRCS) $(LDADD)
 
 tags:

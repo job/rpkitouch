@@ -490,6 +490,23 @@ mft_convert_seqnum(const ASN1_INTEGER *i)
 	return s;
 }
 
+static int
+valid_mft_filename(const unsigned char *fn, size_t len)
+{
+	const unsigned char *c;
+	size_t i;
+
+	for (c = fn, i = 0; i < len; i++, c++)
+		if (!isalnum(*c) && *c != '-' && *c != '_' && *c != '.')
+			return 0;
+
+	c = memchr(fn, '.', len);
+	if (c == NULL || c != memrchr(fn, '.', len))
+		return 0;
+
+	return 1;
+}
+
 int
 parse_manifest(struct file *f)
 {
@@ -614,7 +631,14 @@ parse_manifest(struct file *f)
 	for (i = 0; i < f->files_num; i++) {
 		const FileAndHash *fah = sk_FileAndHash_value(mft->fileList, i);
 
-		f->files[i].fn = strndup(fah->file->data, fah->file->length);
+
+		if (!valid_mft_filename(fah->file->data, fah->file->length)) {
+			warnx("%s: invalid FileAndHash", f->name);
+			goto out;
+		}
+
+		f->files[i].fn = strndup((const char *)fah->file->data,
+		    fah->file->length);
 		if (f->files[i].fn == NULL)
 			err(1, NULL);
 

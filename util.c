@@ -279,7 +279,7 @@ b64uri_encode(const unsigned char *in, size_t inlen, char **out)
 	if ((to = malloc(tolen)) == NULL)
 		return 0;
 
-	EVP_EncodeBlock(to, in, inlen);
+	EVP_EncodeBlock((unsigned char *)to, in, inlen);
 	*out = to;
 
 	c = (char *)to;
