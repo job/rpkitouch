@@ -77,65 +77,6 @@ load_file(const char *fn, off_t *len, time_t *time)
 }
 
 /*
- * Base 64 encoding with URL and filename safe alphabet.
- * RFC 4648 section 5
- */
-int
-b64uri_encode(const unsigned char *in, size_t inlen, char **out)
-{
-	char *to;
-	size_t tolen = 0;
-	char *c = NULL;
-
-	*out = NULL;
-
-	if (inlen >= INT_MAX / 2)
-		return 0;
-
-	tolen = ((inlen + 2) / 3) * 4 + 1;
-
-	if ((to = malloc(tolen)) == NULL)
-		return 0;
-
-	EVP_EncodeBlock(to, in, inlen);
-	*out = to;
-
-	c = (char *)to;
-	while ((c = strchr(c, '+')) != NULL)
-		*c = '-';
-	c = (char *)to;
-	while ((c = strchr(c, '/')) != NULL)
-		*c = '_';
-	if ((c = strchr((char *)to, '=')) != NULL)
-		*c = '\0';
-
-	return 1;
-}
-
-/*
- * Convert binary buffer of size dsz into an upper-case hex-string.
- * Returns pointer to the newly allocated string. Function can't fail.
- */
-char *
-hex_encode(const unsigned char *in, size_t insz)
-{
-	const char hex[] = "0123456789ABCDEF";
-	size_t i;
-	char *out;
-
-	if ((out = calloc(2, insz + 1)) == NULL)
-		err(1, NULL);
-
-	for (i = 0; i < insz; i++) {
-		out[i * 2] = hex[in[i] >> 4];
-		out[i * 2 + 1] = hex[in[i] & 0xf];
-	}
-	out[i * 2] = '\0';
-
-	return out;
-}
-
-/*
  * Write content to a temp file and then atomically move it into place.
  */
 void
@@ -315,4 +256,63 @@ set_mtime(int fd, const char *fn, time_t mtime)
 
 	if (utimensat(fd, fn, ts, 0) == -1)
 		err(1, "utimensat %s", fn);
+}
+
+/*
+ * Base 64 encoding with URL and filename safe alphabet.
+ * RFC 4648 section 5.
+ */
+int
+b64uri_encode(const unsigned char *in, size_t inlen, char **out)
+{
+	char *to;
+	size_t tolen = 0;
+	char *c = NULL;
+
+	*out = NULL;
+
+	if (inlen >= INT_MAX / 2)
+		return 0;
+
+	tolen = ((inlen + 2) / 3) * 4 + 1;
+
+	if ((to = malloc(tolen)) == NULL)
+		return 0;
+
+	EVP_EncodeBlock(to, in, inlen);
+	*out = to;
+
+	c = (char *)to;
+	while ((c = strchr(c, '+')) != NULL)
+		*c = '-';
+	c = (char *)to;
+	while ((c = strchr(c, '/')) != NULL)
+		*c = '_';
+	if ((c = strchr((char *)to, '=')) != NULL)
+		*c = '\0';
+
+	return 1;
+}
+
+/*
+ * Convert binary buffer of size dsz into an upper-case hex-string.
+ * Returns pointer to the newly allocated string. Function can't fail.
+ */
+char *
+hex_encode(const unsigned char *in, size_t insz)
+{
+	const char hex[] = "0123456789ABCDEF";
+	size_t i;
+	char *out;
+
+	if ((out = calloc(2, insz + 1)) == NULL)
+		err(1, NULL);
+
+	for (i = 0; i < insz; i++) {
+		out[i * 2] = hex[in[i] >> 4];
+		out[i * 2 + 1] = hex[in[i] & 0xf];
+	}
+	out[i * 2] = '\0';
+
+	return out;
 }
