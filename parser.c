@@ -698,7 +698,10 @@ parse_ccr(struct file *f)
 		goto out;
 	}
 
-	f->files_num = sk_ManifestRef_num(ccr->mfts->mftrefs);
+	if ((f->files_num = sk_ManifestRef_num(ccr->mfts->mftrefs)) == 0) {
+		warnx("%s: missing ManifestRefs", f->name);
+		goto out;
+	}
 
 	f->files = calloc(f->files_num, sizeof(struct fileandhash));
 	if (f->files == NULL)
