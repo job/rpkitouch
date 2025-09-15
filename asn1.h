@@ -78,6 +78,7 @@ typedef struct {
 	ASN1_SEQUENCE_ANY *vrps;
 	ASN1_SEQUENCE_ANY *vaps;
 	ASN1_SEQUENCE_ANY *tas;
+	ASN1_SEQUENCE_ANY *rks;
 } CanonicalCacheRepresentation;
 
 DECLARE_ASN1_FUNCTIONS(CanonicalCacheRepresentation);
