@@ -7,8 +7,10 @@ RPKITOUCH(8) - System Manager's Manual
 # SYNOPSIS
 
 **rpkitouch**
-\[**-npVv**]
-\[**-c**&nbsp;*ccr\_file*]
+\[**-n**]
+**-c**&nbsp;*ccr\_file*  
+**rpkitouch**
+\[**-nPpVv**]
 \[**-d**&nbsp;*directory*]
 *file&nbsp;...*
 
@@ -16,7 +18,10 @@ RPKITOUCH(8) - System Manager's Manual
 
 The
 **rpkitouch**
-utility sets the last data modification time of
+utility can inspect
+*Canonical Cache Representation* (CCR)
+objects, generate content-addressable filesystem hierarchies, and set the last
+data modification time of
 *file*
 to the timestamp internal to the contained
 *RPKI*
@@ -87,7 +92,8 @@ The options are as follows:
 
 **-c** *ccr\_file*
 
-> Print the ManifestRefs contained within
+> Print the SHA-256 message digest and SIA field values of the ManifestRefs
+> contained within
 > *ccr\_file*.
 
 **-d** *directory*
@@ -115,10 +121,14 @@ The options are as follows:
 > **rpkitouch**
 > would change.
 
+**-P**
+
+> Print hashes and SIA filenames to help reconstruct a caRepository.
+
 **-p**
 
-> Print the directory path derived from the SIA and the filenames contained in a
-> Manifest's payload, followed by the Manifest's filename itself.
+> Print the directory path derived from the SIA and the FileAndHashes contained
+> in a Manifest's payload, followed by the Manifest's own filename.
 
 **-V**
 
@@ -189,4 +199,4 @@ https://datatracker.ietf.org/doc/html/draft-spaghetti-sidrops-rpki-ccr.
 
 Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
 
-OpenBSD 7.7 - September 11, 2025 - RPKITOUCH(8)
+OpenBSD 7.8 - September 15, 2025 - RPKITOUCH(8)
