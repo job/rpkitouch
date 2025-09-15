@@ -24,7 +24,7 @@
 .Op Fl n
 .Fl c Ar ccr_file
 .Nm rpkitouch
-.Op Fl npVv
+.Op Fl nPpVv
 .Op Fl d Ar directory
 .Ar
 .Sh DESCRIPTION
@@ -125,6 +125,8 @@ and
 to see what
 .Nm
 would change.
+.It Fl P
+Print hashes and SIA filenames to help reconstruct a caRepository.
 .It Fl p
 Print the directory path derived from the SIA and the FileAndHashes contained
 in a Manifest's payload, followed by the Manifest's own filename.

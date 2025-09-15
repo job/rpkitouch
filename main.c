@@ -28,6 +28,7 @@
 
 #include "extern.h"
 
+int extprint = 0;
 int noop = 0;
 int print = 0;
 int verbose = 0;
@@ -117,6 +118,18 @@ file_free(struct file *f)
 	free(f);
 }
 
+static void
+extprinter(struct file *f, const char *dir, const char *b, const char *fn)
+{
+	char *path = NULL;
+
+	if (asprintf(&path, "%s/static/%c%c/%c%c/%c%c/%s", dir, b[0], b[1],
+	    b[2], b[3], b[4], b[5], b) == -1)
+		err(1, NULL);
+
+	printf("%s %s/%s\n", path, f->sia_dirname, fn);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -125,7 +138,7 @@ main(int argc, char *argv[])
 	struct file *f;
 	unsigned char *fc;
 
-	while ((c = getopt(argc, argv, "c:d:hnpVv")) != -1)
+	while ((c = getopt(argc, argv, "c:d:hnPpVv")) != -1)
 		switch (c) {
 		case 'c':
 			ccr_file = optarg;
@@ -135,6 +148,10 @@ main(int argc, char *argv[])
 			break;
 		case 'n':
 			noop = 1;
+			break;
+		case 'P':
+			noop = 1;
+			extprint = 1;
 			break;
 		case 'p':
 			noop = 1;
@@ -163,6 +180,9 @@ main(int argc, char *argv[])
 	}
 
 	if (ccr_file != NULL && outdir != NULL)
+		usage();
+
+	if (extprint && outdir == NULL)
 		usage();
 
 	setup_oids();
@@ -231,6 +251,10 @@ main(int argc, char *argv[])
 					    f->files[i].fn);
 				}
 				printf("%s\n", f->name);
+			} else if (extprint) {
+				for (i = 0; i < f->files_num; i++) {
+					extprinter(f, outdir, f->files[i].hash, f->files[i].fn);
+				}
 			}
 		}
 
@@ -269,7 +293,7 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	fprintf(stderr, "usage: rpkitouch [-npVv] [-d dir] file ...\n");
+	fprintf(stderr, "usage: rpkitouch [-nPpVv] [-d dir] file ...\n");
 	fprintf(stderr, "       rpkitouch [-n] -c ccr_file\n");
 	exit(1);
 }
