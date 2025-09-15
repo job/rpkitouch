@@ -38,6 +38,7 @@ typedef struct {
 	ASN1_INTEGER *size;
 	ASN1_OCTET_STRING *aki;
 	ASN1_INTEGER *manifestNumber;
+	ASN1_GENERALIZEDTIME *thisUpdate;
 	STACK_OF(ACCESS_DESCRIPTION) *location;
 } ManifestRef;
 

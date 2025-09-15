@@ -63,6 +63,7 @@ ASN1_SEQUENCE(ManifestRef) = {
 	ASN1_SIMPLE(ManifestRef, size, ASN1_INTEGER),
 	ASN1_SIMPLE(ManifestRef, aki, ASN1_OCTET_STRING),
 	ASN1_SIMPLE(ManifestRef, manifestNumber, ASN1_INTEGER),
+	ASN1_SIMPLE(ManifestRef, thisUpdate, ASN1_GENERALIZEDTIME),
 	ASN1_SEQUENCE_OF(ManifestRef, location, ACCESS_DESCRIPTION),
 } ASN1_SEQUENCE_END(ManifestRef);
 
