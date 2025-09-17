@@ -38,7 +38,7 @@ struct mftref {
 	RB_ENTRY(mftref) entry;
 	char *hash;
 	uint64_t size;
-	unsigned char aki[SHA_DIGEST_LENGTH];
+	char *aki;
 	time_t thisupdate;
 	char *seqnum;
 	char *sia;

@@ -772,12 +772,13 @@ parse_ccr(struct file *f)
 
 		mr = sk_ManifestRef_value(ccr_asn1->mfts->mftrefs, i);
 
-		if (mr->hash->length != SHA256_DIGEST_LENGTH)
-			goto out;
-
 		if ((refs[i] = calloc(1, sizeof(*refs[i]))) == NULL)
 			err(1, NULL);
 
+		if (mr->hash->length != SHA256_DIGEST_LENGTH) {
+			warnx("%s: manifest ref #%d corrupted", f->name, i);
+			goto out;
+		}
 		refs[i]->hash = hex_encode(mr->hash->data, mr->hash->length);
 
 		if (!ASN1_INTEGER_get_uint64(&refs[i]->size, mr->size)) {
@@ -785,11 +786,11 @@ parse_ccr(struct file *f)
 			goto out;
 		}
 
-		if (mr->aki->length != sizeof(refs[i]->aki)) {
+		if (mr->aki->length != SHA_DIGEST_LENGTH) {
 			warnx("%s: manifest ref #%d corrupted", f->name, i);
 			goto out;
 		}
-		memcpy(refs[i]->aki, mr->aki->data, mr->aki->length);
+		refs[i]->aki = hex_encode(mr->aki->data, mr->aki->length);
 
 		if (!asn1time_to_time(mr->thisUpdate, &refs[i]->thisupdate, 1)) {
 			warnx("%s: failed to convert %s", f->name, "thisUpdate");

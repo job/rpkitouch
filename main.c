@@ -210,11 +210,6 @@ main(int argc, char *argv[])
 
 		qsort(refs, count, sizeof(refs[0]), fqdn_hash_cmp);
 
-		for (i = 0; i < count; i++)
-			printf("%s %s\n", refs[i]->hash, refs[i]->sia);
-
-		printf("ABC: %d\n", count);
-
 		free(refs);
 
 		struct mftref *nm;
