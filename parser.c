@@ -675,6 +675,20 @@ ccr_free(struct ccr *ccr)
 	free(ccr);
 }
 
+static void
+mftref_set_fqdn(struct mftref *ref)
+{
+	char *fqdn, *needle;
+
+	if ((fqdn = strdup(ref->sia)) == NULL)
+		err(1, NULL);
+
+	needle = strchr(fqdn, '/');
+	*needle = '\0';
+
+	ref->fqdn = fqdn;
+}
+
 struct ccr *
 parse_ccr(struct file *f)
 {
@@ -683,7 +697,7 @@ parse_ccr(struct file *f)
 	CanonicalCacheRepresentation *ccr_asn1 = NULL;
 	long len;
 	struct ccr *ccr = NULL;
-	struct mftref *refs = NULL;
+	struct mftref **refs = NULL;
 	int i, rc = 0;
 
 	oder = der = f->content;
@@ -749,7 +763,7 @@ parse_ccr(struct file *f)
 		goto out;
 	}
 
-	refs = calloc(ccr->refs_num, sizeof(ccr->refs[0]));
+	refs = calloc(ccr->refs_num, sizeof(ccr->refs));
 	if (refs == NULL)
 		err(1, NULL);
 
@@ -761,31 +775,37 @@ parse_ccr(struct file *f)
 		if (mr->hash->length != SHA256_DIGEST_LENGTH)
 			goto out;
 
-		refs[i].hash = hex_encode(mr->hash->data, mr->hash->length);
+		if ((refs[i] = calloc(1, sizeof(*refs[i]))) == NULL)
+			err(1, NULL);
 
-		if (!ASN1_INTEGER_get_uint64(&refs[i].size, mr->size)) {
+		refs[i]->hash = hex_encode(mr->hash->data, mr->hash->length);
+
+		if (!ASN1_INTEGER_get_uint64(&refs[i]->size, mr->size)) {
 			warnx("%s: manifest ref #%d corrupted", f->name, i);
 			goto out;
 		}
 
-		if (mr->aki->length != sizeof(refs[i].aki)) {
+		if (mr->aki->length != sizeof(refs[i]->aki)) {
 			warnx("%s: manifest ref #%d corrupted", f->name, i);
 			goto out;
 		}
-		memcpy(refs[i].aki, mr->aki->data, mr->aki->length);
+		memcpy(refs[i]->aki, mr->aki->data, mr->aki->length);
 
-		if (!asn1time_to_time(mr->thisUpdate, &refs[i].thisupdate, 1)) {
+		if (!asn1time_to_time(mr->thisUpdate, &refs[i]->thisupdate, 1)) {
 			warnx("%s: failed to convert %s", f->name, "thisUpdate");
 			goto out;
 		}
 
-		refs[i].seqnum = mft_convert_seqnum(mr->manifestNumber);
-		if (refs[i].seqnum == NULL)
+		refs[i]->seqnum = mft_convert_seqnum(mr->manifestNumber);
+		if (refs[i]->seqnum == NULL)
 			goto out;
 
-		if (!ccr_get_sia(mr->location, &refs[i].location))
+		if (!ccr_get_sia(mr->location, &refs[i]->sia))
 			goto out;
+
+		mftref_set_fqdn(refs[i]);
 	}
+
 	ccr->refs = refs;
 
 	rc = 1;

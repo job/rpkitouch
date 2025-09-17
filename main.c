@@ -111,6 +111,22 @@ file_free(struct file *f)
 	free(f);
 }
 
+static int
+fqdn_hash_cmp(const void *a, const void *b)
+{
+	int cmp;
+	struct mftref *ma = *(struct mftref **)a;
+	struct mftref *mb = *(struct mftref **)b;
+
+	cmp = strcmp(ma->fqdn, mb->fqdn);
+	if (cmp > 0)
+		return 1;
+	if (cmp < 0)
+		return -1;
+
+	return strcmp(ma->hash, mb->hash);
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -174,17 +190,37 @@ main(int argc, char *argv[])
 
 	if (compareccr) {
 		struct mftref *mftref;
+		struct mftref **refs;
 
 		if  (*argv == NULL)
 			usage();
 
 		RB_INIT(&mftref_tree);
 
-		if (!compare_ccrs(argv, &mftref_tree))
+		if ((count = compare_ccrs(argv, &mftref_tree)) == 0)
 			errx(1, "compare_ccrs");
 
+		if ((refs = calloc(count, sizeof(refs))) == NULL)
+			err(1, NULL);
+
+		i = count;
 		RB_FOREACH(mftref, mftref_tree, &mftref_tree) {
-			warnx("ZZZ: %s", mftref->location);
+			refs[--i] = mftref;
+		}
+
+		qsort(refs, count, sizeof(refs[0]), fqdn_hash_cmp);
+
+		for (i = 0; i < count; i++)
+			printf("%s %s\n", refs[i]->hash, refs[i]->sia);
+
+		printf("ABC: %d\n", count);
+
+		free(refs);
+
+		struct mftref *nm;
+		RB_FOREACH_SAFE(mftref, mftref_tree, &mftref_tree, nm) {
+			RB_REMOVE(mftref_tree, &mftref_tree, mftref);
+			mftref_free(mftref);
 		}
 
 		return 0;
@@ -213,7 +249,7 @@ main(int argc, char *argv[])
 		}
 
 		for (i = 0; i < ccr->refs_num; i++)
-			printf("%s %s\n", ccr->refs[i].hash, ccr->refs[i].location);
+			printf("%s %s\n", ccr->refs[i]->hash, ccr->refs[i]->sia);
 
 		file_free(f);
 		return 0;

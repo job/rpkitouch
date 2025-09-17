@@ -82,20 +82,12 @@ ASN1_ITEM_TEMPLATE_END(ManifestRefs);
 static inline int
 mftrefcmp(const struct mftref *a, const struct mftref *b)
 {
-	int cmp;
-
-	cmp = strcmp(a->location, b->location);
-	if (cmp > 0)
-		return 1;
-	if (cmp < 0)
-		return -1;
-
-	return 0;
+	return strcmp(a->sia, b->sia);
 }
 
 RB_GENERATE(mftref_tree, mftref, entry, mftrefcmp);
 
-static void
+void
 mftref_free(struct mftref *mftref)
 {
 	if (mftref == NULL)
@@ -103,29 +95,38 @@ mftref_free(struct mftref *mftref)
 
 	free(mftref->hash);
 	free(mftref->seqnum);
-	free(mftref->location);
+	free(mftref->sia);
+	free(mftref->fqdn);
 	free(mftref);
 }
 
-static inline void
-insert_mftref_tree(struct mftref *mftref, struct mftref_tree *tree)
+static inline int
+insert_mftref_tree(struct mftref **mftref, struct mftref_tree *tree)
 {
 	struct mftref *found;
 
-	if ((found = RB_INSERT(mftref_tree, tree, mftref)) != NULL) {
-		if (strcmp(found->hash, mftref->hash) == 0) {
-			mftref_free(mftref);
-			return;
+	if ((found = RB_INSERT(mftref_tree, tree, *mftref)) != NULL) {
+		if (strcmp(found->hash, (*mftref)->hash) == 0) {
+			mftref_free(*mftref);
+			*mftref = NULL;
+			return 0;
 		}
 
 		/* XXX: should also compare seqnum */
 
-		if (mftref->thisupdate > found->thisupdate) {
+		if ((*mftref)->thisupdate > found->thisupdate) {
 			RB_REMOVE(mftref_tree, tree, found);
 			mftref_free(found);
-			RB_INSERT(mftref_tree, tree, mftref);
+			RB_INSERT(mftref_tree, tree, (*mftref));
+			return 0;
+		} else {
+			mftref_free(*mftref);
+			*mftref = NULL;
+			return 0;
 		}
 	}
+
+	return 1;
 }
 
 int
@@ -134,7 +135,7 @@ compare_ccrs(char *argv[], struct mftref_tree *tree)
 	struct file *f;
 	unsigned char *fc;
 	struct ccr *ccr;
-	int i, rc = 0;
+	int i, count = 0;
 
 	for (; *argv != NULL; ++argv) {
 		if ((f = calloc(1, sizeof(struct file))) == NULL)
@@ -158,14 +159,19 @@ compare_ccrs(char *argv[], struct mftref_tree *tree)
 		}
 
 		for (i = 0; i < ccr->refs_num; i++) {
-			insert_mftref_tree(&ccr->refs[i], tree);
+			count += insert_mftref_tree(&ccr->refs[i], tree);
 		}
+
+		free(ccr->refs);
+		free(ccr);
+		ccr = NULL;
+		file_free(f);
+		f = NULL;
 	}
 
-	rc = 1;
  out:
-	if (rc == 0)
-		file_free(f);
+	free(ccr);
+	file_free(f);
 
-	return rc;
+	return count;
 }

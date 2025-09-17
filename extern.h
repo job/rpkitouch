@@ -41,7 +41,8 @@ struct mftref {
 	unsigned char aki[SHA_DIGEST_LENGTH];
 	time_t thisupdate;
 	char *seqnum;
-	char *location;
+	char *sia;
+	char *fqdn;
 };
 
 RB_HEAD(mftref_tree, mftref);
@@ -49,7 +50,7 @@ RB_PROTOTYPE(mftref_tree, mftref, entry, mftrefcmp);
 
 struct ccr {
 	time_t producedat;
-	struct mftref *refs;
+	struct mftref **refs;
 	int refs_num;
 };
 
@@ -99,6 +100,7 @@ void set_mtime(int, const char *, time_t);
 int store_by_hash(struct file *);
 int store_by_name(struct file *, struct mft *);
 
+void mftref_free(struct mftref *);
 void file_free(struct file *);
 enum filetype detect_ftype_from_fn(char *);
 int compare_ccrs(char **, struct mftref_tree *);
