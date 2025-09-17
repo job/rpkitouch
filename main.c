@@ -119,6 +119,8 @@ main(int argc, char *argv[])
 	struct file *f;
 	unsigned char *fc;
 	struct mftref_tree mftref_tree;
+	struct ccr *ccr = NULL;
+	struct mft *mft = NULL;
 
 	while ((c = getopt(argc, argv, "Cc:d:hnpVv")) != -1)
 		switch (c) {
@@ -189,8 +191,6 @@ main(int argc, char *argv[])
 	}
 
 	if (ccr_file != NULL) {
-		struct ccr *ccr;
-
 		if ((f = calloc(1, sizeof(struct file))) == NULL)
 			err(1, NULL);
 
@@ -220,8 +220,6 @@ main(int argc, char *argv[])
 	}
 
 	for (; *argv != NULL; ++argv) {
-		struct mft *mft;
-
 		if ((f = calloc(1, sizeof(*f))) == NULL)
 			err(1, NULL);
 
