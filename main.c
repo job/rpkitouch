@@ -61,6 +61,8 @@ ASN1_OBJECT *manifest_oid;
 ASN1_OBJECT *notify_oid;
 ASN1_OBJECT *sign_time_oid;
 ASN1_OBJECT *signedobj_oid;
+ASN1_OBJECT *idx_oid;
+ASN1_OBJECT *par_oid;
 
 static void
 setup_oids(void) {
@@ -75,6 +77,10 @@ setup_oids(void) {
 		errx(1, "OBJ_txt2obj for %s failed", "manifest_oid");
 	if ((ccr_oid = OBJ_txt2obj("1.3.6.1.4.1.41948.825", 1)) == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "ccr_oid");
+	if ((idx_oid = OBJ_txt2obj("1.3.6.1.4.1.41948.826", 1)) == NULL)
+		errx(1, "OBJ_txt2obj for %s failed", "idx_oid");
+	if ((par_oid = OBJ_txt2obj("1.3.6.1.4.1.41948.827", 1)) == NULL)
+		errx(1, "OBJ_txt2obj for %s failed", "par_oid");
 }
 
 enum filetype

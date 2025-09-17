@@ -112,6 +112,8 @@ extern ASN1_OBJECT *manifest_oid;
 extern ASN1_OBJECT *notify_oid;
 extern ASN1_OBJECT *sign_time_oid;
 extern ASN1_OBJECT *signedobj_oid;
+extern ASN1_OBJECT *idx_oid;
+extern ASN1_OBJECT *par_oid;
 
 extern int noop;
 extern int verbose;

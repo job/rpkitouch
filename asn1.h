@@ -26,12 +26,44 @@
 #endif
 
 /*
- * Erik protocol component
+ * Erik protocol elements
  * reference: draft-spaghetti-sidrops-rpki-erik-protocol-02
  */
 
+extern ASN1_ITEM_EXP ErikIndex_it;
+extern ASN1_ITEM_EXP PartitionRef_it;
+extern ASN1_ITEM_EXP ErikPartition_it;
 extern ASN1_ITEM_EXP ManifestRef_it;
 extern ASN1_ITEM_EXP ManifestRefs_it;
+
+typedef struct {
+	ASN1_INTEGER *version;
+	ASN1_IA5STRING *indexScope;
+	ASN1_GENERALIZEDTIME *indexTime;
+	ASN1_OBJECT *hashAlg;
+	STACK_OF(PartitionRef) *partitionList;
+} ErikIndex;
+
+DECLARE_ASN1_FUNCTIONS(ErikIndex);
+
+typedef struct {
+	ASN1_INTEGER *identifier;
+	ASN1_OCTET_STRING *hash;
+	ASN1_INTEGER *size;
+} PartitionRef;
+
+DECLARE_STACK_OF(PartitionRef);
+
+DECLARE_ASN1_FUNCTIONS(PartitionRef);
+
+typedef struct {
+	ASN1_INTEGER *version;
+	ASN1_GENERALIZEDTIME *partitionTime;
+	ASN1_OBJECT *hashAlg;
+	STACK_OF(ManifestRef) *manifestList;
+} ErikPartition;
+
+DECLARE_ASN1_FUNCTIONS(ErikPartition);
 
 typedef struct {
 	ASN1_OCTET_STRING *hash;

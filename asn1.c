@@ -28,13 +28,12 @@
 
 ASN1_ITEM_EXP ContentInfo_it;
 ASN1_ITEM_EXP CanonicalCacheRepresentation_it;
+ASN1_ITEM_EXP ErikIndex_it;
+ASN1_ITEM_EXP PartitionRef_it;
+ASN1_ITEM_EXP ErikPartition_it;
 ASN1_ITEM_EXP ManifestRef_it;
 ASN1_ITEM_EXP ManifestRefs_it;
 
-/*
- * Can't use CMS_ContentInfo since it is not backed by a public struct
- * and since the OpenSSL CMS API does not support custom contentTypes.
- */
 ASN1_SEQUENCE(ContentInfo) = {
 	ASN1_SIMPLE(ContentInfo, contentType, ASN1_OBJECT),
 	ASN1_EXP(ContentInfo, content, ASN1_OCTET_STRING, 0),
@@ -63,6 +62,33 @@ ASN1_SEQUENCE(ManifestState) = {
 } ASN1_SEQUENCE_END(ManifestState);
 
 IMPLEMENT_ASN1_FUNCTIONS(ManifestState);
+
+ASN1_SEQUENCE(ErikIndex) = {
+	ASN1_EXP_OPT(ErikIndex, version, ASN1_INTEGER, 0),
+	ASN1_SIMPLE(ErikIndex, indexScope, ASN1_IA5STRING),
+	ASN1_SIMPLE(ErikIndex, indexTime, ASN1_GENERALIZEDTIME),
+	ASN1_SIMPLE(ErikIndex, hashAlg, ASN1_OBJECT),
+	ASN1_SEQUENCE_OF(ErikIndex, partitionList, PartitionRef),
+} ASN1_SEQUENCE_END(ErikIndex);
+
+IMPLEMENT_ASN1_FUNCTIONS(ErikIndex);
+
+ASN1_SEQUENCE(PartitionRef) = {
+	ASN1_SIMPLE(PartitionRef, identifier, ASN1_INTEGER),
+	ASN1_SIMPLE(PartitionRef, hash, ASN1_OCTET_STRING),
+	ASN1_SIMPLE(PartitionRef, size, ASN1_INTEGER),
+} ASN1_SEQUENCE_END(PartitionRef);
+
+IMPLEMENT_ASN1_FUNCTIONS(PartitionRef);
+
+ASN1_SEQUENCE(ErikPartition) = {
+	ASN1_EXP_OPT(ErikPartition, version, ASN1_INTEGER, 0),
+	ASN1_SIMPLE(ErikPartition, partitionTime, ASN1_GENERALIZEDTIME),
+	ASN1_SIMPLE(ErikPartition, hashAlg, ASN1_OBJECT),
+	ASN1_SEQUENCE_OF(ErikPartition, manifestList, ManifestRef),
+} ASN1_SEQUENCE_END(ErikPartition);
+
+IMPLEMENT_ASN1_FUNCTIONS(ErikPartition);
 
 ASN1_SEQUENCE(ManifestRef) = {
 	ASN1_SIMPLE(ManifestRef, hash, ASN1_OCTET_STRING),
