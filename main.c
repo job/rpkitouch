@@ -117,14 +117,25 @@ file_free(struct file *f)
 	free(f);
 }
 
+/*
+ * First sort by FQDN, then by first 2 octets of AKI, then by hash.
+ * This way all ErikParition / ErikIndex objects can be generated
+ * in a single pass.
+ */
 static int
-fqdn_hash_cmp(const void *a, const void *b)
+fqdn_aki_hash_cmp(const void *a, const void *b)
 {
 	int cmp;
 	struct mftref *ma = *(struct mftref **)a;
 	struct mftref *mb = *(struct mftref **)b;
 
 	cmp = strcmp(ma->fqdn, mb->fqdn);
+	if (cmp > 0)
+		return 1;
+	if (cmp < 0)
+		return -1;
+
+	cmp = strncmp(ma->aki, mb->aki, 2);
 	if (cmp > 0)
 		return 1;
 	if (cmp < 0)
@@ -214,7 +225,12 @@ main(int argc, char *argv[])
 			refs[--i] = mftref;
 		}
 
-		qsort(refs, count, sizeof(refs[0]), fqdn_hash_cmp);
+		qsort(refs, count, sizeof(refs[0]), fqdn_aki_hash_cmp);
+
+		for (i = 0; i < count; i++) {
+			printf("%s %c%c %s\n", refs[i]->fqdn, refs[i]->aki[0],
+			    refs[i]->aki[1], refs[i]->hash);
+		}
 
 		free(refs);
 
