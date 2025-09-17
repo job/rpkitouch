@@ -14,11 +14,17 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
+#include <err.h>
+#include <string.h>
+
 #include <openssl/asn1t.h>
 #include <openssl/safestack.h>
 #include <openssl/x509v3.h>
 
+#include "compat/tree.h"
+
 #include "asn1.h"
+#include "extern.h"
 
 ASN1_ITEM_EXP ContentInfo_it;
 ASN1_ITEM_EXP CanonicalCacheRepresentation_it;
@@ -72,3 +78,94 @@ IMPLEMENT_ASN1_FUNCTIONS(ManifestRef);
 ASN1_ITEM_TEMPLATE(ManifestRefs) =
     ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, mftrefs, ManifestRef)
 ASN1_ITEM_TEMPLATE_END(ManifestRefs);
+
+static inline int
+mftrefcmp(const struct mftref *a, const struct mftref *b)
+{
+	int cmp;
+
+	cmp = strcmp(a->location, b->location);
+	if (cmp > 0)
+		return 1;
+	if (cmp < 0)
+		return -1;
+
+	return 0;
+}
+
+RB_GENERATE(mftref_tree, mftref, entry, mftrefcmp);
+
+static void
+mftref_free(struct mftref *mftref)
+{
+	if (mftref == NULL)
+		return;
+
+	free(mftref->hash);
+	free(mftref->seqnum);
+	free(mftref->location);
+	free(mftref);
+}
+
+static inline void
+insert_mftref_tree(struct mftref *mftref, struct mftref_tree *tree)
+{
+	struct mftref *found;
+
+	if ((found = RB_INSERT(mftref_tree, tree, mftref)) != NULL) {
+		if (strcmp(found->hash, mftref->hash) == 0) {
+			mftref_free(mftref);
+			return;
+		}
+
+		/* XXX: should also compare seqnum */
+
+		if (mftref->thisupdate > found->thisupdate) {
+			RB_REMOVE(mftref_tree, tree, found);
+			mftref_free(found);
+			RB_INSERT(mftref_tree, tree, mftref);
+		}
+	}
+}
+
+int
+compare_ccrs(char *argv[], struct mftref_tree *tree)
+{
+	struct file *f;
+	unsigned char *fc;
+	struct ccr *ccr;
+	int i, rc = 0;
+
+	for (; *argv != NULL; ++argv) {
+		if ((f = calloc(1, sizeof(struct file))) == NULL)
+			err(1, NULL);
+
+		f->name = strdup(*argv);
+
+		if ((f->type = detect_ftype_from_fn(*argv)) != TYPE_CCR) {
+			warnx("%s: -C only accepts .ccr", f->name);
+			usage();
+		}
+
+		fc = load_file(f->name, &f->content_len, &f->disktime);
+		if (fc == NULL)
+			errx(1, "%s: load_file failed", f->name);
+		f->content = fc;
+
+		if ((ccr = parse_ccr(f)) == NULL) {
+			warnx("%s: parsing failed", f->name);
+			goto out;
+		}
+
+		for (i = 0; i < ccr->refs_num; i++) {
+			insert_mftref_tree(&ccr->refs[i], tree);
+		}
+	}
+
+	rc = 1;
+ out:
+	if (rc == 0)
+		file_free(f);
+
+	return rc;
+}

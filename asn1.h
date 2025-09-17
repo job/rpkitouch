@@ -27,7 +27,7 @@
 
 /*
  * Erik protocol component
- * reference: draft-spaghetti-sidrops-rpki-erik-protocol-01
+ * reference: draft-spaghetti-sidrops-rpki-erik-protocol-02
  */
 
 extern ASN1_ITEM_EXP ManifestRef_it;
@@ -57,7 +57,7 @@ DECLARE_ASN1_FUNCTIONS(ManifestRefs);
 
 /*
  * Canonical Cache Representation (CCR)
- * reference: draft-spaghetti-sidrops-rpki-ccr-00
+ * reference: draft-spaghetti-sidrops-rpki-ccr-03
  */
 
 extern ASN1_ITEM_EXP ContentInfo_it;

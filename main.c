@@ -26,8 +26,11 @@
 #include <openssl/objects.h>
 #include <openssl/sha.h>
 
+#include "compat/tree.h"
+
 #include "extern.h"
 
+int compareccr = 0;
 int noop = 0;
 int print = 0;
 int verbose = 0;
@@ -74,7 +77,7 @@ setup_oids(void) {
 		errx(1, "OBJ_txt2obj for %s failed", "ccr_oid");
 }
 
-static enum filetype
+enum filetype
 detect_ftype_from_fn(char *fn)
 {
 	enum filetype ftype = TYPE_UNKNOWN;
@@ -97,22 +100,13 @@ detect_ftype_from_fn(char *fn)
 	return ftype;
 }
 
-static void
+void
 file_free(struct file *f)
 {
-	int i;
-
 	if (f == NULL)
 		return;
 
-	for (i = 0; i < f->files_num; i++) {
-		free(f->files[i].fn);
-		free(f->files[i].hash);
-	}
-
-	free(f->files);
 	free(f->name);
-	free(f->sia);
 	free(f->content);
 	free(f);
 }
@@ -124,9 +118,13 @@ main(int argc, char *argv[])
 	char *ccr_file = NULL, *outdir = NULL;
 	struct file *f;
 	unsigned char *fc;
+	struct mftref_tree mftref_tree;
 
-	while ((c = getopt(argc, argv, "c:d:hnpVv")) != -1)
+	while ((c = getopt(argc, argv, "Cc:d:hnpVv")) != -1)
 		switch (c) {
+		case 'C':
+			compareccr = 1;
+			break;
 		case 'c':
 			ccr_file = optarg;
 			break;
@@ -172,7 +170,27 @@ main(int argc, char *argv[])
 			err(1, "output directory %s", outdir);
 	}
 
+	if (compareccr) {
+		struct mftref *mftref;
+
+		if  (*argv == NULL)
+			usage();
+
+		RB_INIT(&mftref_tree);
+
+		if (!compare_ccrs(argv, &mftref_tree))
+			errx(1, "compare_ccrs");
+
+		RB_FOREACH(mftref, mftref_tree, &mftref_tree) {
+			warnx("ZZZ: %s", mftref->location);
+		}
+
+		return 0;
+	}
+
 	if (ccr_file != NULL) {
+		struct ccr *ccr;
+
 		if ((f = calloc(1, sizeof(struct file))) == NULL)
 			err(1, NULL);
 
@@ -188,21 +206,23 @@ main(int argc, char *argv[])
 			errx(1, "%s: load_file failed", f->name);
 		f->content = fc;
 
-		if (!parse_ccr(f)) {
-			warnx("%s: parsing failed", ccr_file);
+		if ((ccr = parse_ccr(f)) == NULL) {
+			warnx("%s: parsing failed", f->name);
 			file_free(f);
 			return 1;
 		}
 
-		for (i = 0; i < f->files_num; i++)
-			printf("%s %s\n", f->files[i].hash, f->files[i].fn);
+		for (i = 0; i < ccr->refs_num; i++)
+			printf("%s %s\n", ccr->refs[i].hash, ccr->refs[i].location);
 
 		file_free(f);
 		return 0;
 	}
 
 	for (; *argv != NULL; ++argv) {
-		if ((f = calloc(1, sizeof(struct file))) == NULL)
+		struct mft *mft;
+
+		if ((f = calloc(1, sizeof(*f))) == NULL)
 			err(1, NULL);
 
 		f->id = ++count;
@@ -223,14 +243,17 @@ main(int argc, char *argv[])
 		}
 
 		if (f->type == TYPE_MFT) {
-			parse_manifest(f);
+			if ((mft = parse_manifest(f)) == NULL) {
+				warnx("%s: parse_manifest", f->name);
+				continue;
+			}
 
 			if (print) {
-				for (i = 0; i < f->files_num; i++) {
-					printf("%s/%s\n", f->sia_dirname,
-					    f->files[i].fn);
+				for (i = 0; i < mft->fh_num; i++) {
+					printf("%s/%s\n", mft->sia_dirname,
+					    mft->files[i].fn);
 				}
-				printf("%s\n", f->name);
+				printf("%s\n", mft->sia);
 			}
 		}
 
@@ -257,7 +280,7 @@ main(int argc, char *argv[])
 			store_by_hash(f);
 
 		if (outdir != NULL && f->type == TYPE_MFT)
-			store_by_name(f);
+			store_by_name(f, mft);
 
 		file_free(f);
 		f = NULL;
@@ -269,7 +292,7 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	fprintf(stderr, "usage: rpkitouch [-npVv] [-d dir] file ...\n");
+	fprintf(stderr, "usage: rpkitouch [-CnpVv] [-d dir] file ...\n");
 	fprintf(stderr, "       rpkitouch [-n] -c ccr_file\n");
 	exit(1);
 }

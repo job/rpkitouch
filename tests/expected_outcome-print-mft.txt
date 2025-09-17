@@ -10,4 +10,4 @@ chloe.sobornost.net/rpki/RIPE-nljobsnijders/ncJXcXUYxYzrXv2ONP0i8QvMMBY.roa
 chloe.sobornost.net/rpki/RIPE-nljobsnijders/t7xg6ZtXdcYhy-YGTMk_ONTD31E.cer
 chloe.sobornost.net/rpki/RIPE-nljobsnijders/voibVdC3Nzl9dcSfSFuFj6mK0R8.cer
 chloe.sobornost.net/rpki/RIPE-nljobsnijders/yqgF26w2R0m5sRVZCrbvD5cM29g.crl
-tests/yqgF26w2R0m5sRVZCrbvD5cM29g.mft
+chloe.sobornost.net/rpki/RIPE-nljobsnijders/yqgF26w2R0m5sRVZCrbvD5cM29g.mft

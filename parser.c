@@ -507,23 +507,35 @@ valid_mft_filename(const unsigned char *fn, size_t len)
 	return 1;
 }
 
-int
+static void
+mft_free(struct mft *mft)
+{
+	if (mft == NULL)
+		return;
+
+	free(mft->files);
+	free(mft->sia);
+	free(mft->sia_dirname);
+	free(mft->seqnum);
+	free(mft);
+}
+
+struct mft *
 parse_manifest(struct file *f)
 {
 	CMS_ContentInfo *cms = NULL;
 	STACK_OF(X509) *certs = NULL;
 	X509 *x;
-	const ASN1_TIME *at;
-	char *fn, *sia = NULL, *sia_dir = NULL, *seqnum = NULL;
+	char *fn, *sia_dir = NULL;
 	const ASN1_OBJECT *obj;
 	const unsigned char *der, *oder;
-	int i, ret = 0;
-	time_t expiry = 0, now;
+	int i, rc = 0;
 	ASN1_OCTET_STRING **os = NULL;
 	unsigned char *econtent_der = NULL;
 	const unsigned char *p;
 	size_t econtent_der_len;
-	Manifest *mft = NULL;
+	Manifest *mft_asn1 = NULL;
+	struct mft *mft = NULL;
 
 	fn = f->name;
 
@@ -554,26 +566,14 @@ parse_manifest(struct file *f)
 		goto out;
 	}
 
-	if ((at = X509_get0_notAfter(x)) == NULL) {
-		warnx("%s: X509_get0_notAfter failed", fn);
+	if ((mft = calloc(1, sizeof(*mft))) == NULL)
+		err(1, NULL);
+
+	if (x509_get_sia(x, &mft->sia) != 1)
 		goto out;
-	}
 
-	if (!asn1time_to_time(at, &expiry, 0)) {
-		warnx("%s: failed to convert ASN1_TIME", fn);
-		goto out;
-	}
-
-	now = time(NULL);
-	if (expiry < now)
-		ret = 1;
-
-	if (x509_get_sia(x, &sia) != 1)
-		goto out;
-	f->sia = sia;
-
-	sia_dir = strdup(sia);
-	if (asprintf(&f->sia_dirname, "%s", dirname(sia_dir)) == -1)
+	sia_dir = strdup(mft->sia);
+	if (asprintf(&mft->sia_dirname, "%s", dirname(sia_dir)) == -1)
 		err(1, "asprintf");
 	free(sia_dir);
 
@@ -603,7 +603,7 @@ parse_manifest(struct file *f)
 	memcpy(econtent_der, (*os)->data, econtent_der_len);
 
 	p = econtent_der;
-	if ((mft = d2i_Manifest(NULL, &p, econtent_der_len)) == NULL) {
+	if ((mft_asn1 = d2i_Manifest(NULL, &p, econtent_der_len)) == NULL) {
 		warnx("%s: parsing eContent failed", fn);
 		goto out;
 	}
@@ -612,61 +612,78 @@ parse_manifest(struct file *f)
 		goto out;
 	}
 
-	if (!asn1time_to_time(mft->thisUpdate, &f->thisupdate, 1)) {
+	if (!asn1time_to_time(mft_asn1->thisUpdate, &mft->thisupdate, 1)) {
 		warnx("%s: failed to convert %s", f->name, "thisUpdate");
 		goto out;
 	}
 
-	if ((seqnum = mft_convert_seqnum(mft->manifestNumber)) == NULL) {
+	mft->seqnum = mft_convert_seqnum(mft_asn1->manifestNumber);
+	if (mft->seqnum == NULL) {
 		warnx("%s: manifestNumber conversion failure", fn);
 		goto out;
 	}
-	f->seqnum = seqnum;
 
-	f->files_num = sk_FileAndHash_num(mft->fileList);
+	mft->fh_num = sk_FileAndHash_num(mft_asn1->fileList);
 
-	if ((f->files = calloc(f->files_num, sizeof(struct fileandhash))) == NULL)
+	mft->files = calloc(mft->fh_num, sizeof(mft->files[0]));
+	if (mft->files == NULL)
 		err(1, NULL);
 
-	for (i = 0; i < f->files_num; i++) {
-		const FileAndHash *fah = sk_FileAndHash_value(mft->fileList, i);
-
+	for (i = 0; i < mft->fh_num; i++) {
+		const FileAndHash *fah = sk_FileAndHash_value(mft_asn1->fileList, i);
 
 		if (!valid_mft_filename(fah->file->data, fah->file->length)) {
 			warnx("%s: invalid FileAndHash", f->name);
 			goto out;
 		}
 
-		f->files[i].fn = strndup((const char *)fah->file->data,
+		mft->files[i].fn = strndup((const char *)fah->file->data,
 		    fah->file->length);
-		if (f->files[i].fn == NULL)
+		if (mft->files[i].fn == NULL)
 			err(1, NULL);
 
 		if (fah->hash->length != SHA256_DIGEST_LENGTH)
 			goto out;
 
 		if (!b64uri_encode(fah->hash->data, fah->hash->length,
-		    &f->files[i].hash))
+		    &mft->files[i].hash))
 			err(1, NULL);
 	}
 
-	ret = 1;
+	rc = 1;
  out:
+	if (rc == 0) {
+		mft_free(mft);
+		mft = NULL;
+	}
+
 	free(econtent_der);
-	Manifest_free(mft);
+	Manifest_free(mft_asn1);
 	sk_X509_free(certs);
 	CMS_ContentInfo_free(cms);
-	return ret;
+
+	return mft;
 }
 
-int
+static void
+ccr_free(struct ccr *ccr)
+{
+	if (ccr == NULL)
+		return;
+
+	free(ccr->refs);
+	free(ccr);
+}
+
+struct ccr *
 parse_ccr(struct file *f)
 {
 	const unsigned char *oder, *der;
 	ContentInfo *ci = NULL;
-	CanonicalCacheRepresentation *ccr = NULL;
+	CanonicalCacheRepresentation *ccr_asn1 = NULL;
 	long len;
-	time_t producedat = 0;
+	struct ccr *ccr = NULL;
+	struct mftref *refs = NULL;
 	int i, rc = 0;
 
 	oder = der = f->content;
@@ -693,7 +710,8 @@ parse_ccr(struct file *f)
 	len = ASN1_STRING_length(ci->content);
 
 	oder = der;
-	if ((ccr = d2i_CanonicalCacheRepresentation(NULL, &der, len)) == NULL) {
+	ccr_asn1 = d2i_CanonicalCacheRepresentation(NULL, &der, len);
+	if (ccr_asn1 == NULL) {
 		warnx("%s: d2i_CanonicalCacheRepresentation failed", f->name);
 		goto out;
 	}
@@ -702,53 +720,82 @@ parse_ccr(struct file *f)
 		goto out;
 	}
 
-	if (!asn1time_to_time(ccr->producedAt, &producedat, 1)) {
+	if ((ccr = calloc(1, sizeof(*ccr))) == NULL)
+		err(1, NULL);
+
+	if (!asn1time_to_time(ccr_asn1->producedAt, &ccr->producedat, 1)) {
 		warnx("%s: failed to convert %s", f->name, "producedAt");
 		goto out;
 	}
 
-	if (f->disktime != producedat)
-		set_mtime(AT_FDCWD, f->name, producedat);
+	if (f->disktime != ccr->producedat)
+		set_mtime(AT_FDCWD, f->name, ccr->producedat);
 
-	if (ccr->mfts == NULL || ccr->mfts->hash == NULL ||
-	    ccr->mfts->mftrefs == NULL) {
+	if (ccr_asn1->mfts == NULL || ccr_asn1->mfts->hash == NULL ||
+	    ccr_asn1->mfts->mftrefs == NULL) {
 		warnx("%s: missing Manifest state", f->name);
 		goto out;
 	}
 
-	if (validate_asn1_hash(f->name, "ManifestState", ccr->mfts->hash,
-	    ASN1_ITEM_rptr(ManifestRefs), ccr->mfts->mftrefs) == NULL) {
+	if (validate_asn1_hash(f->name, "ManifestState", ccr_asn1->mfts->hash,
+	    ASN1_ITEM_rptr(ManifestRefs), ccr_asn1->mfts->mftrefs) == NULL) {
 		warnx("%s: ManifestState hash mismatch", f->name);
 		goto out;
 	}
 
-	if ((f->files_num = sk_ManifestRef_num(ccr->mfts->mftrefs)) == 0) {
+	ccr->refs_num = sk_ManifestRef_num(ccr_asn1->mfts->mftrefs);
+	if (ccr->refs_num == 0) {
 		warnx("%s: missing ManifestRefs", f->name);
 		goto out;
 	}
 
-	f->files = calloc(f->files_num, sizeof(struct fileandhash));
-	if (f->files == NULL)
+	refs = calloc(ccr->refs_num, sizeof(ccr->refs[0]));
+	if (refs == NULL)
 		err(1, NULL);
 
-	for (i = 0; i < f->files_num; i++) {
+	for (i = 0; i < ccr->refs_num; i++) {
 		const ManifestRef *mr;
 
-		mr = sk_ManifestRef_value(ccr->mfts->mftrefs, i);
+		mr = sk_ManifestRef_value(ccr_asn1->mfts->mftrefs, i);
 
 		if (mr->hash->length != SHA256_DIGEST_LENGTH)
 			goto out;
 
-		f->files[i].hash = hex_encode(mr->hash->data, mr->hash->length);
+		refs[i].hash = hex_encode(mr->hash->data, mr->hash->length);
 
-		if (!ccr_get_sia(mr->location, &f->files[i].fn))
+		if (!ASN1_INTEGER_get_uint64(&refs[i].size, mr->size)) {
+			warnx("%s: manifest ref #%d corrupted", f->name, i);
+			goto out;
+		}
+
+		if (mr->aki->length != sizeof(refs[i].aki)) {
+			warnx("%s: manifest ref #%d corrupted", f->name, i);
+			goto out;
+		}
+		memcpy(refs[i].aki, mr->aki->data, mr->aki->length);
+
+		if (!asn1time_to_time(mr->thisUpdate, &refs[i].thisupdate, 1)) {
+			warnx("%s: failed to convert %s", f->name, "thisUpdate");
+			goto out;
+		}
+
+		refs[i].seqnum = mft_convert_seqnum(mr->manifestNumber);
+		if (refs[i].seqnum == NULL)
+			goto out;
+
+		if (!ccr_get_sia(mr->location, &refs[i].location))
 			goto out;
 	}
+	ccr->refs = refs;
 
 	rc = 1;
  out:
+	if (rc == 0) {
+		ccr_free(ccr);
+		ccr = NULL;
+	}
 	ContentInfo_free(ci);
-	CanonicalCacheRepresentation_free(ccr);
+	CanonicalCacheRepresentation_free(ccr_asn1);
 
-	return rc;
+	return ccr;
 }

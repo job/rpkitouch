@@ -187,13 +187,13 @@ store_by_hash(struct file *f)
  * Only overwrite if the on-disk copy is older.
  */
 int
-store_by_name(struct file *f)
+store_by_name(struct file *f, struct mft *mft)
 {
 	char *dir = NULL, *path = NULL;
 	struct stat st;
 	time_t delay = 0;
 
-	if (asprintf(&dir, "named/%s", f->sia_dirname) == -1)
+	if (asprintf(&dir, "named/%s", mft->sia_dirname) == -1)
 		err(1, "asprintf");
 
 	if (!noop) {
@@ -201,7 +201,7 @@ store_by_name(struct file *f)
 			err(1, "mkpathat %s", dir);
 	}
 
-	if (asprintf(&path, "named/%s", f->sia) == -1)
+	if (asprintf(&path, "named/%s", mft->sia) == -1)
 		err(1, "asprintf");
 
 	memset(&st, 0, sizeof(st));
@@ -210,15 +210,15 @@ store_by_name(struct file *f)
 			err(1, "fstatat %s", path);
 	}
 
-	if (st.st_mtim.tv_sec < f->thisupdate) {
+	if (st.st_mtim.tv_sec < mft->thisupdate) {
 		if (verbose) {
-			if (time(NULL) > f->thisupdate)
-				delay = time(NULL) - f->thisupdate;
+			if (time(NULL) > mft->thisupdate)
+				delay = time(NULL) - mft->thisupdate;
 			warnx("%s (st:%lld sz:%lld d:%lld)", path,
-			    (long long)f->thisupdate, (long long)f->content_len,
-			    (long long)delay);
+			    (long long)mft->thisupdate,
+			    (long long)f->content_len, (long long)delay);
 		}
-		write_file(path, f->content, f->content_len, f->thisupdate);
+		write_file(path, f->content, f->content_len, mft->thisupdate);
 	}
 
 	free(dir);
