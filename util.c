@@ -176,8 +176,7 @@ store_by_hash(struct file *f)
 			    (long long)delay);
 		}
 		write_file(path, f->content, f->content_len, f->signtime);
-	} else
-		set_atime(outdirfd, path);
+	}
 
 	return 0;
 }
@@ -225,21 +224,6 @@ store_by_name(struct file *f, struct mft *mft)
 	free(path);
 
 	return 0;
-}
-
-void
-set_atime(int fd, const char *fn)
-{
-	struct timespec ts[2];
-
-	if (noop)
-		return;
-
-	ts[0].tv_nsec = UTIME_NOW;
-	ts[1].tv_nsec = UTIME_OMIT;
-
-	if (utimensat(fd, fn, ts, 0) == -1)
-		err(1, "utimensat %s", fn);
 }
 
 void

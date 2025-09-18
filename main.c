@@ -319,8 +319,7 @@ main(int argc, char *argv[])
 					    (long long)f->disktime, (long long)f->signtime);
 				}
 				set_mtime(AT_FDCWD, f->name, f->signtime);
-			} else
-				set_atime(AT_FDCWD, f->name);
+			}
 		}
 
 		/*

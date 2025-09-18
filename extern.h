@@ -94,7 +94,6 @@ struct mft *parse_manifest(struct file *f);
 
 time_t get_time_from_content(struct file *f);
 
-void set_atime(int, const char *);
 void set_mtime(int, const char *, time_t);
 
 int store_by_hash(struct file *);
