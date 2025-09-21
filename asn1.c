@@ -310,26 +310,36 @@ start_ErikPartition(void)
 static void
 update_tree_head(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 {
-	char *b = NULL;
-	char *headfn;
+	unsigned char *prev_head = NULL;
+	char *headfn, *head = NULL;
+	off_t size;
+	time_t mtime;
 
 	if (!noop) {
 		if (mkpathat(outdirfd, "erik") == -1)
 			err(1, "mkpathat %s", "erik");
 	}
 
-	if (!b64uri_encode(hash, SHA256_DIGEST_LENGTH, &b))
+	if (!b64uri_encode(hash, SHA256_DIGEST_LENGTH, &head))
 		err(1, "b64uri_encode");
 
 	if (asprintf(&headfn, "erik/%s", fqdn) == -1)
 		err(1, "asprintf");
 
-	/* TODO: first read() the head file content, to see if it needs updating */
+	/*
+	 * Only store the new tree head if it didn't exist or is different.
+	 */
 
-	write_file(headfn, (unsigned char *)b, strlen(b), 0);
+	if ((prev_head = load_file(headfn, &size, &mtime)) == NULL)
+		write_file(headfn, (unsigned char *)head, strlen(head), 0);
+	else if ((size_t)size != strlen(head))
+		write_file(headfn, (unsigned char *)head, strlen(head), 0);
+	else if (strcmp((const char *)prev_head, head) != 0)
+		write_file(headfn, (unsigned char *)head, strlen(head), 0);
 
-	free(b);
 	free(headfn);
+	free(head);
+	free(prev_head);
 }
 
 static void
