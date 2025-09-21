@@ -331,18 +331,19 @@ update_tree_head(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 	 */
 
 	if ((prev_head = load_fileat(outdirfd, fn, &size, &mtime)) == NULL) {
-		warnx("ABC 1");
 		write_file(fn, (unsigned char *)head, strlen(head), 0);
+		goto out;
 	}
-	else if ((size_t)size != strlen(head)) {
-		warnx("ABC 2");
+	if ((size_t)size != strlen(head)) {
 		write_file(fn, (unsigned char *)head, strlen(head), 0);
+		goto out;
 	}
-	else if (strcmp((const char *)prev_head, head) != 0) {
-		warnx("ABC 2");
+	if (strncmp((const char *)prev_head, head, strlen(head)) != 0) {
 		write_file(fn, (unsigned char *)head, strlen(head), 0);
+		goto out;
 	}
 
+ out:
 	free(fn);
 	free(head);
 	free(prev_head);
