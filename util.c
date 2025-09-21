@@ -103,6 +103,9 @@ write_file(char *path, unsigned char *content, off_t content_len, time_t mtime)
 	if (asprintf(&tmpbn, "%s/.%s.XXXXXXXXXX", dn, bn) == -1)
 		err(1, "asprintf");
 
+	if (outdirfd == 0)
+		outdirfd = AT_FDCWD;
+
 	if (mkpathat(outdirfd, dn) == -1)
 		err(1, "mkpathat %s", dn);
 

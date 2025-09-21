@@ -131,6 +131,10 @@ mftref_free(struct mftref *mftref)
 	free(mftref);
 }
 
+/*
+ * Insert new ManifestRefs into tree, or replacing an existing entry
+ * if the existing entry's thisUpdate is older.
+ */
 static inline int
 insert_mftref_tree(struct mftref **mftref, struct mftref_tree *tree)
 {
@@ -542,4 +546,86 @@ generate_erik_objects(struct mftref **refs, int count)
 	if (sk_PartitionRef_push(ei->partitionList, pr) <= 0)
 		errx(1, "sk_PartitionRef_push");
 	finalize_ErikIndex(ei, mftref->fqdn, itime);
+}
+
+struct file *
+generate_reduced_ccr(struct mftref **refs, int count)
+{
+	struct mftref *mftref;
+	ManifestState *ms = NULL;
+	ManifestRef *mr = NULL;
+	time_t mostrecent = 0;
+	CanonicalCacheRepresentation *ccr = NULL;
+	unsigned char *ccr_der;
+	int ccr_der_len;
+	ContentInfo *ci = NULL;
+	struct file *f;
+	int i;
+
+	if ((ms = ManifestState_new()) == NULL)
+		errx(1, "ManifestState_new");
+
+	for (i = 0; i < count; i++) {
+		char *sia;
+		mftref = refs[i];
+
+		if (asprintf(&sia, "rsync://%s", mftref->sia) == -1)
+			err(1, "asprintf");
+		free(mftref->sia);
+		mftref->sia = sia;
+
+		mr = make_manifestref(mftref);
+
+		if (sk_ManifestRef_push(ms->mftrefs, mr) <= 0)
+			errx(1, "sk_ManifestRef_push");
+
+		if (mftref->thisupdate > mostrecent)
+			mostrecent = mftref->thisupdate;
+	}
+
+	if (ASN1_GENERALIZEDTIME_set(ms->mostRecentUpdate, mostrecent) == NULL)
+		errx(1, "ASN1_GENERALIZEDTIME_set");
+
+	hash_asn1_item(ms->hash, ASN1_ITEM_rptr(ManifestRefs), ms->mftrefs);
+
+	if ((ccr = CanonicalCacheRepresentation_new()) == NULL)
+		errx(1, "CanonicalCacheRepresentation_new");
+
+	ASN1_OBJECT_free(ccr->hashAlg);
+	if ((ccr->hashAlg = OBJ_nid2obj(NID_sha256)) == NULL)
+		errx(1, "OBJ_nid2obj");
+
+	if (ASN1_GENERALIZEDTIME_set(ccr->producedAt, time(NULL)) == NULL)
+		errx(1, "ASN1_GENERALIZEDTIME_set");
+
+	ccr->mfts = ms;
+
+	ccr_der = NULL;
+	if ((ccr_der_len = i2d_CanonicalCacheRepresentation(ccr, &ccr_der)) <= 0)
+		errx(1, "i2d_CanonicalCacheRepresentation");
+
+	CanonicalCacheRepresentation_free(ccr);
+
+	if ((ci = ContentInfo_new()) == NULL)
+		errx(1, "ContentInfo_new");
+
+	ASN1_OBJECT_free(ci->contentType);
+	if ((ci->contentType = OBJ_dup(ccr_oid)) == NULL)
+		errx(1, "OBJ_dup");
+
+	if (!ASN1_OCTET_STRING_set(ci->content, ccr_der, ccr_der_len))
+		errx(1, "ASN1_OCTET_STRING_set");
+
+	free(ccr_der);
+
+	if ((f = malloc(sizeof(*f))) == NULL)
+		err(1, NULL);
+
+	f->content = NULL;
+	if ((f->content_len = i2d_ContentInfo(ci, &f->content)) <= 0)
+		errx(1, "i2d_ContentInfo");
+
+	ContentInfo_free(ci);
+
+	return f;
 }

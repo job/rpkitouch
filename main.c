@@ -30,7 +30,7 @@
 
 #include "extern.h"
 
-int outputerik = 0;
+int compare = 0;
 int noop = 0;
 int print = 0;
 int verbose = 0;
@@ -144,21 +144,33 @@ fqdn_aki_hash_cmp(const void *a, const void *b)
 	return strcmp(ma->hash, mb->hash);
 }
 
+/*
+ * Sort by hash.
+ */
+static int
+hash_cmp(const void *a, const void *b)
+{
+	struct mftref *ma = *(struct mftref **)a;
+	struct mftref *mb = *(struct mftref **)b;
+
+	return strcmp(ma->hash, mb->hash);
+}
+
 int
 main(int argc, char *argv[])
 {
 	int c, count = 0, i, rc = 0;
-	char *ccr_file = NULL, *outdir = NULL;
+	char *ccr_file = NULL, *outdir = NULL, *reduce = NULL;
 	struct file *f;
 	unsigned char *fc;
 	struct mftref_tree mftref_tree;
 	struct ccr *ccr = NULL;
 	struct mft *mft = NULL;
 
-	while ((c = getopt(argc, argv, "Cc:d:hnpVv")) != -1)
+	while ((c = getopt(argc, argv, "Cc:d:hnpR:Vv")) != -1)
 		switch (c) {
 		case 'C':
-			outputerik = 1;
+			compare = 1;
 			break;
 		case 'c':
 			ccr_file = optarg;
@@ -172,6 +184,9 @@ main(int argc, char *argv[])
 		case 'p':
 			noop = 1;
 			print = 1;
+			break;
+		case 'R':
+			reduce = optarg;
 			break;
 		case 'V':
 			printf("version 1.7\n");
@@ -195,6 +210,12 @@ main(int argc, char *argv[])
 		usage();
 	}
 
+	if (reduce != NULL && outdir != NULL)
+		usage();
+
+	if (reduce != NULL && ccr_file != NULL)
+		usage();
+
 	if (ccr_file != NULL && outdir != NULL)
 		usage();
 
@@ -205,7 +226,7 @@ main(int argc, char *argv[])
 			err(1, "output directory %s", outdir);
 	}
 
-	if (outputerik) {
+	if (compare) {
 		struct mftref *mftref;
 		struct mftref **refs;
 
@@ -238,6 +259,44 @@ main(int argc, char *argv[])
 			generate_erik_objects(refs, count);
 		}
 
+		free(refs);
+
+		struct mftref *tmp_mftref;
+		RB_FOREACH_SAFE(mftref, mftref_tree, &mftref_tree, tmp_mftref) {
+			RB_REMOVE(mftref_tree, &mftref_tree, mftref);
+			mftref_free(mftref);
+		}
+
+		return 0;
+	}
+
+	if (reduce != NULL) {
+		struct mftref *mftref;
+		struct mftref **refs;
+
+		if  (*argv == NULL)
+			usage();
+
+		RB_INIT(&mftref_tree);
+
+		if ((count = compare_ccrs(argv, &mftref_tree)) == 0)
+			errx(1, "compare_ccrs");
+
+		if ((refs = calloc(count, sizeof(refs))) == NULL)
+			err(1, NULL);
+
+		i = count;
+		RB_FOREACH(mftref, mftref_tree, &mftref_tree) {
+			refs[--i] = mftref;
+		}
+
+		qsort(refs, count, sizeof(refs[0]), hash_cmp);
+
+		f = generate_reduced_ccr(refs, count);
+
+		write_file(reduce, f->content, f->content_len, 0);
+
+		free(f);
 		free(refs);
 
 		struct mftref *tmp_mftref;
@@ -350,5 +409,6 @@ usage(void)
 {
 	fprintf(stderr, "usage: rpkitouch [-CnpVv] [-d dir] file ...\n");
 	fprintf(stderr, "       rpkitouch [-n] -c ccr_file\n");
+	fprintf(stderr, "       rpkitouch [-n] -R out_ccr ccr_file ...\n");
 	exit(1);
 }

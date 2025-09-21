@@ -93,6 +93,7 @@ int mkstempat(int, char *);
 
 struct ccr *parse_ccr(struct file *f);
 struct mft *parse_manifest(struct file *f);
+void hash_asn1_item(ASN1_OCTET_STRING *, const ASN1_ITEM *, void *);
 
 time_t get_time_from_content(struct file *f);
 
@@ -106,7 +107,7 @@ void file_free(struct file *);
 enum filetype detect_ftype_from_fn(char *);
 int compare_ccrs(char **, struct mftref_tree *);
 void generate_erik_objects(struct mftref **, int);
-
+struct file *generate_reduced_ccr(struct mftref **, int);
 void usage(void);
 
 extern ASN1_OBJECT *ccr_oid;

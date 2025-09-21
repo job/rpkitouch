@@ -46,10 +46,14 @@ test: $(PROG)
 	./rpkitouch -C -v -d tests/e tests/erik.ccr
 	find tests/e -type f | xargs ls -rl | awk '{ print $$5, $$6, $$7, $$8, $$9 }' | sort | tee tests/outcome-erik.txt
 	diff tests/outcome-erik.txt tests/expected-outcome-erik.txt
+	mkdir -p tests/a
+	./rpkitouch -R tests/a/output.ccr tests/erik.ccr tests/test.ccr
+	./rpkitouch -c tests/a/output.ccr > tests/a/output.list
+	diff tests/a/output.list tests/expected-outcome-reduced-ccr.list
 	echo OK
 
 clean:
-	-rm -rf rpkitouch rpkitouch.d tests/outcome.txt tests/c tests/e tags
+	-rm -rf rpkitouch rpkitouch.d tests/outcome.txt tests/c tests/e tags tests/a
 	-rm -rf tests/outcome-ccr.txt tests/outcome-print-mft.txt tests/outcome-erik.txt
 
 readme:

@@ -59,7 +59,7 @@ ASN1_SEQUENCE(FileAndHash) = {
 } ASN1_SEQUENCE_END(FileAndHash);
 
 
-static void
+void
 hash_asn1_item(ASN1_OCTET_STRING *astr, const ASN1_ITEM *it, void *val)
 {
 	unsigned char hash[SHA256_DIGEST_LENGTH];
@@ -798,8 +798,10 @@ parse_ccr(struct file *f)
 		}
 
 		refs[i]->seqnum = mft_convert_seqnum(mr->manifestNumber);
-		if (refs[i]->seqnum == NULL)
+		if (refs[i]->seqnum == NULL) {
+			warnx("%s: mft_convert_seqnum failed", f->name);
 			goto out;
+		}
 
 		if (!ccr_get_sia(mr->location, &refs[i]->sia))
 			goto out;

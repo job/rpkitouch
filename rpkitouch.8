@@ -24,6 +24,10 @@
 .Op Fl n
 .Fl c Ar ccr_file
 .Nm rpkitouch
+.Op Fl n
+.Fl R Ar out_ccr
+.Ar
+.Nm rpkitouch
 .Op Fl CnpVv
 .Op Fl d Ar directory
 .Ar
@@ -135,6 +139,11 @@ would change.
 .It Fl p
 Print the directory path derived from the SIA and the FileAndHashes contained
 in a Manifest's payload, followed by the Manifest's own filename.
+.It Fl R Ar out_ccr
+Output a reduced CCR in
+.Ar out_ccr
+by removing all states except the ManifestState, and comparing and deduplicating
+ManifestRefs in the specified CCR file(s).
 .It Fl V
 Display the version number and exit.
 .It Fl v
