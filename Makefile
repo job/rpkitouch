@@ -49,8 +49,8 @@ test: $(PROG)
 	echo OK
 
 clean:
-	-rm -rf rpkitouch rpkitouch.d tests/outcome.txt tests/c tags
-	-rm -rf tests/outcome-ccr.txt tests/outcome-print-mft.txt
+	-rm -rf rpkitouch rpkitouch.d tests/outcome.txt tests/c tests/e tags
+	-rm -rf tests/outcome-ccr.txt tests/outcome-print-mft.txt tests/outcome-erik.txt
 
 readme:
 	mandoc -T markdown rpkitouch.8 > README.md
