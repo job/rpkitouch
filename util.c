@@ -118,8 +118,10 @@ write_file(char *path, unsigned char *content, off_t content_len, time_t mtime)
 	ts[1].tv_sec = mtime;
 	ts[1].tv_nsec = 0;
 
-	if (futimens(fd, ts))
-		err(1, "futimens %s/%s", dn, tmpbn);
+	if (mtime != 0) {
+		if (futimens(fd, ts))
+			err(1, "futimens %s/%s", dn, tmpbn);
+	}
 
 	if (close(fd) != 0)
 		err(1, "close failed %s/%s", dn, tmpbn);

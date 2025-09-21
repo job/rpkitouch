@@ -326,7 +326,7 @@ update_tree_head(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 
 	/* TODO: first read() the head file content, to see if it needs updating */
 
-	write_file(headfn, (unsigned char *)b, strlen(b), UTIME_NOW);
+	write_file(headfn, (unsigned char *)b, strlen(b), 0);
 
 	free(b);
 	free(headfn);
