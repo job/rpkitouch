@@ -16,6 +16,7 @@
 
 #include <sys/stat.h>
 
+#include <ctype.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -299,4 +300,41 @@ hex_encode(const unsigned char *in, size_t insz)
 	out[i * 2] = '\0';
 
 	return out;
+}
+
+/*
+ * Hex decode hexstring into the supplied buffer.
+ * Return 0 on success else -1, if buffer too small or bad encoding.
+ */
+int
+hex_decode(const char *hexstr, char *buf, size_t len)
+{
+	unsigned char ch, r;
+	size_t pos = 0;
+	int i;
+
+	while (*hexstr) {
+		r = 0;
+		for (i = 0; i < 2; i++) {
+			ch = hexstr[i];
+			if (isdigit(ch))
+				ch -= '0';
+			else if (islower(ch))
+				ch -= ('a' - 10);
+			else if (isupper(ch))
+				ch -= ('A' - 10);
+			else
+				return -1;
+			if (ch > 0xf)
+				return -1;
+			r = r << 4 | ch;
+		}
+		if (pos < len)
+			buf[pos++] = r;
+		else
+			return -1;
+
+		hexstr += 2;
+	}
+	return 0;
 }

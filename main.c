@@ -30,7 +30,7 @@
 
 #include "extern.h"
 
-int compareccr = 0;
+int outputerik = 0;
 int noop = 0;
 int print = 0;
 int verbose = 0;
@@ -158,7 +158,7 @@ main(int argc, char *argv[])
 	while ((c = getopt(argc, argv, "Cc:d:hnpVv")) != -1)
 		switch (c) {
 		case 'C':
-			compareccr = 1;
+			outputerik = 1;
 			break;
 		case 'c':
 			ccr_file = optarg;
@@ -205,7 +205,7 @@ main(int argc, char *argv[])
 			err(1, "output directory %s", outdir);
 	}
 
-	if (compareccr) {
+	if (outputerik) {
 		struct mftref *mftref;
 		struct mftref **refs;
 
@@ -227,15 +227,21 @@ main(int argc, char *argv[])
 
 		qsort(refs, count, sizeof(refs[0]), fqdn_aki_hash_cmp);
 
-		for (i = 0; i < count; i++) {
-			printf("%s %c%c %s\n", refs[i]->fqdn, refs[i]->aki[0],
-			    refs[i]->aki[1], refs[i]->hash);
+		if (outdir == NULL) {
+			for (i = 0; i < count; i++) {
+				printf("aki:%s seqnum:%s tu:%lld %s %s\n",
+				    refs[i]->aki, refs[i]->seqnum,
+				    (long long)refs[i]->thisupdate,
+				    refs[i]->hash, refs[i]->sia);
+			}
+		} else {
+			generate_erik_objects(refs, count);
 		}
 
 		free(refs);
 
-		struct mftref *nm;
-		RB_FOREACH_SAFE(mftref, mftref_tree, &mftref_tree, nm) {
+		struct mftref *tmp_mftref;
+		RB_FOREACH_SAFE(mftref, mftref_tree, &mftref_tree, tmp_mftref) {
 			RB_REMOVE(mftref_tree, &mftref_tree, mftref);
 			mftref_free(mftref);
 		}

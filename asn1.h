@@ -54,6 +54,10 @@ typedef struct {
 
 DECLARE_STACK_OF(PartitionRef);
 
+#ifndef DEFINE_STACK_OF
+#define sk_PartitionRef_push(st, i) SKM_sk_push(PartitionRef, (st), (i))
+#endif
+
 DECLARE_ASN1_FUNCTIONS(PartitionRef);
 
 typedef struct {
@@ -78,6 +82,7 @@ DECLARE_STACK_OF(ManifestRef);
 
 #ifndef DEFINE_STACK_OF
 #define sk_ManifestRef_num(st) SKM_sk_num(ManifestRef, (st))
+#define sk_ManifestRef_push(st, i) SKM_sk_push(ManifestRef, (st), (i))
 #define sk_ManifestRef_value(st, i) SKM_sk_value(ManifestRef, (st), (i))
 #endif
 

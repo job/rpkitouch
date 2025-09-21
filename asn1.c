@@ -14,6 +14,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
+#include <sys/stat.h>
+
 #include <err.h>
 #include <string.h>
 
@@ -200,4 +202,322 @@ compare_ccrs(char *argv[], struct mftref_tree *tree)
 	file_free(f);
 
 	return count;
+}
+
+static void
+asn1int_set_seqnum(ASN1_INTEGER *aint, const char *seqnum)
+{
+	BIGNUM *bn = NULL;
+
+	if (!BN_hex2bn(&bn, seqnum))
+		errx(1, "BN_hex2bn");
+
+	if (BN_to_ASN1_INTEGER(bn, aint) == NULL)
+		errx(1, "BN_to_ASN1_INTEGER");
+
+	BN_free(bn);
+}
+
+static void
+location_add_sia(STACK_OF(ACCESS_DESCRIPTION) *sad, const char *sia)
+{
+	ACCESS_DESCRIPTION *ad = NULL;
+
+	if ((ad = ACCESS_DESCRIPTION_new()) == NULL)
+		errx(1, "ACCESS_DESCRIPTION_new");
+
+	ASN1_OBJECT_free(ad->method);
+	if ((ad->method = OBJ_nid2obj(NID_signedObject)) == NULL)
+		errx(1, "OBJ_nid2obj");
+
+	GENERAL_NAME_free(ad->location);
+	ad->location = a2i_GENERAL_NAME(NULL, NULL, NULL, GEN_URI, sia, 0);
+	if (ad->location == NULL)
+		errx(1, "a2i_GENERAL_NAME");
+
+	if (sk_ACCESS_DESCRIPTION_push(sad, ad) <= 0)
+		errx(1, "sk_ACCESS_DESCRIPTION_push");
+}
+
+static ManifestRef *
+make_manifestref(struct mftref *m)
+{
+	ManifestRef *mr = NULL;
+	static unsigned char hash[SHA256_DIGEST_LENGTH] = { 0 };
+	static unsigned char aki[SHA_DIGEST_LENGTH] = { 0 };
+
+	if ((mr = ManifestRef_new()) == NULL)
+		errx(1, "ManifestRef_new");
+
+	if (hex_decode(m->hash, (char *)hash, sizeof(hash)) != 0)
+		errx(1, "hex_decode");
+
+	if (!ASN1_OCTET_STRING_set(mr->hash, hash, sizeof(hash)))
+		errx(1, "ASN1_OCTET_STRING_set");
+
+	if (!ASN1_INTEGER_set_uint64(mr->size, m->size))
+		errx(1, "ASN1_INTEGER_set_uint64");
+
+	if (hex_decode(m->aki, (char *)aki, sizeof(aki)) != 0)
+		errx(1, "hex_decode");
+
+	if (!ASN1_OCTET_STRING_set(mr->aki, aki, sizeof(aki)))
+		errx(1, "ASN1_OCTET_STRING_set");
+
+	asn1int_set_seqnum(mr->manifestNumber, m->seqnum);
+
+	if (ASN1_GENERALIZEDTIME_set(mr->thisUpdate, m->thisupdate) == NULL)
+		errx(1, "ASN1_GENERALIZEDTIME_set");
+
+	location_add_sia(mr->location, m->sia);
+
+	return mr;
+}
+
+static ErikIndex *
+start_ErikIndex(const char *fqdn)
+{
+	ErikIndex *ei;
+
+	if ((ei = ErikIndex_new()) == NULL)
+		errx(1, "ErikIndex_new");
+
+	if (!ASN1_STRING_set(ei->indexScope, fqdn, -1))
+		errx(1, "ASN1_STRING_set");
+
+	ASN1_OBJECT_free(ei->hashAlg);
+	if ((ei->hashAlg = OBJ_nid2obj(NID_sha256)) == NULL)
+		errx(1, "OBJ_nid2obj");
+
+	return ei;
+}
+
+static ErikPartition *
+start_ErikPartition(void)
+{
+	ErikPartition *ep;
+
+	if ((ep = ErikPartition_new()) == NULL)
+		errx(1, "ErikPartition_new");
+
+	ASN1_OBJECT_free(ep->hashAlg);
+	if ((ep->hashAlg = OBJ_nid2obj(NID_sha256)) == NULL)
+		errx(1, "OBJ_nid2obj");
+
+	return ep;
+}
+
+static void
+update_tree_head(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
+{
+	char *b = NULL;
+	char *headfn;
+
+	if (!noop) {
+		if (mkpathat(outdirfd, "erik") == -1)
+			err(1, "mkpathat %s", "erik");
+	}
+
+	if (!b64uri_encode(hash, SHA256_DIGEST_LENGTH, &b))
+		err(1, "b64uri_encode");
+
+	if (asprintf(&headfn, "erik/%s", fqdn) == -1)
+		err(1, "asprintf");
+
+	/* TODO: first read() the head file content, to see if it needs updating */
+
+	write_file(headfn, (unsigned char *)b, strlen(b), UTIME_NOW);
+
+	free(b);
+	free(headfn);
+}
+
+static void
+finalize_ErikIndex(ErikIndex *ei, char *fqdn, time_t itime)
+{
+	unsigned char *ei_der;
+	int ei_der_len;
+	ContentInfo *ci = NULL;
+	struct file *f;
+
+	if (ASN1_GENERALIZEDTIME_set(ei->indexTime, itime) == NULL)
+		errx(1, "ASN1_GENERALIZEDTIME_set");
+
+	ei_der = NULL;
+	if ((ei_der_len = i2d_ErikIndex(ei, &ei_der)) <= 0)
+		errx(1, "i2d_ErikIndex");
+
+	ErikIndex_free(ei);
+
+	if ((ci = ContentInfo_new()) == NULL)
+		errx(1, "ContentInfo_new");
+
+	ASN1_OBJECT_free(ci->contentType);
+	if ((ci->contentType = OBJ_dup(idx_oid)) == NULL)
+		errx(1, "OBJ_dup");
+
+	if (!ASN1_OCTET_STRING_set(ci->content, ei_der, ei_der_len))
+		errx(1, "ASN1_OCTET_STRING_set");
+
+	free(ei_der);
+
+	if ((f = malloc(sizeof(*f))) == NULL)
+		err(1, NULL);
+
+	f->content = NULL;
+	if ((f->content_len = i2d_ContentInfo(ci, &f->content)) <= 0)
+		errx(1, "i2d_ContentInfo");
+
+	ContentInfo_free(ci);
+
+	SHA256(f->content, f->content_len, f->hash);
+
+	f->signtime = itime;
+
+	if (asprintf(&f->name, "erik index: %s", fqdn) == -1)
+		err(1, "asprintf");
+
+	store_by_hash(f);
+
+	update_tree_head(fqdn, f->hash);
+
+	file_free(f);
+}
+
+static PartitionRef *
+finalize_ErikPartition(ErikPartition *ep, char *fqdn, int part_id, time_t ptime)
+{
+	unsigned char *ep_der;
+	int ep_der_len;
+	ContentInfo *ci = NULL;
+	PartitionRef *pr = NULL;
+	struct file *f;
+
+	if (ASN1_GENERALIZEDTIME_set(ep->partitionTime, ptime) == NULL)
+		errx(1, "ASN1_GENERALIZEDTIME_set");
+
+	ep_der = NULL;
+	if ((ep_der_len = i2d_ErikPartition(ep, &ep_der)) <= 0)
+		errx(1, "i2d_ErikPartition");
+
+	ErikPartition_free(ep);
+
+	if ((ci = ContentInfo_new()) == NULL)
+		errx(1, "ContentInfo_new");
+
+	ASN1_OBJECT_free(ci->contentType);
+	if ((ci->contentType = OBJ_dup(par_oid)) == NULL)
+		errx(1, "OBJ_dup");
+
+	if (!ASN1_OCTET_STRING_set(ci->content, ep_der, ep_der_len))
+		errx(1, "ASN1_OCTET_STRING_set");
+
+	if ((f = malloc(sizeof(*f))) == NULL)
+		err(1, NULL);
+
+	f->content = NULL;
+	if ((f->content_len = i2d_ContentInfo(ci, &f->content)) <= 0)
+		errx(1, "i2d_ContentInfo");
+
+	ContentInfo_free(ci);
+
+	SHA256(f->content, f->content_len, f->hash);
+
+	f->signtime = ptime;
+
+	if (asprintf(&f->name, "erik partition: %s#%d", fqdn, part_id) == -1)
+		err(1, "asprintf");
+
+	store_by_hash(f);
+
+	if ((pr = PartitionRef_new()) == NULL)
+		errx(1, "PartitionRef_new");
+
+	if (!ASN1_INTEGER_set_uint64(pr->identifier, part_id))
+		errx(1, "ASN1_INTEGER_set_uint64");
+
+	if (!ASN1_OCTET_STRING_set(pr->hash, f->hash, sizeof(f->hash)))
+		errx(1, "ASN1_OCTET_STRING_set");
+
+	if (!ASN1_INTEGER_set_uint64(pr->size, f->content_len))
+		errx(1, "ASN1_INTEGER_set_uint64");
+
+	file_free(f);
+
+	return pr;
+}
+
+void
+generate_erik_objects(struct mftref **refs, int count)
+{
+	struct mftref *mftref;
+	char *prev_fqdn, *prev_aki;
+	ErikIndex *ei = NULL;
+	ErikPartition *ep = NULL;
+	PartitionRef *pr = NULL;
+	ManifestRef *mr = NULL;
+	time_t itime = 0, ptime = 0;
+	int i, part_id = 0;
+
+	prev_fqdn = prev_aki = NULL;
+	for (i = 0; i < count; i++) {
+		mftref = refs[i];
+
+		mr = make_manifestref(mftref);
+
+		if (prev_fqdn == NULL && prev_aki == NULL) {
+			prev_fqdn = mftref->fqdn;
+			prev_aki = mftref->aki;
+
+			ei = start_ErikIndex(mftref->fqdn);
+			itime = 0;
+			part_id = 0;
+
+			ep = start_ErikPartition();
+			ptime = 0;
+		}
+
+		if (strcmp(prev_fqdn, mftref->fqdn) != 0) {
+			pr = finalize_ErikPartition(ep, prev_fqdn, part_id,
+			    ptime);
+
+			if (sk_PartitionRef_push(ei->partitionList, pr) <= 0)
+				errx(1, "sk_PartitionRef_push");
+
+			finalize_ErikIndex(ei, prev_fqdn, itime);
+
+			ei = start_ErikIndex(mftref->fqdn);
+			itime = 0;
+			part_id = 0;
+
+			ep = start_ErikPartition();
+			ptime = 0;
+		} else if (strncmp(prev_aki, mftref->aki, 2) != 0) {
+			pr = finalize_ErikPartition(ep, prev_fqdn, part_id,
+			    ptime);
+
+			if (sk_PartitionRef_push(ei->partitionList, pr) <= 0)
+				errx(1, "sk_PartitionRef_push");
+
+			ep = start_ErikPartition();
+			ptime = 0;
+			part_id++;
+		}
+
+		if (sk_ManifestRef_push(ep->manifestList, mr) <= 0)
+			errx(1, "sk_ManifestRef_push");
+
+		if (mftref->thisupdate > itime)
+			itime = mftref->thisupdate;
+
+		if (mftref->thisupdate > ptime)
+			ptime = mftref->thisupdate;
+
+		prev_fqdn = mftref->fqdn;
+		prev_aki = mftref->aki;
+	}
+	pr = finalize_ErikPartition(ep, prev_fqdn, part_id, ptime);
+	if (sk_PartitionRef_push(ei->partitionList, pr) <= 0)
+		errx(1, "sk_PartitionRef_push");
+	finalize_ErikIndex(ei, mftref->fqdn, itime);
 }
