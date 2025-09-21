@@ -10,7 +10,7 @@ RPKITOUCH(8) - System Manager's Manual
 \[**-n**]
 **-c**&nbsp;*ccr\_file*  
 **rpkitouch**
-\[**-nPpVv**]
+\[**-CnpVv**]
 \[**-d**&nbsp;*directory*]
 *file&nbsp;...*
 
@@ -26,7 +26,6 @@ data modification time of
 to the timestamp internal to the contained
 *RPKI*
 object.
-Deterministic timestamps help minimize RP synchronisation times.
 
 **rpkitouch**
 is useful for
@@ -45,7 +44,8 @@ benefit from deterministic file modification times when synchronizing local
 caches following data transfer protocol switches between
 *RRDP*
 to
-*RSYNC*.
+*RSYNC*,
+because deterministic mod-times help minimize RP synchronisation load.
 
 For
 *Autonomous System Provider Authorisation* (ASPA),
@@ -90,6 +90,15 @@ Files may not contain trailing data beyond the internal length markers.
 
 The options are as follows:
 
+**-C**
+
+> Compare and deduplicate ManifestRefs contained with the specified CCR
+> file(s).
+> If
+> **-d**
+> is specified, generate and store Erik Synchronisation objects in
+> *directory*.
+
 **-c** *ccr\_file*
 
 > Print the SHA-256 message digest and SIA field values of the ManifestRefs
@@ -120,10 +129,6 @@ The options are as follows:
 > to see what
 > **rpkitouch**
 > would change.
-
-**-P**
-
-> Print hashes and SIA filenames to help reconstruct a caRepository.
 
 **-p**
 
@@ -199,4 +204,4 @@ https://datatracker.ietf.org/doc/html/draft-spaghetti-sidrops-rpki-ccr.
 
 Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
 
-OpenBSD 7.8 - September 15, 2025 - RPKITOUCH(8)
+OpenBSD 7.8 - September 21, 2025 - RPKITOUCH(8)
