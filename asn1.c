@@ -311,7 +311,7 @@ static void
 update_tree_head(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 {
 	unsigned char *prev_head = NULL;
-	char *headfn, *head = NULL;
+	char *fn, *head = NULL;
 	off_t size;
 	time_t mtime;
 
@@ -323,21 +323,27 @@ update_tree_head(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 	if (!b64uri_encode(hash, SHA256_DIGEST_LENGTH, &head))
 		err(1, "b64uri_encode");
 
-	if (asprintf(&headfn, "erik/%s", fqdn) == -1)
+	if (asprintf(&fn, "erik/%s", fqdn) == -1)
 		err(1, "asprintf");
 
 	/*
 	 * Only store the new tree head if it didn't exist or is different.
 	 */
 
-	if ((prev_head = load_file(headfn, &size, &mtime)) == NULL)
-		write_file(headfn, (unsigned char *)head, strlen(head), 0);
-	else if ((size_t)size != strlen(head))
-		write_file(headfn, (unsigned char *)head, strlen(head), 0);
-	else if (strcmp((const char *)prev_head, head) != 0)
-		write_file(headfn, (unsigned char *)head, strlen(head), 0);
+	if ((prev_head = load_fileat(outdirfd, fn, &size, &mtime)) == NULL) {
+		warnx("ABC 1");
+		write_file(fn, (unsigned char *)head, strlen(head), 0);
+	}
+	else if ((size_t)size != strlen(head)) {
+		warnx("ABC 2");
+		write_file(fn, (unsigned char *)head, strlen(head), 0);
+	}
+	else if (strcmp((const char *)prev_head, head) != 0) {
+		warnx("ABC 2");
+		write_file(fn, (unsigned char *)head, strlen(head), 0);
+	}
 
-	free(headfn);
+	free(fn);
 	free(head);
 	free(prev_head);
 }

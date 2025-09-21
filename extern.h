@@ -85,6 +85,7 @@ char *hex_encode(const unsigned char *, size_t);
 int hex_decode(const char *, char *, size_t);
 
 unsigned char *load_file(const char *, off_t *, time_t *);
+unsigned char *load_fileat(int, const char *, off_t *, time_t *);
 void write_file(char *, unsigned char *, off_t, time_t);
 
 int mkpathat(int, const char *);

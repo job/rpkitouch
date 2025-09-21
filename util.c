@@ -77,6 +77,54 @@ load_file(const char *fn, off_t *len, time_t *time)
 	return NULL;
 }
 
+unsigned char *
+load_fileat(int dirfd, const char *fn, off_t *len, time_t *time)
+{
+	unsigned char *buf = NULL;
+	struct stat st;
+	ssize_t n;
+	size_t size;
+	int fd, saved_errno;
+
+	*len = 0;
+	*time = 0;
+
+	memset(&st, 0, sizeof(st));
+
+	if ((fd = openat(dirfd, fn, O_RDONLY)) == -1)
+		return NULL;
+	if (fstat(fd, &st) != 0)
+		goto err;
+	if (st.st_size <= 0) {
+		errno = EFBIG;
+		goto err;
+	}
+	size = (size_t)st.st_size;
+	if ((buf = malloc(size)) == NULL)
+		goto err;
+
+	n = read(fd, buf, size);
+	if (n == -1)
+		goto err;
+	if ((size_t)n != size) {
+		errno = EIO;
+		goto err;
+	}
+
+	close(fd);
+	*len = size;
+	*time = st.st_mtim.tv_sec;
+	return buf;
+
+ err:
+	saved_errno = errno;
+	close(fd);
+	free(buf);
+	errno = saved_errno;
+	return NULL;
+}
+
+
 /*
  * Write content to a temp file and then atomically move it into place.
  */
