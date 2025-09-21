@@ -17,7 +17,10 @@
 #include <sys/stat.h>
 
 #include <err.h>
+#include <errno.h>
+#include <fcntl.h>
 #include <string.h>
+#include <unistd.h>
 
 #include <openssl/asn1t.h>
 #include <openssl/safestack.h>
@@ -308,45 +311,47 @@ start_ErikPartition(void)
 }
 
 static void
-update_tree_head(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
+update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 {
-	unsigned char *prev_head = NULL;
-	char *fn, *head = NULL;
-	off_t size;
-	time_t mtime;
+	char *fqdn_fn, *hash_fn, *hash_path;
+	struct stat f_st, h_st;
 
 	if (!noop) {
 		if (mkpathat(outdirfd, "erik") == -1)
 			err(1, "mkpathat %s", "erik");
 	}
 
-	if (!b64uri_encode(hash, SHA256_DIGEST_LENGTH, &head))
+	if (!b64uri_encode(hash, SHA256_DIGEST_LENGTH, &hash_fn))
 		err(1, "b64uri_encode");
 
-	if (asprintf(&fn, "erik/%s", fqdn) == -1)
-		err(1, "asprintf");
+	if (asprintf(&hash_path, "static/%c%c/%c%c/%c%c/%s", hash_fn[0],
+	    hash_fn[1], hash_fn[2], hash_fn[3], hash_fn[4], hash_fn[5],
+	    hash_fn) == -1)
+		err(1, NULL);
 
-	/*
-	 * Only store the new tree head if it didn't exist or is different.
-	 */
+	if (asprintf(&fqdn_fn, "erik/%s", fqdn) == -1)
+		err(1, NULL);
 
-	if ((prev_head = load_fileat(outdirfd, fn, &size, &mtime)) == NULL) {
-		write_file(fn, (unsigned char *)head, strlen(head), 0);
-		goto out;
-	}
-	if ((size_t)size != strlen(head)) {
-		write_file(fn, (unsigned char *)head, strlen(head), 0);
-		goto out;
-	}
-	if (strncmp((const char *)prev_head, head, strlen(head)) != 0) {
-		write_file(fn, (unsigned char *)head, strlen(head), 0);
-		goto out;
+	memset(&f_st, 0, sizeof(f_st));
+
+	if ((fstatat(outdirfd, fqdn_fn, &f_st, 0) != 0) && errno != ENOENT)
+		err(1, "fstatat %s", fqdn_fn);
+
+	memset(&h_st, 0, sizeof(h_st));
+
+	if (fstatat(outdirfd, hash_path, &h_st, 0) != 0)
+		err(1, "fstatat %s", hash_fn);
+
+	if (f_st.st_ino != h_st.st_ino) {
+		if ((unlinkat(outdirfd, fqdn_fn, 0) == -1 && errno != ENOENT) ||
+		    linkat(outdirfd, hash_path, outdirfd, fqdn_fn, 0))
+			errx(1, "linkat %s %s", hash_path, fqdn_fn);
+		warnx("erik index ptr changed: %s %s", fqdn_fn, hash_path);
 	}
 
- out:
-	free(fn);
-	free(head);
-	free(prev_head);
+	free(fqdn_fn);
+	free(hash_fn);
+	free(hash_path);
 }
 
 static void
@@ -396,7 +401,7 @@ finalize_ErikIndex(ErikIndex *ei, char *fqdn, time_t itime)
 
 	store_by_hash(f);
 
-	update_tree_head(fqdn, f->hash);
+	update_index_ptr(fqdn, f->hash);
 
 	file_free(f);
 }
