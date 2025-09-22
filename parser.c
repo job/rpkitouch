@@ -674,7 +674,7 @@ ccr_free(struct ccr *ccr)
 		return;
 
 	for (i = 0; i < ccr->refs_num; i++) {
-		free(ccr->refs[i]);
+		mftref_free(ccr->refs[i]);
 	}
 
 	free(ccr->refs);

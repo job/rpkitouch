@@ -125,6 +125,7 @@ mftref_free(struct mftref *mftref)
 		return;
 
 	free(mftref->hash);
+	free(mftref->aki);
 	free(mftref->seqnum);
 	free(mftref->sia);
 	free(mftref->fqdn);
