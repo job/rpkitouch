@@ -163,6 +163,8 @@ store_by_hash(struct file *f)
 	if (asprintf(&path, "%s/%s", dir, b) == -1)
 		err(1, "asprintf");
 
+	free(dir);
+
 	memset(&st, 0, sizeof(struct stat));
 	if (fstatat(outdirfd, path, &st, 0) != 0) {
 		if (errno != ENOTDIR && errno != ENOENT)
@@ -183,6 +185,9 @@ store_by_hash(struct file *f)
 		}
 		write_file(path, f->content, f->content_len, f->signtime);
 	}
+
+	free(b);
+	free(path);
 
 	return 0;
 }

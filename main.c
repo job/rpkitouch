@@ -56,11 +56,11 @@ const struct {
 	{ .ext = ".tal", .type = TYPE_TAL }
 };
 
-ASN1_OBJECT *ccr_oid;
-ASN1_OBJECT *manifest_oid;
 ASN1_OBJECT *notify_oid;
 ASN1_OBJECT *sign_time_oid;
 ASN1_OBJECT *signedobj_oid;
+ASN1_OBJECT *manifest_oid;
+ASN1_OBJECT *ccr_oid;
 ASN1_OBJECT *idx_oid;
 ASN1_OBJECT *par_oid;
 
@@ -81,6 +81,18 @@ setup_oids(void) {
 		errx(1, "OBJ_txt2obj for %s failed", "idx_oid");
 	if ((par_oid = OBJ_txt2obj("1.3.6.1.4.1.41948.827", 1)) == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "par_oid");
+}
+
+static void
+destroy_oids(void)
+{
+	ASN1_OBJECT_free(notify_oid);
+	ASN1_OBJECT_free(sign_time_oid);
+	ASN1_OBJECT_free(signedobj_oid);
+	ASN1_OBJECT_free(manifest_oid);
+	ASN1_OBJECT_free(ccr_oid);
+	ASN1_OBJECT_free(idx_oid);
+	ASN1_OBJECT_free(par_oid);
 }
 
 enum filetype
@@ -282,6 +294,8 @@ main(int argc, char *argv[])
 		if ((count = compare_ccrs(argv, &mftref_tree)) == 0)
 			errx(1, "compare_ccrs");
 
+		*argv = NULL;
+
 		if ((refs = calloc(count, sizeof(refs))) == NULL)
 			err(1, NULL);
 
@@ -304,8 +318,6 @@ main(int argc, char *argv[])
 			RB_REMOVE(mftref_tree, &mftref_tree, mftref);
 			mftref_free(mftref);
 		}
-
-		return 0;
 	}
 
 	if (ccr_file != NULL) {
@@ -335,7 +347,6 @@ main(int argc, char *argv[])
 
 		file_free(f);
 		ccr_free(ccr);
-		return 0;
 	}
 
 	for (; *argv != NULL; ++argv) {
@@ -402,6 +413,7 @@ main(int argc, char *argv[])
 		f = NULL;
 	}
 
+	destroy_oids();
 	return rc;
 }
 

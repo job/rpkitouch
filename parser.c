@@ -769,7 +769,7 @@ parse_ccr(struct file *f)
 		goto out;
 	}
 
-	refs = calloc(ccr->refs_num, sizeof(ccr->refs));
+	refs = calloc(ccr->refs_num, sizeof(*refs));
 	if (refs == NULL)
 		err(1, NULL);
 
