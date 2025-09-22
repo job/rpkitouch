@@ -622,6 +622,7 @@ generate_reduced_ccr(struct mftref **refs, int count)
 	if ((f = malloc(sizeof(*f))) == NULL)
 		err(1, NULL);
 
+	f->name = NULL;
 	f->content = NULL;
 	if ((f->content_len = i2d_ContentInfo(ci, &f->content)) <= 0)
 		errx(1, "i2d_ContentInfo");

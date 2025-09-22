@@ -296,7 +296,7 @@ main(int argc, char *argv[])
 
 		write_file(reduce, f->content, f->content_len, 0);
 
-		free(f);
+		file_free(f);
 		free(refs);
 
 		struct mftref *tmp_mftref;
