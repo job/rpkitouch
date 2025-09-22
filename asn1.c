@@ -141,7 +141,7 @@ insert_mftref_tree(struct mftref **mftref, struct mftref_tree *tree)
 {
 	struct mftref *found;
 
-	if ((found = RB_INSERT(mftref_tree, tree, *mftref)) != NULL) {
+	if ((found = RB_INSERT(mftref_tree, tree, (*mftref))) != NULL) {
 		if (strcmp(found->hash, (*mftref)->hash) == 0) {
 			mftref_free(*mftref);
 			*mftref = NULL;
