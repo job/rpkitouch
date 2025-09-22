@@ -309,7 +309,7 @@ main(int argc, char *argv[])
 	}
 
 	if (ccr_file != NULL) {
-		if ((f = calloc(1, sizeof(struct file))) == NULL)
+		if ((f = calloc(1, sizeof(*f))) == NULL)
 			err(1, NULL);
 
 		if ((f->type = detect_ftype_from_fn(ccr_file)) != TYPE_CCR) {
@@ -334,6 +334,7 @@ main(int argc, char *argv[])
 			printf("%s %s\n", ccr->refs[i]->hash, ccr->refs[i]->sia);
 
 		file_free(f);
+		ccr_free(ccr);
 		return 0;
 	}
 
