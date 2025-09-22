@@ -152,6 +152,7 @@ insert_mftref_tree(struct mftref **mftref, struct mftref_tree *tree)
 		if ((*mftref)->thisupdate > found->thisupdate) {
 			RB_REMOVE(mftref_tree, tree, found);
 			mftref_free(found);
+			found = NULL;
 			RB_INSERT(mftref_tree, tree, (*mftref));
 			return 0;
 		} else {

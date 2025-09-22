@@ -71,12 +71,12 @@ hash_asn1_item(ASN1_OCTET_STRING *astr, const ASN1_ITEM *it, void *val)
 		errx(1, "ASN1_STRING_set");
 }
 
-static char *
+static int
 validate_asn1_hash(const char *fn, const char *descr,
     const ASN1_OCTET_STRING *hash, const ASN1_ITEM *it, void *val)
 {
 	ASN1_OCTET_STRING *astr = NULL;
-	char *hex = NULL;
+	int rc = 0;
 
 	if ((astr = ASN1_OCTET_STRING_new()) == NULL)
 		err(1, NULL);
@@ -88,10 +88,10 @@ validate_asn1_hash(const char *fn, const char *descr,
 		goto out;
 	}
 
-	hex = hex_encode(hash->data, hash->length);
+	rc = 1;
  out:
 	ASN1_OCTET_STRING_free(astr);
-	return hex;
+	return rc;
 }
 
 static int
@@ -751,8 +751,8 @@ parse_ccr(struct file *f)
 		goto out;
 	}
 
-	if (validate_asn1_hash(f->name, "ManifestState", ccr_asn1->mfts->hash,
-	    ASN1_ITEM_rptr(ManifestRefs), ccr_asn1->mfts->mftrefs) == NULL) {
+	if (!validate_asn1_hash(f->name, "ManifestState", ccr_asn1->mfts->hash,
+	    ASN1_ITEM_rptr(ManifestRefs), ccr_asn1->mfts->mftrefs)) {
 		warnx("%s: ManifestState hash mismatch", f->name);
 		goto out;
 	}
