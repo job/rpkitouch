@@ -102,6 +102,7 @@ void set_mtime(int, const char *, time_t);
 int store_by_hash(struct file *);
 int store_by_name(struct file *, struct mft *);
 
+void ccr_free(struct ccr *);
 void mftref_free(struct mftref *);
 void file_free(struct file *);
 enum filetype detect_ftype_from_fn(char *);

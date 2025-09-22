@@ -665,11 +665,17 @@ parse_manifest(struct file *f)
 	return mft;
 }
 
-static void
+void
 ccr_free(struct ccr *ccr)
 {
+	int i;
+
 	if (ccr == NULL)
 		return;
+
+	for (i = 0; i < ccr->refs_num; i++) {
+		free(ccr->refs[i]);
+	}
 
 	free(ccr->refs);
 	free(ccr);

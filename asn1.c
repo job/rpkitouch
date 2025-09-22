@@ -161,6 +161,7 @@ insert_mftref_tree(struct mftref **mftref, struct mftref_tree *tree)
 			return 0;
 		}
 	}
+	*mftref = NULL;
 
 	return 1;
 }
@@ -174,7 +175,7 @@ compare_ccrs(char *argv[], struct mftref_tree *tree)
 	int i, count = 0;
 
 	for (; *argv != NULL; ++argv) {
-		if ((f = calloc(1, sizeof(struct file))) == NULL)
+		if ((f = calloc(1, sizeof(*f))) == NULL)
 			err(1, NULL);
 
 		f->name = strdup(*argv);
@@ -198,15 +199,14 @@ compare_ccrs(char *argv[], struct mftref_tree *tree)
 			count += insert_mftref_tree(&ccr->refs[i], tree);
 		}
 
-		free(ccr->refs);
-		free(ccr);
+		ccr_free(ccr);
 		ccr = NULL;
 		file_free(f);
 		f = NULL;
 	}
 
  out:
-	free(ccr);
+	ccr_free(ccr);
 	file_free(f);
 
 	return count;
