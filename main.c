@@ -250,6 +250,8 @@ main(int argc, char *argv[])
 		if ((count = compare_ccrs(argv, &mftref_tree)) == 0)
 			errx(1, "compare_ccrs");
 
+		*argv = NULL;
+
 		if ((refs = calloc(count, sizeof(refs))) == NULL)
 			err(1, NULL);
 
