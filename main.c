@@ -177,8 +177,8 @@ load_mftrefs_from_ccr(char *argv[], int *count)
 
 	RB_INIT(&mftref_tree);
 
-	if ((i = compare_ccrs(argv, &mftref_tree)) == 0)
-		errx(1, "compare_ccrs");
+	if ((i = merge_ccrs(argv, &mftref_tree)) == 0)
+		errx(1, "merge_ccrs");
 
 	*argv = NULL;
 

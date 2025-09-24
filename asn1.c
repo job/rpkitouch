@@ -168,7 +168,7 @@ insert_mftref_tree(struct mftref **mftref, struct mftref_tree *tree)
 }
 
 int
-compare_ccrs(char *argv[], struct mftref_tree *tree)
+merge_ccrs(char *argv[], struct mftref_tree *tree)
 {
 	struct file *f;
 	unsigned char *fc;
