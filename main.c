@@ -252,7 +252,7 @@ main(int argc, char *argv[])
 
 		*argv = NULL;
 
-		if ((refs = calloc(count, sizeof(refs))) == NULL)
+		if ((refs = calloc(count, sizeof(refs[0]))) == NULL)
 			err(1, NULL);
 
 		i = count;
@@ -280,8 +280,6 @@ main(int argc, char *argv[])
 			RB_REMOVE(mftref_tree, &mftref_tree, mftref);
 			mftref_free(mftref);
 		}
-
-		return 0;
 	}
 
 	if (reduce != NULL) {

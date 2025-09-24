@@ -440,6 +440,8 @@ finalize_ErikPartition(ErikPartition *ep, char *fqdn, int part_id, time_t ptime)
 	if (!ASN1_OCTET_STRING_set(ci->content, ep_der, ep_der_len))
 		errx(1, "ASN1_OCTET_STRING_set");
 
+	free(ep_der);
+
 	if ((f = calloc(1, sizeof(*f))) == NULL)
 		err(1, NULL);
 
