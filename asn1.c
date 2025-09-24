@@ -142,26 +142,24 @@ insert_mftref_tree(struct mftref **mftref, struct mftref_tree *tree)
 	struct mftref *found;
 
 	if ((found = RB_INSERT(mftref_tree, tree, (*mftref))) != NULL) {
-		if (strcmp(found->hash, (*mftref)->hash) == 0) {
-			mftref_free(*mftref);
-			*mftref = NULL;
+		if (strcmp(found->hash, (*mftref)->hash) == 0)
 			return 0;
-		}
 
 		/* XXX: should also compare seqnum */
 
 		if ((*mftref)->thisupdate > found->thisupdate) {
 			RB_REMOVE(mftref_tree, tree, found);
 			mftref_free(found);
-			found = NULL;
+
 			RB_INSERT(mftref_tree, tree, (*mftref));
-			return 0;
-		} else {
-			mftref_free(*mftref);
+
+			/* steal the resource from the ccr struct */
 			*mftref = NULL;
 			return 0;
 		}
 	}
+
+	/* steal the resource from the ccr struct */
 	*mftref = NULL;
 
 	return 1;
