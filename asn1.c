@@ -135,6 +135,7 @@ mftref_free(struct mftref *mftref)
 /*
  * Insert new ManifestRefs into tree, or replacing an existing entry
  * if the existing entry's thisUpdate is older.
+ * Return 1 if a new object was added to the tree, and otherwise 0.
  */
 static inline int
 insert_mftref_tree(struct mftref **mftref, struct mftref_tree *tree)
@@ -142,11 +143,11 @@ insert_mftref_tree(struct mftref **mftref, struct mftref_tree *tree)
 	struct mftref *found;
 
 	if ((found = RB_INSERT(mftref_tree, tree, (*mftref))) != NULL) {
-		if (strcmp(found->hash, (*mftref)->hash) == 0)
-			return 0;
 
-		/* XXX: should also compare seqnum */
-
+		/*
+		 * Check if the mftref at hand is newer than the one
+		 * in the RB tree, if so replace the in-tree version.
+		 */
 		if ((*mftref)->thisupdate > found->thisupdate) {
 			RB_REMOVE(mftref_tree, tree, found);
 			mftref_free(found);
@@ -155,8 +156,11 @@ insert_mftref_tree(struct mftref **mftref, struct mftref_tree *tree)
 
 			/* steal the resource from the ccr struct */
 			*mftref = NULL;
-			return 0;
 		}
+
+		/* XXX: should also compare seqnum */
+
+		return 0;
 	}
 
 	/* steal the resource from the ccr struct */
