@@ -168,6 +168,33 @@ hash_cmp(const void *a, const void *b)
 	return strcmp(ma->hash, mb->hash);
 }
 
+static struct mftref **
+load_mftrefs_from_ccr(char *argv[], int *count)
+{
+	struct mftref_tree mftref_tree;
+	struct mftref **refs, *mftref, *mftref_tmp;
+	int i;
+
+	RB_INIT(&mftref_tree);
+
+	if ((i = compare_ccrs(argv, &mftref_tree)) == 0)
+		errx(1, "compare_ccrs");
+
+	*argv = NULL;
+
+	if ((refs = calloc(i, sizeof(refs[0]))) == NULL)
+		err(1, NULL);
+
+	*count = i;
+
+	RB_FOREACH_SAFE(mftref, mftref_tree, &mftref_tree, mftref_tmp) {
+		RB_REMOVE(mftref_tree, &mftref_tree, mftref);
+		refs[--i] = mftref;
+	}
+
+	return refs;
+}
+
 int
 main(int argc, char *argv[])
 {
@@ -175,7 +202,7 @@ main(int argc, char *argv[])
 	char *ccr_file = NULL, *outdir = NULL, *reduce = NULL;
 	struct file *f;
 	unsigned char *fc;
-	struct mftref_tree mftref_tree;
+	struct mftref **refs = NULL;
 	struct ccr *ccr = NULL;
 	struct mft *mft = NULL;
 
@@ -239,70 +266,35 @@ main(int argc, char *argv[])
 	}
 
 	if (compare) {
-		struct mftref *mftref;
-		struct mftref **refs;
-
 		if  (*argv == NULL)
 			usage();
 
-		RB_INIT(&mftref_tree);
-
-		if ((count = compare_ccrs(argv, &mftref_tree)) == 0)
-			errx(1, "compare_ccrs");
-
-		*argv = NULL;
-
-		if ((refs = calloc(count, sizeof(refs[0]))) == NULL)
-			err(1, NULL);
-
-		i = count;
-		RB_FOREACH(mftref, mftref_tree, &mftref_tree) {
-			refs[--i] = mftref;
-		}
+		refs = load_mftrefs_from_ccr(argv, &count);
 
 		qsort(refs, count, sizeof(refs[0]), fqdn_aki_hash_cmp);
 
-		if (outdir == NULL) {
+		if (outdir != NULL) {
+			generate_erik_objects(refs, count);
+		} else {
 			for (i = 0; i < count; i++) {
 				printf("aki:%s seqnum:%s tu:%lld %s %s\n",
 				    refs[i]->aki, refs[i]->seqnum,
 				    (long long)refs[i]->thisupdate,
 				    refs[i]->hash, refs[i]->sia);
 			}
-		} else {
-			generate_erik_objects(refs, count);
 		}
+
+		for (i = 0; i < count; i++)
+			mftref_free(refs[i]);
 
 		free(refs);
-
-		struct mftref *tmp_mftref;
-		RB_FOREACH_SAFE(mftref, mftref_tree, &mftref_tree, tmp_mftref) {
-			RB_REMOVE(mftref_tree, &mftref_tree, mftref);
-			mftref_free(mftref);
-		}
 	}
 
 	if (reduce != NULL) {
-		struct mftref *mftref;
-		struct mftref **refs;
-
 		if  (*argv == NULL)
 			usage();
 
-		RB_INIT(&mftref_tree);
-
-		if ((count = compare_ccrs(argv, &mftref_tree)) == 0)
-			errx(1, "compare_ccrs");
-
-		*argv = NULL;
-
-		if ((refs = calloc(count, sizeof(refs))) == NULL)
-			err(1, NULL);
-
-		i = count;
-		RB_FOREACH(mftref, mftref_tree, &mftref_tree) {
-			refs[--i] = mftref;
-		}
+		refs = load_mftrefs_from_ccr(argv, &count);
 
 		qsort(refs, count, sizeof(refs[0]), hash_cmp);
 
@@ -310,14 +302,11 @@ main(int argc, char *argv[])
 
 		write_file(reduce, f->content, f->content_len, 0);
 
-		file_free(f);
-		free(refs);
+		for (i = 0; i < count; i++)
+			mftref_free(refs[i]);
 
-		struct mftref *tmp_mftref;
-		RB_FOREACH_SAFE(mftref, mftref_tree, &mftref_tree, tmp_mftref) {
-			RB_REMOVE(mftref_tree, &mftref_tree, mftref);
-			mftref_free(mftref);
-		}
+		free(refs);
+		file_free(f);
 	}
 
 	if (ccr_file != NULL) {
