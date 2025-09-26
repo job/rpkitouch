@@ -10,6 +10,10 @@ RPKITOUCH(8) - System Manager's Manual
 \[**-n**]
 **-c**&nbsp;*ccr\_file*  
 **rpkitouch**
+\[**-n**]
+**-R**&nbsp;*out\_ccr*
+*file&nbsp;...*  
+**rpkitouch**
 \[**-CnpVv**]
 \[**-d**&nbsp;*directory*]
 *file&nbsp;...*
@@ -135,6 +139,13 @@ The options are as follows:
 > Print the directory path derived from the SIA and the FileAndHashes contained
 > in a Manifest's payload, followed by the Manifest's own filename.
 
+**-R** *out\_ccr*
+
+> Output a reduced CCR in
+> *out\_ccr*
+> by removing all states except the ManifestState, and comparing and deduplicating
+> ManifestRefs in the specified CCR file(s).
+
 **-V**
 
 > Display the version number and exit.
@@ -183,6 +194,26 @@ with the Base64 encoded SHA-256 message digest as its target file name.
 	/tmp/test/named/rpki.ripe.net/repository
 	/tmp/test/named/rpki.ripe.net/repository/ripe-ncc-ta.mft
 
+An Erik relay worker job could be summarised as the following sequence of shell commands:
+
+	#!/bin/sh
+	set -ev
+	while true; do
+	    rpki-client
+	    if [ -f /tmp/previous.ccr ]; then
+	        rpkitouch -c /tmp/previous.ccr > /tmp/previous.txt
+	    else
+	        echo > /tmp/previous.txt
+	    fi
+	
+	    cp /var/db/rpki-client/rpki.ccr /tmp/current.ccr
+	    rpkitouch -c /tmp/current.ccr > /tmp/current.txt
+	    comm -1 -3 /tmp/previous.txt /tmp/current.txt | awk '{ print $NF }' > /tmp/new.txt
+	    cd /var/cache/rpki-client
+	    sort -R /tmp/new.txt | xargs rpkitouch -p | xargs rpkitouch -v -d /nfs
+	    rpkitouch -C -v -d /nfs /tmp/current.ccr
+	done
+
 # STANDARDS
 
 *Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile*,
@@ -200,8 +231,11 @@ with the Base64 encoded SHA-256 message digest as its target file name.
 *A Profile for RPKI Canonical Cache Representation*,
 https://datatracker.ietf.org/doc/html/draft-spaghetti-sidrops-rpki-ccr.
 
+*The Erik Synchronization Protocol for use with the RPKI*,
+https://datatracker.ietf.org/doc/html/draft-spaghetti-sidrops-rpki-erik-protocol.
+
 # AUTHORS
 
 Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
 
-OpenBSD 7.8 - September 21, 2025 - RPKITOUCH(8)
+OpenBSD 7.8 - September 26, 2025 - RPKITOUCH(8)
