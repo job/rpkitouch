@@ -194,6 +194,8 @@ with the Base64 encoded SHA-256 message digest as its target file name.
 	/tmp/test/named/rpki.ripe.net/repository
 	/tmp/test/named/rpki.ripe.net/repository/ripe-ncc-ta.mft
 
+# SETTING UP AN ERIK RELAY
+
 An Erik relay worker job could be summarised as the following sequence of shell commands:
 
 	#!/bin/sh
@@ -221,7 +223,7 @@ A simple webserver configuration for an Erik relay would then look like:
 	    server_name _;
 	    root /nfs;
 	    rewrite ^/.well-known/ni/sha-256/(..)(..)(..)(.*)$ /static/$1/$2/$3/$1$2$3$4;
-	    rewrite ^/.well-known/erik/index/(.*)$ /erik/$1;
+	    rewrite ^/.well-known/erik/index/(.*)$ /erik/index/$1;
 	}
 
 # STANDARDS
