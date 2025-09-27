@@ -214,6 +214,16 @@ An Erik relay worker job could be summarised as the following sequence of shell 
 	    rpkitouch -C -v -d /nfs /tmp/current.ccr
 	done
 
+A simple webserver configuration for an Erik relay would then look like:
+
+	server {
+	    listen 80 default_server;
+	    server_name _;
+	    root /nfs;
+	    rewrite ^/.well-known/ni/sha-256/(..)(..)(..)(.*)$ /static/$1/$2/$3/$1$2$3$4;
+	    rewrite ^/.well-known/erik/index/(.*)$ /erik/$1;
+	}
+
 # STANDARDS
 
 *Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile*,
@@ -238,4 +248,4 @@ https://datatracker.ietf.org/doc/html/draft-spaghetti-sidrops-rpki-erik-protocol
 
 Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
 
-OpenBSD 7.8 - September 26, 2025 - RPKITOUCH(8)
+OpenBSD 7.8 - September 27, 2025 - RPKITOUCH(8)

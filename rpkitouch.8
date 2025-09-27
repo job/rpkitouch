@@ -206,6 +206,17 @@ while true; do
     rpkitouch -C -v -d /nfs /tmp/current.ccr
 done
 .Ed
+.Pp
+A simple webserver configuration for an Erik relay would then look like:
+.Bd -literal -offset indent
+server {
+    listen 80 default_server;
+    server_name _;
+    root /nfs;
+    rewrite ^/.well-known/ni/sha-256/(..)(..)(..)(.*)$ /static/$1/$2/$3/$1$2$3$4;
+    rewrite ^/.well-known/erik/index/(.*)$ /erik/$1;
+}
+.Ed
 .Sh STANDARDS
 .Rs
 .%T Internet X.509 Public Key Infrastructure Certificate and Certificate Revocation List (CRL) Profile
