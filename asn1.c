@@ -325,8 +325,8 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 	struct stat f_st, h_st;
 
 	if (!noop) {
-		if (mkpathat(outdirfd, "erik") == -1)
-			err(1, "mkpathat %s", "erik");
+		if (mkpathat(outdirfd, "erik/index") == -1)
+			err(1, "mkpathat %s", "erik/index");
 	}
 
 	if (!b64uri_encode(hash, SHA256_DIGEST_LENGTH, &hash_fn))
@@ -337,7 +337,7 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 	    hash_fn) == -1)
 		err(1, NULL);
 
-	if (asprintf(&fqdn_fn, "erik/%s", fqdn) == -1)
+	if (asprintf(&fqdn_fn, "erik/index/%s", fqdn) == -1)
 		err(1, NULL);
 
 	memset(&f_st, 0, sizeof(f_st));
