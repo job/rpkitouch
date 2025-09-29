@@ -23,6 +23,7 @@ all: $(PROG) tags
 
 install:
 	install -c -s -o root -g bin -m 555 rpkitouch /usr/local/bin/
+	install -c -o root -g bin -m 555 eriksync /usr/local/bin/
 	install -c -o root -g bin -m 444 rpkitouch.8 /usr/local/man/man8/
 
 TEST_FILES = 40SlM-M4frFfmZ2HaMH0tlCageA.gbr FjSf5hX1GmGhKMu9AG7WVIl8m1M.asa

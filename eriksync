@@ -1,0 +1,40 @@
+#!/bin/sh
+# Copyright (c) 2025 Job Snijders <job@sobornost.net>
+#
+# Permission to use, copy, modify, and distribute this software for any
+# purpose with or without fee is hereby granted, provided that the above
+# copyright notice and this permission notice appear in all copies.
+#
+# THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
+# WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
+# MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
+# ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
+# WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
+# ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
+# OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+
+case "${18}" in
+        ".ta/ripe"|".ta/afrinic"|".ta/arin"|".ta/lacnic"|".ta/apnic")
+                rsync $@
+                exit $?
+        ;;
+        *)
+esac
+
+FQDN=$(echo ${19} | sed 's|rsync://||' | xargs -r dirname)
+
+if [ ! -f .rsync/rpki.ccr ]; then
+	touch .rsync/rpki.ccr
+	rpkitouch -R .rsync/rpki.ccr /var/db/rpki-client/rpki.ccr 
+	rpkitouch -Cvd .rsync/ .rsync/rpki.ccr
+	rpkitouch -c .rsync/rpki.ccr > .rsync/mfts.list
+else
+	sleep 5
+fi
+
+rm -rf .rsync/${FQDN}
+echo ${FQDN}
+pwd
+exit 0
+
+CURL_OPTS="-A erik15 -4 -e ${FQDN} -f --compressed -s -R"
