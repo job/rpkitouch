@@ -22,6 +22,7 @@
 .Sh SYNOPSIS
 .Nm rpkitouch
 .Op Fl n
+.Op Fl H Ar fqdn
 .Fl c Ar ccr_file
 .Nm rpkitouch
 .Op Fl n
@@ -30,6 +31,7 @@
 .Nm rpkitouch
 .Op Fl CnpVv
 .Op Fl d Ar directory
+.Op Fl H Ar fqdn
 .Ar
 .Sh DESCRIPTION
 The
@@ -124,6 +126,13 @@ stored in
 using a content-addressable file naming scheme.
 To improve performance, existing files are only overwritten if the size or
 last modification timestamp differ.
+.It Fl H Ar fqdn
+Only emit ManifestRefs within the scope of
+.Ar fqdn .
+Can only be combined with
+.Fl C
+and
+.Fl c .
 .It Fl h
 Display usage.
 .It Fl n

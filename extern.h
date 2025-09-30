@@ -107,7 +107,7 @@ void mftref_free(struct mftref *);
 void file_free(struct file *);
 enum filetype detect_ftype_from_fn(char *);
 int merge_ccrs(char **, struct mftref_tree *);
-void generate_erik_objects(struct mftref **, int);
+void generate_erik_objects(struct mftref **, int, char *);
 struct file *generate_reduced_ccr(struct mftref **, int);
 void usage(void);
 

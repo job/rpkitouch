@@ -480,7 +480,7 @@ finalize_ErikPartition(ErikPartition *ep, char *fqdn, int part_id, time_t ptime)
 }
 
 void
-generate_erik_objects(struct mftref **refs, int count)
+generate_erik_objects(struct mftref **refs, int count, char *single_fqdn)
 {
 	struct mftref *mftref;
 	char *prev_fqdn, *prev_aki;
@@ -493,8 +493,12 @@ generate_erik_objects(struct mftref **refs, int count)
 
 	prev_fqdn = prev_aki = NULL;
 	for (i = 0; i < count; i++) {
-		mftref = refs[i];
+		if (single_fqdn != NULL) {
+			if (strcmp(refs[i]->fqdn, single_fqdn) != 0)
+				continue;
+		}
 
+		mftref = refs[i];
 		mr = make_manifestref(mftref);
 
 		if (prev_fqdn == NULL && prev_aki == NULL) {
@@ -548,6 +552,10 @@ generate_erik_objects(struct mftref **refs, int count)
 		prev_fqdn = mftref->fqdn;
 		prev_aki = mftref->aki;
 	}
+
+	if (prev_fqdn == NULL)
+		return;
+
 	pr = finalize_ErikPartition(ep, prev_fqdn, part_id, ptime);
 	if (sk_PartitionRef_push(ei->partitionList, pr) <= 0)
 		errx(1, "sk_PartitionRef_push");

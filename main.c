@@ -200,13 +200,14 @@ main(int argc, char *argv[])
 {
 	int c, count = 0, i, rc = 0;
 	char *ccr_file = NULL, *outdir = NULL, *reduce = NULL;
+	char *single_fqdn = NULL;
 	struct file *f;
 	unsigned char *fc;
 	struct mftref **refs = NULL;
 	struct ccr *ccr = NULL;
 	struct mft *mft = NULL;
 
-	while ((c = getopt(argc, argv, "Cc:d:hnpR:Vv")) != -1)
+	while ((c = getopt(argc, argv, "Cc:d:H:hnpR:Vv")) != -1)
 		switch (c) {
 		case 'C':
 			compare = 1;
@@ -216,6 +217,9 @@ main(int argc, char *argv[])
 			break;
 		case 'd':
 			outdir = optarg;
+			break;
+		case 'H':
+			single_fqdn = optarg;
 			break;
 		case 'n':
 			noop = 1;
@@ -274,7 +278,7 @@ main(int argc, char *argv[])
 		qsort(refs, count, sizeof(refs[0]), fqdn_aki_hash_cmp);
 
 		if (outdir != NULL) {
-			generate_erik_objects(refs, count);
+			generate_erik_objects(refs, count, single_fqdn);
 		} else {
 			for (i = 0; i < count; i++) {
 				printf("aki:%s seqnum:%s tu:%lld %s %s\n",
@@ -331,8 +335,14 @@ main(int argc, char *argv[])
 			return 1;
 		}
 
-		for (i = 0; i < ccr->refs_num; i++)
+		for (i = 0; i < ccr->refs_num; i++) {
+			if (single_fqdn != NULL) {
+				if (strncmp(ccr->refs[i]->sia, single_fqdn,
+				    strlen(single_fqdn)) != 0)
+					continue;
+			}
 			printf("%s %s\n", ccr->refs[i]->hash, ccr->refs[i]->sia);
+		}
 
 		file_free(f);
 		ccr_free(ccr);
@@ -409,8 +419,8 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	fprintf(stderr, "usage: rpkitouch [-CnpVv] [-d dir] file ...\n");
-	fprintf(stderr, "       rpkitouch [-n] -c ccr_file\n");
+	fprintf(stderr, "usage: rpkitouch [-CnpVv] [-d dir] [-H fqdn] file ...\n");
+	fprintf(stderr, "       rpkitouch [-n] [-H fqdn] -c ccr_file\n");
 	fprintf(stderr, "       rpkitouch [-n] -R out_ccr ccr_file ...\n");
 	exit(1);
 }

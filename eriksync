@@ -24,15 +24,11 @@ esac
 FQDN=$(echo ${19} | sed 's|rsync://||' | xargs -r dirname)
 
 if [ ! -f .rsync/rpki.ccr ]; then
-	touch .rsync/rpki.ccr
-	rpkitouch -R .rsync/rpki.ccr /var/db/rpki-client/rpki.ccr 
-	rpkitouch -Cvd .rsync/ .rsync/rpki.ccr
-	rpkitouch -c .rsync/rpki.ccr > .rsync/mfts.list
-else
-	sleep 5
+	rpkitouch -Cvd ".rsync/${FQDN}" -H "${FQDN}" /var/db/rpki-client/rpki.ccr
+	rpkitouch -c /var/db/rpki-client/rpki.ccr -H "${FQDN}" > ".rsync/${FQDN}/mfts.list"
 fi
 
-rm -rf .rsync/${FQDN}
+#rm -rf .rsync/${FQDN}
 echo ${FQDN}
 pwd
 exit 0
