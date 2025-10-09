@@ -1,9 +1,9 @@
 1052 Sep 21 02:17 tests/e/static/nS/b_/C_/nSb_C_v7rHB_IYELzMu8Db7l374buRWB66-im3jDF3g
-106 Sep 19 02:28 tests/e/erik/rpki-pp.com
+106 Sep 19 02:28 tests/e/erik/index/rpki-pp.com
 106 Sep 19 02:28 tests/e/static/Z0/QF/bk/Z0QFbkvy6X4D0jwMwRSO7C933CB8IZifp9-Wisx2pFs
-11219 Sep 21 09:36 tests/e/erik/repository.lacnic.net
+11219 Sep 21 09:36 tests/e/erik/index/repository.lacnic.net
 11219 Sep 21 09:36 tests/e/static/Ua/xY/y6/UaxYy6kY42LGBdaqpBSPixWfjnGfT7udcgeC_Dk9T-0
-11219 Sep 21 09:42 tests/e/erik/rpki-repo.registro.br
+11219 Sep 21 09:42 tests/e/erik/index/rpki-repo.registro.br
 11219 Sep 21 09:42 tests/e/static/Fv/Dd/7H/FvDd7HLzYe_PCYdafssqTIDKtOq18EDp1X_l0dhBM6E
 1158 Sep 21 06:03 tests/e/static/Hi/Oh/ut/HiOhutdvWPvxoJHkOQ3Vf9aQTqKIBeSCG6n0vW6tQ6s
 1158 Sep 21 07:55 tests/e/static/f3/u_/j3/f3u_j3Shnr3vZkE8zs-m_HSqDyRAg6eMSulpE1N-728
@@ -11,7 +11,7 @@
 1160 Sep 21 02:55 tests/e/static/1R/Eg/p3/1REgp33LwRy67VE6dakKZxcmaZ86zXfoPfzKkTI7Tww
 1160 Sep 21 03:28 tests/e/static/bq/db/Or/bqdbOrxbFEOPgaQjkTI4Xus5yTtMTFCgihLM50yOFr4
 1160 Sep 21 08:00 tests/e/static/NQ/kk/5G/NQkk5GmcMWa98KddW5Vu29n8RVsATUM-lck6pb7a0Y0
-129 Sep 21 00:34 tests/e/erik/rpki-rsync.us-east-2.amazonaws.com
+129 Sep 21 00:34 tests/e/erik/index/rpki-rsync.us-east-2.amazonaws.com
 129 Sep 21 00:34 tests/e/static/Et/Un/Sc/EtUnScy1Uq9jWVTPh8ozf5Zzv5_GQwj_H6etX0Yqikg
 1299 Sep 21 07:00 tests/e/static/tY/ne/aJ/tYneaJTj44bv7O-dfpQSoOLBdhFT5QXSULiKhmZmUIM
 1300 Sep 20 21:09 tests/e/static/4T/V9/c1/4TV9c1CqJc19i_hCYRD04Wg958M5ZCN52F5Fr04mnUk
