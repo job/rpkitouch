@@ -699,7 +699,7 @@ struct ccr *
 parse_ccr(struct file *f)
 {
 	const unsigned char *oder, *der;
-	ContentInfo *ci = NULL;
+	EncapContentInfo *ci = NULL;
 	CanonicalCacheRepresentation *ccr_asn1 = NULL;
 	long len;
 	struct ccr *ccr = NULL;
@@ -707,8 +707,8 @@ parse_ccr(struct file *f)
 	int i, rc = 0;
 
 	oder = der = f->content;
-	if ((ci = d2i_ContentInfo(NULL, &der, f->content_len)) == NULL) {
-		warnx("%s: d2i_ContentInfo failed", f->name);
+	if ((ci = d2i_EncapContentInfo(NULL, &der, f->content_len)) == NULL) {
+		warnx("%s: d2i_EncapContentInfo failed", f->name);
 		goto out;
 	}
 	if (der != oder + f->content_len) {
@@ -823,7 +823,7 @@ parse_ccr(struct file *f)
 		ccr_free(ccr);
 		ccr = NULL;
 	}
-	ContentInfo_free(ci);
+	EncapContentInfo_free(ci);
 	CanonicalCacheRepresentation_free(ccr_asn1);
 
 	return ccr;

@@ -97,7 +97,7 @@ DECLARE_ASN1_FUNCTIONS(ManifestRefs);
  * reference: draft-spaghetti-sidrops-rpki-ccr-03
  */
 
-extern ASN1_ITEM_EXP ContentInfo_it;
+extern ASN1_ITEM_EXP EncapContentInfo_it;
 extern ASN1_ITEM_EXP CanonicalCacheRepresentation_it;
 
 typedef struct {
@@ -124,9 +124,9 @@ DECLARE_ASN1_FUNCTIONS(CanonicalCacheRepresentation);
 typedef struct {
 	ASN1_OBJECT *contentType;
 	ASN1_OCTET_STRING *content;
-} ContentInfo;
+} EncapContentInfo;
 
-DECLARE_ASN1_FUNCTIONS(ContentInfo);
+DECLARE_ASN1_FUNCTIONS(EncapContentInfo);
 
 /*
  * RPKI Manifest
