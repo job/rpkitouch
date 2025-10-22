@@ -112,13 +112,13 @@ typedef struct {
 
 DECLARE_STACK_OF(ManifestInstance);
 
-#ifndef DEFINE_STACK_OF
 #define sk_ASN1_OCTET_STRING_new(cmp) SKM_sk_new(ASN1_OCTET_STRING, (cmp))
 #define sk_ASN1_OCTET_STRING_push(st, i) SKM_sk_push(ASN1_OCTET_STRING, (st), (i))
 #define sk_ASN1_OCTET_STRING_sort(sk) SKM_sk_sort(ASN1_OCTET_STRING, (sk))
 #define sk_ASN1_OCTET_STRING_set_cmp_func(sk, cmp) \
     SKM_sk_set_cmp_func(ASN1_OCTET_STRING, (sk), (cmp))
 
+#ifndef DEFINE_STACK_OF
 #define sk_ManifestInstance_num(st) SKM_sk_num(ManifestInstance, (st))
 #define sk_ManifestInstance_push(st, i) SKM_sk_push(ManifestInstance, (st), (i))
 #define sk_ManifestInstance_value(st, i) SKM_sk_value(ManifestInstance, (st), (i))
