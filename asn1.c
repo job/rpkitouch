@@ -37,7 +37,8 @@ ASN1_ITEM_EXP ErikIndex_it;
 ASN1_ITEM_EXP PartitionRef_it;
 ASN1_ITEM_EXP ErikPartition_it;
 ASN1_ITEM_EXP ManifestRef_it;
-ASN1_ITEM_EXP ManifestRefs_it;
+ASN1_ITEM_EXP ManifestInstance_it;
+ASN1_ITEM_EXP ManifestInstances_it;
 
 ASN1_SEQUENCE(EncapContentInfo) = {
 	ASN1_SIMPLE(EncapContentInfo, contentType, ASN1_OBJECT),
@@ -61,12 +62,24 @@ ASN1_SEQUENCE(CanonicalCacheRepresentation) = {
 IMPLEMENT_ASN1_FUNCTIONS(CanonicalCacheRepresentation);
 
 ASN1_SEQUENCE(ManifestState) = {
-	ASN1_SEQUENCE_OF(ManifestState, mftrefs, ManifestRef),
+	ASN1_SEQUENCE_OF(ManifestState, mis, ManifestInstance),
 	ASN1_SIMPLE(ManifestState, mostRecentUpdate, ASN1_GENERALIZEDTIME),
 	ASN1_SIMPLE(ManifestState, hash, ASN1_OCTET_STRING),
 } ASN1_SEQUENCE_END(ManifestState);
 
 IMPLEMENT_ASN1_FUNCTIONS(ManifestState);
+
+ASN1_SEQUENCE(ManifestInstance) = {
+	ASN1_SIMPLE(ManifestInstance, hash, ASN1_OCTET_STRING),
+	ASN1_SIMPLE(ManifestInstance, size, ASN1_INTEGER),
+	ASN1_SIMPLE(ManifestInstance, aki, ASN1_OCTET_STRING),
+	ASN1_SIMPLE(ManifestInstance, manifestNumber, ASN1_INTEGER),
+	ASN1_SIMPLE(ManifestInstance, thisUpdate, ASN1_GENERALIZEDTIME),
+	ASN1_SEQUENCE_OF(ManifestInstance, locations, ACCESS_DESCRIPTION),
+	ASN1_SEQUENCE_OF_OPT(ManifestInstance, subordinates, ASN1_OCTET_STRING),
+} ASN1_SEQUENCE_END(ManifestInstance);
+
+IMPLEMENT_ASN1_FUNCTIONS(ManifestInstance);
 
 ASN1_SEQUENCE(ErikIndex) = {
 	ASN1_EXP_OPT(ErikIndex, version, ASN1_INTEGER, 0),
@@ -106,17 +119,17 @@ ASN1_SEQUENCE(ManifestRef) = {
 
 IMPLEMENT_ASN1_FUNCTIONS(ManifestRef);
 
-ASN1_ITEM_TEMPLATE(ManifestRefs) =
-    ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, mftrefs, ManifestRef)
-ASN1_ITEM_TEMPLATE_END(ManifestRefs);
+ASN1_ITEM_TEMPLATE(ManifestInstances) =
+    ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, mis, ManifestInstance)
+ASN1_ITEM_TEMPLATE_END(ManifestInstances);
 
 static inline int
-mftrefcmp(const struct mftref *a, const struct mftref *b)
+mftinstancecmp(const struct mftinstance *a, const struct mftinstance *b)
 {
 	return strcmp(a->sia, b->sia);
 }
 
-RB_GENERATE(mftref_tree, mftref, entry, mftrefcmp);
+RB_GENERATE(mftinstance_tree, mftinstance, entry, mftinstancecmp);
 
 void
 mftref_free(struct mftref *mftref)
@@ -132,30 +145,53 @@ mftref_free(struct mftref *mftref)
 	free(mftref);
 }
 
+void
+mftinstance_free(struct mftinstance *mftinstance)
+{
+	struct ccr_mft_sub_ski *sub_ski;
+
+	if (mftinstance == NULL)
+		return;
+
+	free(mftinstance->hash);
+	free(mftinstance->aki);
+	free(mftinstance->seqnum);
+	free(mftinstance->sia);
+	free(mftinstance->fqdn);
+
+	while (!SLIST_EMPTY(&mftinstance->subordinates)) {
+		sub_ski = SLIST_FIRST(&mftinstance->subordinates);
+		SLIST_REMOVE_HEAD(&mftinstance->subordinates, entry);
+		free(sub_ski);
+	}
+
+	free(mftinstance);
+}
+
 /*
- * Insert new ManifestRefs into tree, or replacing an existing entry
+ * Insert new ManifestInstances into tree, or replacing an existing entry
  * if the existing entry's thisUpdate is older.
  * Return 1 if a new object was added to the tree, and otherwise 0.
  */
 static inline int
-insert_mftref_tree(struct mftref **mftref, struct mftref_tree *tree)
+insert_mftinstance_tree(struct mftinstance **mi, struct mftinstance_tree *tree)
 {
-	struct mftref *found;
+	struct mftinstance *found;
 
-	if ((found = RB_INSERT(mftref_tree, tree, (*mftref))) != NULL) {
+	if ((found = RB_INSERT(mftinstance_tree, tree, (*mi))) != NULL) {
 
 		/*
-		 * Check if the mftref at hand is newer than the one
+		 * Check if the mft instance at hand is newer than the one
 		 * in the RB tree, if so replace the in-tree version.
 		 */
-		if ((*mftref)->thisupdate > found->thisupdate) {
-			RB_REMOVE(mftref_tree, tree, found);
-			mftref_free(found);
+		if ((*mi)->thisupdate > found->thisupdate) {
+			RB_REMOVE(mftinstance_tree, tree, found);
+			mftinstance_free(found);
 
-			RB_INSERT(mftref_tree, tree, (*mftref));
+			RB_INSERT(mftinstance_tree, tree, (*mi));
 
 			/* steal the resource from the ccr struct */
-			*mftref = NULL;
+			*mi = NULL;
 		}
 
 		/* XXX: should also compare seqnum */
@@ -164,13 +200,13 @@ insert_mftref_tree(struct mftref **mftref, struct mftref_tree *tree)
 	}
 
 	/* steal the resource from the ccr struct */
-	*mftref = NULL;
+	*mi = NULL;
 
 	return 1;
 }
 
 int
-merge_ccrs(char *argv[], struct mftref_tree *tree)
+merge_ccrs(char *argv[], struct mftinstance_tree *tree)
 {
 	struct file *f;
 	unsigned char *fc;
@@ -198,8 +234,8 @@ merge_ccrs(char *argv[], struct mftref_tree *tree)
 			goto out;
 		}
 
-		for (i = 0; i < ccr->refs_num; i++) {
-			count += insert_mftref_tree(&ccr->refs[i], tree);
+		for (i = 0; i < ccr->mis_num; i++) {
+			count += insert_mftinstance_tree(&ccr->mis[i], tree);
 		}
 
 		ccr_free(ccr);
@@ -251,7 +287,7 @@ location_add_sia(STACK_OF(ACCESS_DESCRIPTION) *sad, const char *sia)
 }
 
 static ManifestRef *
-make_manifestref(struct mftref *m)
+make_manifestref(struct mftinstance *m)
 {
 	ManifestRef *mr = NULL;
 	static unsigned char hash[SHA256_DIGEST_LENGTH] = { 0 };
@@ -480,9 +516,9 @@ finalize_ErikPartition(ErikPartition *ep, char *fqdn, int part_id, time_t ptime)
 }
 
 void
-generate_erik_objects(struct mftref **refs, int count, char *single_fqdn)
+generate_erik_objects(struct mftinstance **mis, int count, char *single_fqdn)
 {
-	struct mftref *mftref;
+	struct mftinstance *mi;
 	char *prev_fqdn, *prev_aki;
 	ErikIndex *ei = NULL;
 	ErikPartition *ep = NULL;
@@ -494,18 +530,18 @@ generate_erik_objects(struct mftref **refs, int count, char *single_fqdn)
 	prev_fqdn = prev_aki = NULL;
 	for (i = 0; i < count; i++) {
 		if (single_fqdn != NULL) {
-			if (strcmp(refs[i]->fqdn, single_fqdn) != 0)
+			if (strcmp(mis[i]->fqdn, single_fqdn) != 0)
 				continue;
 		}
 
-		mftref = refs[i];
-		mr = make_manifestref(mftref);
+		mi = mis[i];
+		mr = make_manifestref(mi);
 
 		if (prev_fqdn == NULL && prev_aki == NULL) {
-			prev_fqdn = mftref->fqdn;
-			prev_aki = mftref->aki;
+			prev_fqdn = mi->fqdn;
+			prev_aki = mi->aki;
 
-			ei = start_ErikIndex(mftref->fqdn);
+			ei = start_ErikIndex(mi->fqdn);
 			itime = 0;
 			part_id = 0;
 
@@ -513,7 +549,7 @@ generate_erik_objects(struct mftref **refs, int count, char *single_fqdn)
 			ptime = 0;
 		}
 
-		if (strcmp(prev_fqdn, mftref->fqdn) != 0) {
+		if (strcmp(prev_fqdn, mi->fqdn) != 0) {
 			pr = finalize_ErikPartition(ep, prev_fqdn, part_id,
 			    ptime);
 
@@ -522,13 +558,13 @@ generate_erik_objects(struct mftref **refs, int count, char *single_fqdn)
 
 			finalize_ErikIndex(ei, prev_fqdn, itime);
 
-			ei = start_ErikIndex(mftref->fqdn);
+			ei = start_ErikIndex(mi->fqdn);
 			itime = 0;
 			part_id = 0;
 
 			ep = start_ErikPartition();
 			ptime = 0;
-		} else if (strncmp(prev_aki, mftref->aki, 2) != 0) {
+		} else if (strncmp(prev_aki, mi->aki, 2) != 0) {
 			pr = finalize_ErikPartition(ep, prev_fqdn, part_id,
 			    ptime);
 
@@ -543,14 +579,14 @@ generate_erik_objects(struct mftref **refs, int count, char *single_fqdn)
 		if (sk_ManifestRef_push(ep->manifestList, mr) <= 0)
 			errx(1, "sk_ManifestRef_push");
 
-		if (mftref->thisupdate > itime)
-			itime = mftref->thisupdate;
+		if (mi->thisupdate > itime)
+			itime = mi->thisupdate;
 
-		if (mftref->thisupdate > ptime)
-			ptime = mftref->thisupdate;
+		if (mi->thisupdate > ptime)
+			ptime = mi->thisupdate;
 
-		prev_fqdn = mftref->fqdn;
-		prev_aki = mftref->aki;
+		prev_fqdn = mi->fqdn;
+		prev_aki = mi->aki;
 	}
 
 	if (prev_fqdn == NULL)
@@ -559,15 +595,77 @@ generate_erik_objects(struct mftref **refs, int count, char *single_fqdn)
 	pr = finalize_ErikPartition(ep, prev_fqdn, part_id, ptime);
 	if (sk_PartitionRef_push(ei->partitionList, pr) <= 0)
 		errx(1, "sk_PartitionRef_push");
-	finalize_ErikIndex(ei, mftref->fqdn, itime);
+	finalize_ErikIndex(ei, mi->fqdn, itime);
+}
+
+static int
+ski_cmp(const ASN1_OCTET_STRING *const *a, const ASN1_OCTET_STRING *const *b)
+{
+	return ASN1_OCTET_STRING_cmp(*a, *b);
+}
+
+static ManifestInstance *
+make_manifestinstance(struct mftinstance *m)
+{
+	ManifestInstance *mi = NULL;
+	ASN1_OCTET_STRING *asn1_ski;
+	struct ccr_mft_sub_ski *sub;
+	static unsigned char hash[SHA256_DIGEST_LENGTH] = { 0 };
+	static unsigned char aki[SHA_DIGEST_LENGTH] = { 0 };
+
+	if ((mi = ManifestInstance_new()) == NULL)
+		errx(1, "ManifestInstance_new");
+
+	if (hex_decode(m->hash, (char *)hash, sizeof(hash)) != 0)
+		errx(1, "hex_decode");
+
+	if (!ASN1_OCTET_STRING_set(mi->hash, hash, sizeof(hash)))
+		errx(1, "ASN1_OCTET_STRING_set");
+
+	if (!ASN1_INTEGER_set_uint64(mi->size, m->size))
+		errx(1, "ASN1_INTEGER_set_uint64");
+
+	if (hex_decode(m->aki, (char *)aki, sizeof(aki)) != 0)
+		errx(1, "hex_decode");
+
+	if (!ASN1_OCTET_STRING_set(mi->aki, aki, sizeof(aki)))
+		errx(1, "ASN1_OCTET_STRING_set");
+
+	asn1int_set_seqnum(mi->manifestNumber, m->seqnum);
+
+	if (ASN1_GENERALIZEDTIME_set(mi->thisUpdate, m->thisupdate) == NULL)
+		errx(1, "ASN1_GENERALIZEDTIME_set");
+
+	location_add_sia(mi->locations, m->sia);
+
+	if (SLIST_EMPTY(&m->subordinates))
+		return mi;
+
+	if ((mi->subordinates = sk_ASN1_OCTET_STRING_new(ski_cmp)) == NULL)
+		err(1, NULL);
+
+	SLIST_FOREACH(sub, &m->subordinates, entry) {
+		if ((asn1_ski = ASN1_OCTET_STRING_new()) == NULL)
+			err(1, NULL);
+
+		if (!ASN1_OCTET_STRING_set(asn1_ski, sub->ski, sizeof(sub->ski)))
+			errx(1, "ASN1_OCTET_STRING_set");
+
+		if (sk_ASN1_OCTET_STRING_push(mi->subordinates, asn1_ski) <= 0)
+			errx(1, "sk_ASN1_OCTET_STRING_push");
+	}
+
+	sk_ASN1_OCTET_STRING_sort(mi->subordinates);
+
+	return mi;
 }
 
 struct file *
-generate_reduced_ccr(struct mftref **refs, int count)
+generate_reduced_ccr(struct mftinstance **mis, int count)
 {
-	struct mftref *mftref;
+	struct mftinstance *mi;
 	ManifestState *ms = NULL;
-	ManifestRef *mr = NULL;
+	ManifestInstance *asn1_mi = NULL;
 	time_t mostrecent = 0;
 	CanonicalCacheRepresentation *ccr = NULL;
 	unsigned char *ccr_der;
@@ -581,26 +679,26 @@ generate_reduced_ccr(struct mftref **refs, int count)
 
 	for (i = 0; i < count; i++) {
 		char *sia;
-		mftref = refs[i];
+		mi = mis[i];
 
-		if (asprintf(&sia, "rsync://%s", mftref->sia) == -1)
+		if (asprintf(&sia, "rsync://%s", mi->sia) == -1)
 			err(1, "asprintf");
-		free(mftref->sia);
-		mftref->sia = sia;
+		free(mi->sia);
+		mi->sia = sia;
 
-		mr = make_manifestref(mftref);
+		asn1_mi = make_manifestinstance(mi);
 
-		if (sk_ManifestRef_push(ms->mftrefs, mr) <= 0)
+		if (sk_ManifestInstance_push(ms->mis, asn1_mi) <= 0)
 			errx(1, "sk_ManifestRef_push");
 
-		if (mftref->thisupdate > mostrecent)
-			mostrecent = mftref->thisupdate;
+		if (mi->thisupdate > mostrecent)
+			mostrecent = mi->thisupdate;
 	}
 
 	if (ASN1_GENERALIZEDTIME_set(ms->mostRecentUpdate, mostrecent) == NULL)
 		errx(1, "ASN1_GENERALIZEDTIME_set");
 
-	hash_asn1_item(ms->hash, ASN1_ITEM_rptr(ManifestRefs), ms->mftrefs);
+	hash_asn1_item(ms->hash, ASN1_ITEM_rptr(ManifestInstances), ms->mis);
 
 	if ((ccr = CanonicalCacheRepresentation_new()) == NULL)
 		errx(1, "CanonicalCacheRepresentation_new");

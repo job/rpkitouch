@@ -14,8 +14,6 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
-#include <sys/queue.h>
-
 #include <err.h>
 #include <fcntl.h>
 #include <stdio.h>
@@ -26,6 +24,7 @@
 #include <openssl/objects.h>
 #include <openssl/sha.h>
 
+#include "compat/queue.h"
 #include "compat/tree.h"
 
 #include "extern.h"
@@ -75,7 +74,7 @@ setup_oids(void) {
 	if ((manifest_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.26", 1))
 	    == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "manifest_oid");
-	if ((ccr_oid = OBJ_txt2obj("1.3.6.1.4.1.41948.825", 1)) == NULL)
+	if ((ccr_oid = OBJ_txt2obj("1.3.6.1.4.1.41948.828", 1)) == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "ccr_oid");
 	if ((idx_oid = OBJ_txt2obj("1.3.6.1.4.1.41948.826", 1)) == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "idx_oid");
@@ -138,8 +137,8 @@ static int
 fqdn_aki_hash_cmp(const void *a, const void *b)
 {
 	int cmp;
-	struct mftref *ma = *(struct mftref **)a;
-	struct mftref *mb = *(struct mftref **)b;
+	struct mftinstance *ma = *(struct mftinstance **)a;
+	struct mftinstance *mb = *(struct mftinstance **)b;
 
 	cmp = strcmp(ma->fqdn, mb->fqdn);
 	if (cmp > 0)
@@ -162,37 +161,37 @@ fqdn_aki_hash_cmp(const void *a, const void *b)
 static int
 hash_cmp(const void *a, const void *b)
 {
-	struct mftref *ma = *(struct mftref **)a;
-	struct mftref *mb = *(struct mftref **)b;
+	struct mftinstance *ma = *(struct mftinstance **)a;
+	struct mftinstance *mb = *(struct mftinstance **)b;
 
 	return strcmp(ma->hash, mb->hash);
 }
 
-static struct mftref **
-load_mftrefs_from_ccr(char *argv[], int *count)
+static struct mftinstance **
+load_mftinstances_from_ccr(char *argv[], int *count)
 {
-	struct mftref_tree mftref_tree;
-	struct mftref **refs, *mftref, *mftref_tmp;
+	struct mftinstance_tree mftinstance_tree;
+	struct mftinstance **mis, *mi, *mi_tmp;
 	int i;
 
-	RB_INIT(&mftref_tree);
+	RB_INIT(&mftinstance_tree);
 
-	if ((i = merge_ccrs(argv, &mftref_tree)) == 0)
+	if ((i = merge_ccrs(argv, &mftinstance_tree)) == 0)
 		errx(1, "merge_ccrs");
 
 	*argv = NULL;
 
-	if ((refs = calloc(i, sizeof(refs[0]))) == NULL)
+	if ((mis = calloc(i, sizeof(mis[0]))) == NULL)
 		err(1, NULL);
 
 	*count = i;
 
-	RB_FOREACH_SAFE(mftref, mftref_tree, &mftref_tree, mftref_tmp) {
-		RB_REMOVE(mftref_tree, &mftref_tree, mftref);
-		refs[--i] = mftref;
+	RB_FOREACH_SAFE(mi, mftinstance_tree, &mftinstance_tree, mi_tmp) {
+		RB_REMOVE(mftinstance_tree, &mftinstance_tree, mi);
+		mis[--i] = mi;
 	}
 
-	return refs;
+	return mis;
 }
 
 int
@@ -203,7 +202,7 @@ main(int argc, char *argv[])
 	char *single_fqdn = NULL;
 	struct file *f;
 	unsigned char *fc;
-	struct mftref **refs = NULL;
+	struct mftinstance **mis = NULL;
 	struct ccr *ccr = NULL;
 	struct mft *mft = NULL;
 
@@ -273,43 +272,43 @@ main(int argc, char *argv[])
 		if  (*argv == NULL)
 			usage();
 
-		refs = load_mftrefs_from_ccr(argv, &count);
+		mis = load_mftinstances_from_ccr(argv, &count);
 
-		qsort(refs, count, sizeof(refs[0]), fqdn_aki_hash_cmp);
+		qsort(mis, count, sizeof(mis[0]), fqdn_aki_hash_cmp);
 
 		if (outdir != NULL) {
-			generate_erik_objects(refs, count, single_fqdn);
+			generate_erik_objects(mis, count, single_fqdn);
 		} else {
 			for (i = 0; i < count; i++) {
 				printf("aki:%s seqnum:%s tu:%lld %s %s\n",
-				    refs[i]->aki, refs[i]->seqnum,
-				    (long long)refs[i]->thisupdate,
-				    refs[i]->hash, refs[i]->sia);
+				    mis[i]->aki, mis[i]->seqnum,
+				    (long long)mis[i]->thisupdate,
+				    mis[i]->hash, mis[i]->sia);
 			}
 		}
 
 		for (i = 0; i < count; i++)
-			mftref_free(refs[i]);
+			mftinstance_free(mis[i]);
 
-		free(refs);
+		free(mis);
 	}
 
 	if (reduce != NULL) {
 		if  (*argv == NULL)
 			usage();
 
-		refs = load_mftrefs_from_ccr(argv, &count);
+		mis = load_mftinstances_from_ccr(argv, &count);
 
-		qsort(refs, count, sizeof(refs[0]), hash_cmp);
+		qsort(mis, count, sizeof(mis[0]), hash_cmp);
 
-		f = generate_reduced_ccr(refs, count);
+		f = generate_reduced_ccr(mis, count);
 
 		write_file(reduce, f->content, f->content_len, 0);
 
 		for (i = 0; i < count; i++)
-			mftref_free(refs[i]);
+			mftinstance_free(mis[i]);
 
-		free(refs);
+		free(mis);
 		file_free(f);
 	}
 
@@ -334,14 +333,13 @@ main(int argc, char *argv[])
 			file_free(f);
 			return 1;
 		}
-
-		for (i = 0; i < ccr->refs_num; i++) {
+		for (i = 0; i < ccr->mis_num; i++) {
 			if (single_fqdn != NULL) {
-				if (strncmp(ccr->refs[i]->sia, single_fqdn,
+				if (strncmp(ccr->mis[i]->sia, single_fqdn,
 				    strlen(single_fqdn)) != 0)
 					continue;
 			}
-			printf("%s %s\n", ccr->refs[i]->hash, ccr->refs[i]->sia);
+			printf("%s %s\n", ccr->mis[i]->hash, ccr->mis[i]->sia);
 		}
 
 		file_free(f);

@@ -673,26 +673,26 @@ ccr_free(struct ccr *ccr)
 	if (ccr == NULL)
 		return;
 
-	for (i = 0; i < ccr->refs_num; i++) {
-		mftref_free(ccr->refs[i]);
+	for (i = 0; i < ccr->mis_num; i++) {
+		mftinstance_free(ccr->mis[i]);
 	}
 
-	free(ccr->refs);
+	free(ccr->mis);
 	free(ccr);
 }
 
 static void
-mftref_set_fqdn(struct mftref *ref)
+mftinstance_set_fqdn(struct mftinstance *mi)
 {
 	char *fqdn, *needle;
 
-	if ((fqdn = strdup(ref->sia)) == NULL)
+	if ((fqdn = strdup(mi->sia)) == NULL)
 		err(1, NULL);
 
 	needle = strchr(fqdn, '/');
 	*needle = '\0';
 
-	ref->fqdn = fqdn;
+	mi->fqdn = fqdn;
 }
 
 struct ccr *
@@ -703,7 +703,7 @@ parse_ccr(struct file *f)
 	CanonicalCacheRepresentation *ccr_asn1 = NULL;
 	long len;
 	struct ccr *ccr = NULL;
-	struct mftref **refs = NULL;
+	struct mftinstance **mis= NULL;
 	int i, rc = 0;
 
 	oder = der = f->content;
@@ -721,7 +721,7 @@ parse_ccr(struct file *f)
 		char buf[128];
 
 		OBJ_obj2txt(buf, sizeof(buf), ci->contentType, 1);
-		warnx("%s: unexpected OID: got %s, want 1.3.6.1.4.1.41948.825",
+		warnx("%s: unexpected OID: got %s, want 1.3.6.1.4.1.41948.828",
 		    f->name, buf);
 		goto out;
 	}
@@ -752,70 +752,70 @@ parse_ccr(struct file *f)
 		set_mtime(AT_FDCWD, f->name, ccr->producedat);
 
 	if (ccr_asn1->mfts == NULL || ccr_asn1->mfts->hash == NULL ||
-	    ccr_asn1->mfts->mftrefs == NULL) {
+	    ccr_asn1->mfts->mis == NULL) {
 		warnx("%s: missing Manifest state", f->name);
 		goto out;
 	}
 
 	if (!validate_asn1_hash(f->name, "ManifestState", ccr_asn1->mfts->hash,
-	    ASN1_ITEM_rptr(ManifestRefs), ccr_asn1->mfts->mftrefs)) {
+	    ASN1_ITEM_rptr(ManifestInstances), ccr_asn1->mfts->mis)) {
 		warnx("%s: ManifestState hash mismatch", f->name);
 		goto out;
 	}
 
-	ccr->refs_num = sk_ManifestRef_num(ccr_asn1->mfts->mftrefs);
-	if (ccr->refs_num == 0) {
-		warnx("%s: missing ManifestRefs", f->name);
+	ccr->mis_num = sk_ManifestInstance_num(ccr_asn1->mfts->mis);
+	if (ccr->mis_num == 0) {
+		warnx("%s: missing ManifestInstances", f->name);
 		goto out;
 	}
 
-	refs = calloc(ccr->refs_num, sizeof(*refs));
-	if (refs == NULL)
+	mis = calloc(ccr->mis_num, sizeof(*mis));
+	if (mis == NULL)
 		err(1, NULL);
 
-	for (i = 0; i < ccr->refs_num; i++) {
-		const ManifestRef *mr;
+	for (i = 0; i < ccr->mis_num; i++) {
+		const ManifestInstance *mi;
 
-		mr = sk_ManifestRef_value(ccr_asn1->mfts->mftrefs, i);
+		mi = sk_ManifestInstance_value(ccr_asn1->mfts->mis, i);
 
-		if ((refs[i] = calloc(1, sizeof(*refs[i]))) == NULL)
+		if ((mis[i] = calloc(1, sizeof(*mis[0]))) == NULL)
 			err(1, NULL);
 
-		if (mr->hash->length != SHA256_DIGEST_LENGTH) {
-			warnx("%s: manifest ref #%d corrupted", f->name, i);
+		if (mi->hash->length != SHA256_DIGEST_LENGTH) {
+			warnx("%s: mft instance #%d corrupted", f->name, i);
 			goto out;
 		}
-		refs[i]->hash = hex_encode(mr->hash->data, mr->hash->length);
+		mis[i]->hash = hex_encode(mi->hash->data, mi->hash->length);
 
-		if (!ASN1_INTEGER_get_uint64(&refs[i]->size, mr->size)) {
-			warnx("%s: manifest ref #%d corrupted", f->name, i);
+		if (!ASN1_INTEGER_get_uint64(&mis[i]->size, mi->size)) {
+			warnx("%s: mft instance #%d corrupted", f->name, i);
 			goto out;
 		}
 
-		if (mr->aki->length != SHA_DIGEST_LENGTH) {
-			warnx("%s: manifest ref #%d corrupted", f->name, i);
+		if (mi->aki->length != SHA_DIGEST_LENGTH) {
+			warnx("%s: mft instance #%d corrupted", f->name, i);
 			goto out;
 		}
-		refs[i]->aki = hex_encode(mr->aki->data, mr->aki->length);
+		mis[i]->aki = hex_encode(mi->aki->data, mi->aki->length);
 
-		if (!asn1time_to_time(mr->thisUpdate, &refs[i]->thisupdate, 1)) {
+		if (!asn1time_to_time(mi->thisUpdate, &mis[i]->thisupdate, 1)) {
 			warnx("%s: failed to convert %s", f->name, "thisUpdate");
 			goto out;
 		}
 
-		refs[i]->seqnum = mft_convert_seqnum(mr->manifestNumber);
-		if (refs[i]->seqnum == NULL) {
+		mis[i]->seqnum = mft_convert_seqnum(mi->manifestNumber);
+		if (mis[i]->seqnum == NULL) {
 			warnx("%s: mft_convert_seqnum failed", f->name);
 			goto out;
 		}
 
-		if (!ccr_get_sia(mr->location, &refs[i]->sia))
+		if (!ccr_get_sia(mi->locations, &mis[i]->sia))
 			goto out;
 
-		mftref_set_fqdn(refs[i]);
+		mftinstance_set_fqdn(mis[i]);
 	}
 
-	ccr->refs = refs;
+	ccr->mis = mis;
 
 	rc = 1;
  out:

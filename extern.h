@@ -18,6 +18,7 @@
 
 #include <openssl/asn1.h>
 
+#include "compat/queue.h"
 #include "compat/tree.h"
 
 enum filetype {
@@ -45,13 +46,32 @@ struct mftref {
 	char *fqdn;
 };
 
-RB_HEAD(mftref_tree, mftref);
-RB_PROTOTYPE(mftref_tree, mftref, entry, mftrefcmp);
+struct ccr_mft_sub_ski {
+	SLIST_ENTRY(ccr_mft_sub_ski) entry;
+	unsigned char ski[SHA_DIGEST_LENGTH];
+};
+
+SLIST_HEAD(subordinates_head, ccr_mft_sub_ski);
+
+struct mftinstance {
+	RB_ENTRY(mftinstance) entry;
+	char *hash;
+	uint64_t size;
+	char *aki;
+	time_t thisupdate;
+	char *seqnum;
+	char *sia;
+	char *fqdn;
+	struct subordinates_head subordinates;
+};
+
+RB_HEAD(mftinstance_tree, mftinstance);
+RB_PROTOTYPE(mftinstance_tree, mftinstance, entry, mftinstancecmp);
 
 struct ccr {
 	time_t producedat;
-	struct mftref **refs;
-	int refs_num;
+	struct mftinstance **mis;
+	int mis_num;
 };
 
 struct fileandhash {
@@ -104,11 +124,12 @@ int store_by_name(struct file *, struct mft *);
 
 void ccr_free(struct ccr *);
 void mftref_free(struct mftref *);
+void mftinstance_free(struct mftinstance *);
 void file_free(struct file *);
 enum filetype detect_ftype_from_fn(char *);
-int merge_ccrs(char **, struct mftref_tree *);
-void generate_erik_objects(struct mftref **, int, char *);
-struct file *generate_reduced_ccr(struct mftref **, int);
+int merge_ccrs(char **, struct mftinstance_tree *);
+void generate_erik_objects(struct mftinstance **, int, char *);
+struct file *generate_reduced_ccr(struct mftinstance **, int);
 void usage(void);
 
 extern ASN1_OBJECT *ccr_oid;

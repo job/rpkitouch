@@ -34,7 +34,6 @@ extern ASN1_ITEM_EXP ErikIndex_it;
 extern ASN1_ITEM_EXP PartitionRef_it;
 extern ASN1_ITEM_EXP ErikPartition_it;
 extern ASN1_ITEM_EXP ManifestRef_it;
-extern ASN1_ITEM_EXP ManifestRefs_it;
 
 typedef struct {
 	ASN1_INTEGER *version;
@@ -94,14 +93,45 @@ DECLARE_ASN1_FUNCTIONS(ManifestRefs);
 
 /*
  * Canonical Cache Representation (CCR)
- * reference: draft-spaghetti-sidrops-rpki-ccr-03
+ * reference: draft-spaghetti-sidrops-rpki-ccr-04
  */
 
 extern ASN1_ITEM_EXP EncapContentInfo_it;
 extern ASN1_ITEM_EXP CanonicalCacheRepresentation_it;
+extern ASN1_ITEM_EXP ManifestInstance_it;
 
 typedef struct {
-	STACK_OF(ManifestRef) *mftrefs;
+	ASN1_OCTET_STRING *hash;
+	ASN1_INTEGER *size;
+	ASN1_OCTET_STRING *aki;
+	ASN1_INTEGER *manifestNumber;
+	ASN1_GENERALIZEDTIME *thisUpdate;
+	STACK_OF(ACCESS_DESCRIPTION) *locations;
+	STACK_OF(ASN1_OCTET_STRING) *subordinates;
+} ManifestInstance;
+
+DECLARE_STACK_OF(ManifestInstance);
+
+#ifndef DEFINE_STACK_OF
+#define sk_ASN1_OCTET_STRING_new(cmp) SKM_sk_new(ASN1_OCTET_STRING, (cmp))
+#define sk_ASN1_OCTET_STRING_push(st, i) SKM_sk_push(ASN1_OCTET_STRING, (st), (i))
+#define sk_ASN1_OCTET_STRING_sort(sk) SKM_sk_sort(ASN1_OCTET_STRING, (sk))
+#define sk_ASN1_OCTET_STRING_set_cmp_func(sk, cmp) \
+    SKM_sk_set_cmp_func(ASN1_OCTET_STRING, (sk), (cmp))
+
+#define sk_ManifestInstance_num(st) SKM_sk_num(ManifestInstance, (st))
+#define sk_ManifestInstance_push(st, i) SKM_sk_push(ManifestInstance, (st), (i))
+#define sk_ManifestInstance_value(st, i) SKM_sk_value(ManifestInstance, (st), (i))
+#endif
+
+DECLARE_ASN1_FUNCTIONS(ManifestInstance);
+
+typedef STACK_OF(ManifestInstance) ManifestInstances;
+
+DECLARE_ASN1_FUNCTIONS(ManifestInstances);
+
+typedef struct {
+	STACK_OF(ManifestInstance) *mis;
 	ASN1_GENERALIZEDTIME *mostRecentUpdate;
 	ASN1_OCTET_STRING *hash;
 } ManifestState;
