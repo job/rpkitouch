@@ -103,11 +103,15 @@ extern ASN1_ITEM_EXP ManifestInstance_it;
 
 DECLARE_STACK_OF(ASN1_OCTET_STRING);
 
+#ifndef DEFINE_STACK_OF
 #define sk_ASN1_OCTET_STRING_new(cmp) SKM_sk_new(ASN1_OCTET_STRING, (cmp))
 #define sk_ASN1_OCTET_STRING_push(st, i) SKM_sk_push(ASN1_OCTET_STRING, (st), (i))
 #define sk_ASN1_OCTET_STRING_sort(sk) SKM_sk_sort(ASN1_OCTET_STRING, (sk))
 #define sk_ASN1_OCTET_STRING_set_cmp_func(sk, cmp) \
     SKM_sk_set_cmp_func(ASN1_OCTET_STRING, (sk), (cmp))
+#endif
+
+DECLARE_ASN1_FUNCTIONS(ASN1_OCTET_STRING);
 
 DECLARE_ASN1_FUNCTIONS(ASN1_OCTET_STRING);
 
