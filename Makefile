@@ -45,7 +45,7 @@ test: $(PROG)
 	diff tests/outcome-print-mft.txt tests/expected_outcome-print-mft.txt
 	mkdir -p tests/e
 	./rpkitouch -C -v -d tests/e tests/erik.ccr
-	find tests/e -type f | xargs ls -rl | awk '{ print $$5, $$6, $$7, $$8, $$9 }' | sort -f | tee tests/outcome-erik.txt
+	find tests/e -type f | xargs ls -rl | awk '{ print $$5, $$6, $$7, $$8, $$9 }' | sort -k 5 -f | tee tests/outcome-erik.txt
 	diff tests/outcome-erik.txt tests/expected-outcome-erik.txt
 	mkdir -p tests/a
 	./rpkitouch -R tests/a/output.ccr tests/erik.ccr tests/test.ccr
