@@ -19,6 +19,7 @@
 #define RPKITOUCH_ASN1_H
 
 #include <openssl/asn1t.h>
+#include <openssl/stack.h>
 #include <openssl/safestack.h>
 
 #ifndef DECLARE_STACK_OF
@@ -107,6 +108,8 @@ DECLARE_STACK_OF(ASN1_OCTET_STRING);
 #define sk_ASN1_OCTET_STRING_sort(sk) SKM_sk_sort(ASN1_OCTET_STRING, (sk))
 #define sk_ASN1_OCTET_STRING_set_cmp_func(sk, cmp) \
     SKM_sk_set_cmp_func(ASN1_OCTET_STRING, (sk), (cmp))
+
+DECLARE_ASN1_FUNCTIONS(ASN1_OCTET_STRING);
 
 typedef struct {
 	ASN1_OCTET_STRING *hash;
