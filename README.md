@@ -8,6 +8,7 @@ RPKITOUCH(8) - System Manager's Manual
 
 **rpkitouch**
 \[**-n**]
+\[**-H**&nbsp;*fqdn*]
 **-c**&nbsp;*ccr\_file*  
 **rpkitouch**
 \[**-n**]
@@ -16,6 +17,7 @@ RPKITOUCH(8) - System Manager's Manual
 **rpkitouch**
 \[**-CnpVv**]
 \[**-d**&nbsp;*directory*]
+\[**-H**&nbsp;*fqdn*]
 *file&nbsp;...*
 
 # DESCRIPTION
@@ -118,6 +120,15 @@ The options are as follows:
 > To improve performance, existing files are only overwritten if the size or
 > last modification timestamp differ.
 
+**-H** *fqdn*
+
+> Only emit ManifestRefs within the scope of
+> *fqdn*.
+> Can only be combined with
+> **-C**
+> and
+> **-c**.
+
 **-h**
 
 > Display usage.
@@ -196,7 +207,8 @@ with the Base64 encoded SHA-256 message digest as its target file name.
 
 # SETTING UP AN ERIK RELAY
 
-An Erik relay worker job could be summarised as the following sequence of shell commands:
+An Erik relay worker job could be summarised as the following sequence of shell
+commands:
 
 	#!/bin/sh
 	set -ev
@@ -250,4 +262,4 @@ https://datatracker.ietf.org/doc/html/draft-spaghetti-sidrops-rpki-erik-protocol
 
 Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
 
-OpenBSD 7.8 - September 27, 2025 - RPKITOUCH(8)
+OpenBSD 7.8 - November 7, 2025 - RPKITOUCH(8)

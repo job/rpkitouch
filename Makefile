@@ -1,5 +1,6 @@
 PROG=	rpkitouch
-SRCS=	main.c parser.c asn1.c mkdir.c mktemp.c util.c
+RC_INT= parser.c asn1.c mkdir.c mktemp.c util.c
+SRCS=	main.c $(RC_INT)
 MAN=	rpkitouch.8
 
 LDADD+= -lc -lcrypto
