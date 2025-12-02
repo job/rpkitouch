@@ -253,13 +253,13 @@ A simple webserver configuration for an Erik relay would then look like:
 [RFC 9589](http://www.rfc-editor.org/rfc/rfc9589.html).
 
 *A Profile for RPKI Canonical Cache Representation*,
-https://datatracker.ietf.org/doc/html/draft-spaghetti-sidrops-rpki-ccr.
+https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-rpki-ccr.
 
 *The Erik Synchronization Protocol for use with the RPKI*,
-https://datatracker.ietf.org/doc/html/draft-spaghetti-sidrops-rpki-erik-protocol.
+https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-rpki-erik-protocol.
 
 # AUTHORS
 
 Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
 
-OpenBSD 7.8 - November 7, 2025 - RPKITOUCH(8)
+OpenBSD 7.8 - December 2, 2025 - RPKITOUCH(8)
