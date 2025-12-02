@@ -92,7 +92,6 @@ ASN1_SEQUENCE(ErikIndex) = {
 IMPLEMENT_ASN1_FUNCTIONS(ErikIndex);
 
 ASN1_SEQUENCE(PartitionRef) = {
-	ASN1_SIMPLE(PartitionRef, identifier, ASN1_INTEGER),
 	ASN1_SIMPLE(PartitionRef, hash, ASN1_OCTET_STRING),
 	ASN1_SIMPLE(PartitionRef, size, ASN1_INTEGER),
 } ASN1_SEQUENCE_END(PartitionRef);
@@ -451,7 +450,7 @@ finalize_ErikIndex(ErikIndex *ei, char *fqdn, time_t itime)
 }
 
 static PartitionRef *
-finalize_ErikPartition(ErikPartition *ep, char *fqdn, int part_id, time_t ptime)
+finalize_ErikPartition(ErikPartition *ep, char *fqdn, int num, time_t ptime)
 {
 	unsigned char *ep_der;
 	int ep_der_len;
@@ -493,16 +492,13 @@ finalize_ErikPartition(ErikPartition *ep, char *fqdn, int part_id, time_t ptime)
 
 	f->signtime = ptime;
 
-	if (asprintf(&f->name, "erik partition: %s#%d", fqdn, part_id) == -1)
+	if (asprintf(&f->name, "erik partition: %s#%d", fqdn, num) == -1)
 		err(1, "asprintf");
 
 	store_by_hash(f);
 
 	if ((pr = PartitionRef_new()) == NULL)
 		errx(1, "PartitionRef_new");
-
-	if (!ASN1_INTEGER_set_uint64(pr->identifier, part_id))
-		errx(1, "ASN1_INTEGER_set_uint64");
 
 	if (!ASN1_OCTET_STRING_set(pr->hash, f->hash, sizeof(f->hash)))
 		errx(1, "ASN1_OCTET_STRING_set");
@@ -525,7 +521,7 @@ generate_erik_objects(struct mftinstance **mis, int count, char *single_fqdn)
 	PartitionRef *pr = NULL;
 	ManifestRef *mr = NULL;
 	time_t itime = 0, ptime = 0;
-	int i, part_id = 0;
+	int i, num;
 
 	prev_fqdn = prev_aki = NULL;
 	for (i = 0; i < count; i++) {
@@ -543,15 +539,15 @@ generate_erik_objects(struct mftinstance **mis, int count, char *single_fqdn)
 
 			ei = start_ErikIndex(mi->fqdn);
 			itime = 0;
-			part_id = 0;
 
 			ep = start_ErikPartition();
 			ptime = 0;
 		}
 
 		if (strcmp(prev_fqdn, mi->fqdn) != 0) {
-			pr = finalize_ErikPartition(ep, prev_fqdn, part_id,
-			    ptime);
+			num = sk_PartitionRef_num(ei->partitionList) + 1;
+
+			pr = finalize_ErikPartition(ep, prev_fqdn, num, ptime);
 
 			if (sk_PartitionRef_push(ei->partitionList, pr) <= 0)
 				errx(1, "sk_PartitionRef_push");
@@ -560,20 +556,19 @@ generate_erik_objects(struct mftinstance **mis, int count, char *single_fqdn)
 
 			ei = start_ErikIndex(mi->fqdn);
 			itime = 0;
-			part_id = 0;
 
 			ep = start_ErikPartition();
 			ptime = 0;
 		} else if (strncmp(prev_aki, mi->aki, 2) != 0) {
-			pr = finalize_ErikPartition(ep, prev_fqdn, part_id,
-			    ptime);
+			num = sk_PartitionRef_num(ei->partitionList) + 1;
+
+			pr = finalize_ErikPartition(ep, prev_fqdn, num, ptime);
 
 			if (sk_PartitionRef_push(ei->partitionList, pr) <= 0)
 				errx(1, "sk_PartitionRef_push");
 
 			ep = start_ErikPartition();
 			ptime = 0;
-			part_id++;
 		}
 
 		if (sk_ManifestRef_push(ep->manifestList, mr) <= 0)
@@ -592,7 +587,8 @@ generate_erik_objects(struct mftinstance **mis, int count, char *single_fqdn)
 	if (prev_fqdn == NULL)
 		return;
 
-	pr = finalize_ErikPartition(ep, prev_fqdn, part_id, ptime);
+	num = sk_PartitionRef_num(ei->partitionList) + 1;
+	pr = finalize_ErikPartition(ep, prev_fqdn, num, ptime);
 	if (sk_PartitionRef_push(ei->partitionList, pr) <= 0)
 		errx(1, "sk_PartitionRef_push");
 	finalize_ErikIndex(ei, mi->fqdn, itime);

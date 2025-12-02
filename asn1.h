@@ -47,7 +47,6 @@ typedef struct {
 DECLARE_ASN1_FUNCTIONS(ErikIndex);
 
 typedef struct {
-	ASN1_INTEGER *identifier;
 	ASN1_OCTET_STRING *hash;
 	ASN1_INTEGER *size;
 } PartitionRef;
@@ -55,6 +54,7 @@ typedef struct {
 DECLARE_STACK_OF(PartitionRef);
 
 #ifndef DEFINE_STACK_OF
+#define sk_PartitionRef_num(st) SKM_sk_num(PartitionRef, (st))
 #define sk_PartitionRef_push(st, i) SKM_sk_push(PartitionRef, (st), (i))
 #endif
 
