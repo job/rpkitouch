@@ -74,11 +74,11 @@ setup_oids(void) {
 	if ((manifest_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.26", 1))
 	    == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "manifest_oid");
-	if ((ccr_oid = OBJ_txt2obj("1.3.6.1.4.1.41948.828", 1)) == NULL)
+	if ((ccr_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.54", 1)) == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "ccr_oid");
-	if ((idx_oid = OBJ_txt2obj("1.3.6.1.4.1.41948.826", 1)) == NULL)
+	if ((idx_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.55", 1)) == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "idx_oid");
-	if ((par_oid = OBJ_txt2obj("1.3.6.1.4.1.41948.827", 1)) == NULL)
+	if ((par_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.56", 1)) == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "par_oid");
 }
 
