@@ -699,16 +699,15 @@ struct ccr *
 parse_ccr(struct file *f)
 {
 	const unsigned char *oder, *der;
-	EncapContentInfo *ci = NULL;
-	CanonicalCacheRepresentation *ccr_asn1 = NULL;
-	long len;
+	CCR_ContentInfo *ci = NULL;
+	CanonicalCacheRepresentation *ccr_asn1;
 	struct ccr *ccr = NULL;
 	struct mftinstance **mis= NULL;
 	int i, rc = 0;
 
 	oder = der = f->content;
-	if ((ci = d2i_EncapContentInfo(NULL, &der, f->content_len)) == NULL) {
-		warnx("%s: d2i_EncapContentInfo failed", f->name);
+	if ((ci = d2i_CCR_ContentInfo(NULL, &der, f->content_len)) == NULL) {
+		warnx("%s: d2i_CCR_ContentInfo failed", f->name);
 		goto out;
 	}
 	if (der != oder + f->content_len) {
@@ -721,24 +720,12 @@ parse_ccr(struct file *f)
 		char buf[128];
 
 		OBJ_obj2txt(buf, sizeof(buf), ci->contentType, 1);
-		warnx("%s: unexpected OID: got %s, want 1.3.6.1.4.1.41948.828",
+		warnx("%s: unexpected OID: got %s, want 1.2.840.113549.1.9.16.1.54",
 		    f->name, buf);
 		goto out;
 	}
 
-	der = ASN1_STRING_get0_data(ci->content);
-	len = ASN1_STRING_length(ci->content);
-
-	oder = der;
-	ccr_asn1 = d2i_CanonicalCacheRepresentation(NULL, &der, len);
-	if (ccr_asn1 == NULL) {
-		warnx("%s: d2i_CanonicalCacheRepresentation failed", f->name);
-		goto out;
-	}
-	if (der != oder + len) {
-		warnx("%s: %td bytes trailing garbage", f->name, oder + len - der);
-		goto out;
-	}
+	ccr_asn1 = ci->content;
 
 	if ((ccr = calloc(1, sizeof(*ccr))) == NULL)
 		err(1, NULL);
@@ -823,8 +810,7 @@ parse_ccr(struct file *f)
 		ccr_free(ccr);
 		ccr = NULL;
 	}
-	EncapContentInfo_free(ci);
-	CanonicalCacheRepresentation_free(ccr_asn1);
+	CCR_ContentInfo_free(ci);
 
 	return ccr;
 }

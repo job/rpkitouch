@@ -28,9 +28,11 @@
 
 /*
  * Erik protocol elements
- * reference: draft-ietf-sidrops-rpki-erik-protocol-01
+ * reference: draft-ietf-sidrops-rpki-erik-protocol-02
  */
 
+extern ASN1_ITEM_EXP EI_ContentInfo_it;
+extern ASN1_ITEM_EXP EP_ContentInfo_it;
 extern ASN1_ITEM_EXP ErikIndex_it;
 extern ASN1_ITEM_EXP PartitionRef_it;
 extern ASN1_ITEM_EXP ErikPartition_it;
@@ -40,11 +42,18 @@ typedef struct {
 	ASN1_INTEGER *version;
 	ASN1_IA5STRING *indexScope;
 	ASN1_GENERALIZEDTIME *indexTime;
-	ASN1_OBJECT *hashAlg;
+	X509_ALGOR *hashAlg;
 	STACK_OF(PartitionRef) *partitionList;
 } ErikIndex;
 
 DECLARE_ASN1_FUNCTIONS(ErikIndex);
+
+typedef struct {
+	ASN1_OBJECT *contentType;
+	ErikIndex *content;
+} EI_ContentInfo;
+
+DECLARE_ASN1_FUNCTIONS(EI_ContentInfo);
 
 typedef struct {
 	ASN1_OCTET_STRING *hash;
@@ -63,11 +72,18 @@ DECLARE_ASN1_FUNCTIONS(PartitionRef);
 typedef struct {
 	ASN1_INTEGER *version;
 	ASN1_GENERALIZEDTIME *partitionTime;
-	ASN1_OBJECT *hashAlg;
+	X509_ALGOR *hashAlg;
 	STACK_OF(ManifestRef) *manifestList;
 } ErikPartition;
 
 DECLARE_ASN1_FUNCTIONS(ErikPartition);
+
+typedef struct {
+	ASN1_OBJECT *contentType;
+	ErikPartition *content;
+} EP_ContentInfo;
+
+DECLARE_ASN1_FUNCTIONS(EP_ContentInfo);
 
 typedef struct {
 	ASN1_OCTET_STRING *hash;
@@ -94,10 +110,10 @@ DECLARE_ASN1_FUNCTIONS(ManifestRefs);
 
 /*
  * Canonical Cache Representation (CCR)
- * reference: draft-ietf-sidrops-rpki-ccr-01
+ * reference: draft-ietf-sidrops-rpki-ccr-02
  */
 
-extern ASN1_ITEM_EXP EncapContentInfo_it;
+extern ASN1_ITEM_EXP CCR_ContentInfo_it;
 extern ASN1_ITEM_EXP CanonicalCacheRepresentation_it;
 extern ASN1_ITEM_EXP ManifestInstance_it;
 
@@ -149,7 +165,7 @@ DECLARE_ASN1_FUNCTIONS(ManifestState);
 
 typedef struct {
 	ASN1_INTEGER *version;
-	ASN1_OBJECT *hashAlg;
+	X509_ALGOR *hashAlg;
 	ASN1_GENERALIZEDTIME *producedAt;
 	ManifestState *mfts;
 	ASN1_SEQUENCE_ANY *vrps;
@@ -162,10 +178,10 @@ DECLARE_ASN1_FUNCTIONS(CanonicalCacheRepresentation);
 
 typedef struct {
 	ASN1_OBJECT *contentType;
-	ASN1_OCTET_STRING *content;
-} EncapContentInfo;
+	CanonicalCacheRepresentation *content;
+} CCR_ContentInfo;
 
-DECLARE_ASN1_FUNCTIONS(EncapContentInfo);
+DECLARE_ASN1_FUNCTIONS(CCR_ContentInfo);
 
 /*
  * RPKI Manifest

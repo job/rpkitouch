@@ -31,7 +31,9 @@
 #include "asn1.h"
 #include "extern.h"
 
-ASN1_ITEM_EXP EncapContentInfo_it;
+ASN1_ITEM_EXP CCR_ContentInfo_it;
+ASN1_ITEM_EXP EI_ContentInfo_it;
+ASN1_ITEM_EXP EP_ContentInfo_it;
 ASN1_ITEM_EXP CanonicalCacheRepresentation_it;
 ASN1_ITEM_EXP ErikIndex_it;
 ASN1_ITEM_EXP PartitionRef_it;
@@ -40,16 +42,30 @@ ASN1_ITEM_EXP ManifestRef_it;
 ASN1_ITEM_EXP ManifestInstance_it;
 ASN1_ITEM_EXP ManifestInstances_it;
 
-ASN1_SEQUENCE(EncapContentInfo) = {
-	ASN1_SIMPLE(EncapContentInfo, contentType, ASN1_OBJECT),
-	ASN1_EXP(EncapContentInfo, content, ASN1_OCTET_STRING, 0),
-} ASN1_SEQUENCE_END(EncapContentInfo);
+ASN1_SEQUENCE(CCR_ContentInfo) = {
+	ASN1_SIMPLE(CCR_ContentInfo, contentType, ASN1_OBJECT),
+	ASN1_EXP(CCR_ContentInfo, content, CanonicalCacheRepresentation, 0),
+} ASN1_SEQUENCE_END(CCR_ContentInfo);
 
-IMPLEMENT_ASN1_FUNCTIONS(EncapContentInfo);
+IMPLEMENT_ASN1_FUNCTIONS(CCR_ContentInfo);
+
+ASN1_SEQUENCE(EI_ContentInfo) = {
+	ASN1_SIMPLE(EI_ContentInfo, contentType, ASN1_OBJECT),
+	ASN1_EXP(EI_ContentInfo, content, ErikIndex, 0),
+} ASN1_SEQUENCE_END(EI_ContentInfo);
+
+IMPLEMENT_ASN1_FUNCTIONS(EI_ContentInfo);
+
+ASN1_SEQUENCE(EP_ContentInfo) = {
+	ASN1_SIMPLE(EP_ContentInfo, contentType, ASN1_OBJECT),
+	ASN1_EXP(EP_ContentInfo, content, ErikPartition, 0),
+} ASN1_SEQUENCE_END(EP_ContentInfo);
+
+IMPLEMENT_ASN1_FUNCTIONS(EP_ContentInfo);
 
 ASN1_SEQUENCE(CanonicalCacheRepresentation) = {
 	ASN1_EXP_OPT(CanonicalCacheRepresentation, version, ASN1_INTEGER, 0),
-	ASN1_SIMPLE(CanonicalCacheRepresentation, hashAlg, ASN1_OBJECT),
+	ASN1_SIMPLE(CanonicalCacheRepresentation, hashAlg, X509_ALGOR),
 	ASN1_SIMPLE(CanonicalCacheRepresentation, producedAt,
 	    ASN1_GENERALIZEDTIME),
 	ASN1_EXP_OPT(CanonicalCacheRepresentation, mfts, ManifestState, 1),
@@ -85,7 +101,7 @@ ASN1_SEQUENCE(ErikIndex) = {
 	ASN1_EXP_OPT(ErikIndex, version, ASN1_INTEGER, 0),
 	ASN1_SIMPLE(ErikIndex, indexScope, ASN1_IA5STRING),
 	ASN1_SIMPLE(ErikIndex, indexTime, ASN1_GENERALIZEDTIME),
-	ASN1_SIMPLE(ErikIndex, hashAlg, ASN1_OBJECT),
+	ASN1_SIMPLE(ErikIndex, hashAlg, X509_ALGOR),
 	ASN1_SEQUENCE_OF(ErikIndex, partitionList, PartitionRef),
 } ASN1_SEQUENCE_END(ErikIndex);
 
@@ -101,7 +117,7 @@ IMPLEMENT_ASN1_FUNCTIONS(PartitionRef);
 ASN1_SEQUENCE(ErikPartition) = {
 	ASN1_EXP_OPT(ErikPartition, version, ASN1_INTEGER, 0),
 	ASN1_SIMPLE(ErikPartition, partitionTime, ASN1_GENERALIZEDTIME),
-	ASN1_SIMPLE(ErikPartition, hashAlg, ASN1_OBJECT),
+	ASN1_SIMPLE(ErikPartition, hashAlg, X509_ALGOR),
 	ASN1_SEQUENCE_OF(ErikPartition, manifestList, ManifestRef),
 } ASN1_SEQUENCE_END(ErikPartition);
 
@@ -324,6 +340,7 @@ static ErikIndex *
 start_ErikIndex(const char *fqdn)
 {
 	ErikIndex *ei;
+	ASN1_OBJECT *oid;
 
 	if ((ei = ErikIndex_new()) == NULL)
 		errx(1, "ErikIndex_new");
@@ -331,9 +348,11 @@ start_ErikIndex(const char *fqdn)
 	if (!ASN1_STRING_set(ei->indexScope, fqdn, -1))
 		errx(1, "ASN1_STRING_set");
 
-	ASN1_OBJECT_free(ei->hashAlg);
-	if ((ei->hashAlg = OBJ_nid2obj(NID_sha256)) == NULL)
+	if ((oid = OBJ_nid2obj(NID_sha256)) == NULL)
 		errx(1, "OBJ_nid2obj");
+
+	if (!X509_ALGOR_set0(ei->hashAlg, oid, V_ASN1_UNDEF, NULL))
+		errx(1, "X509_ALGOR_set0");
 
 	return ei;
 }
@@ -342,13 +361,16 @@ static ErikPartition *
 start_ErikPartition(void)
 {
 	ErikPartition *ep;
+	ASN1_OBJECT *oid;
 
 	if ((ep = ErikPartition_new()) == NULL)
 		errx(1, "ErikPartition_new");
 
-	ASN1_OBJECT_free(ep->hashAlg);
-	if ((ep->hashAlg = OBJ_nid2obj(NID_sha256)) == NULL)
+	if ((oid = OBJ_nid2obj(NID_sha256)) == NULL)
 		errx(1, "OBJ_nid2obj");
+
+	if (!X509_ALGOR_set0(ep->hashAlg, oid, V_ASN1_UNDEF, NULL))
+		errx(1, "X509_ALGOR_set0");
 
 	return ep;
 }
@@ -400,40 +422,30 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 static void
 finalize_ErikIndex(ErikIndex *ei, char *fqdn, time_t itime)
 {
-	unsigned char *ei_der;
-	int ei_der_len;
-	EncapContentInfo *ci = NULL;
+	EI_ContentInfo *ci = NULL;
 	struct file *f;
 
 	if (ASN1_GENERALIZEDTIME_set(ei->indexTime, itime) == NULL)
 		errx(1, "ASN1_GENERALIZEDTIME_set");
 
-	ei_der = NULL;
-	if ((ei_der_len = i2d_ErikIndex(ei, &ei_der)) <= 0)
-		errx(1, "i2d_ErikIndex");
-
-	ErikIndex_free(ei);
-
-	if ((ci = EncapContentInfo_new()) == NULL)
-		errx(1, "EncapContentInfo_new");
+	if ((ci = EI_ContentInfo_new()) == NULL)
+		errx(1, "EI_ContentInfo_new");
 
 	ASN1_OBJECT_free(ci->contentType);
 	if ((ci->contentType = OBJ_dup(idx_oid)) == NULL)
 		errx(1, "OBJ_dup");
 
-	if (!ASN1_OCTET_STRING_set(ci->content, ei_der, ei_der_len))
-		errx(1, "ASN1_OCTET_STRING_set");
-
-	free(ei_der);
+	ErikIndex_free(ci->content);
+	ci->content = ei;
 
 	if ((f = calloc(1, sizeof(*f))) == NULL)
 		err(1, NULL);
 
 	f->content = NULL;
-	if ((f->content_len = i2d_EncapContentInfo(ci, &f->content)) <= 0)
-		errx(1, "i2d_EncapContentInfo");
+	if ((f->content_len = i2d_EI_ContentInfo(ci, &f->content)) <= 0)
+		errx(1, "i2d_EI_ContentInfo");
 
-	EncapContentInfo_free(ci);
+	EI_ContentInfo_free(ci);
 
 	SHA256(f->content, f->content_len, f->hash);
 
@@ -452,41 +464,31 @@ finalize_ErikIndex(ErikIndex *ei, char *fqdn, time_t itime)
 static PartitionRef *
 finalize_ErikPartition(ErikPartition *ep, char *fqdn, int num, time_t ptime)
 {
-	unsigned char *ep_der;
-	int ep_der_len;
-	EncapContentInfo *ci = NULL;
+	EP_ContentInfo *ci = NULL;
 	PartitionRef *pr = NULL;
 	struct file *f;
 
 	if (ASN1_GENERALIZEDTIME_set(ep->partitionTime, ptime) == NULL)
 		errx(1, "ASN1_GENERALIZEDTIME_set");
 
-	ep_der = NULL;
-	if ((ep_der_len = i2d_ErikPartition(ep, &ep_der)) <= 0)
-		errx(1, "i2d_ErikPartition");
-
-	ErikPartition_free(ep);
-
-	if ((ci = EncapContentInfo_new()) == NULL)
-		errx(1, "EncapContentInfo_new");
+	if ((ci = EP_ContentInfo_new()) == NULL)
+		errx(1, "EP_ContentInfo_new");
 
 	ASN1_OBJECT_free(ci->contentType);
 	if ((ci->contentType = OBJ_dup(par_oid)) == NULL)
 		errx(1, "OBJ_dup");
 
-	if (!ASN1_OCTET_STRING_set(ci->content, ep_der, ep_der_len))
-		errx(1, "ASN1_OCTET_STRING_set");
-
-	free(ep_der);
+	ErikPartition_free(ci->content);
+	ci->content = ep;
 
 	if ((f = calloc(1, sizeof(*f))) == NULL)
 		err(1, NULL);
 
 	f->content = NULL;
-	if ((f->content_len = i2d_EncapContentInfo(ci, &f->content)) <= 0)
-		errx(1, "i2d_EncapContentInfo");
+	if ((f->content_len = i2d_EP_ContentInfo(ci, &f->content)) <= 0)
+		errx(1, "i2d_EP_ContentInfo");
 
-	EncapContentInfo_free(ci);
+	EP_ContentInfo_free(ci);
 
 	SHA256(f->content, f->content_len, f->hash);
 
@@ -664,9 +666,8 @@ generate_reduced_ccr(struct mftinstance **mis, int count)
 	ManifestInstance *asn1_mi = NULL;
 	time_t mostrecent = 0;
 	CanonicalCacheRepresentation *ccr = NULL;
-	unsigned char *ccr_der;
-	int ccr_der_len;
-	EncapContentInfo *ci = NULL;
+	ASN1_OBJECT *oid;
+	CCR_ContentInfo *ci = NULL;
 	struct file *f;
 	int i;
 
@@ -699,42 +700,36 @@ generate_reduced_ccr(struct mftinstance **mis, int count)
 	if ((ccr = CanonicalCacheRepresentation_new()) == NULL)
 		errx(1, "CanonicalCacheRepresentation_new");
 
-	ASN1_OBJECT_free(ccr->hashAlg);
-	if ((ccr->hashAlg = OBJ_nid2obj(NID_sha256)) == NULL)
+	if ((oid = OBJ_nid2obj(NID_sha256)) == NULL)
 		errx(1, "OBJ_nid2obj");
+
+	if (!X509_ALGOR_set0(ccr->hashAlg, oid, V_ASN1_UNDEF, NULL))
+		errx(1, "X509_ALGOR_set0");
 
 	if (ASN1_GENERALIZEDTIME_set(ccr->producedAt, time(NULL)) == NULL)
 		errx(1, "ASN1_GENERALIZEDTIME_set");
 
 	ccr->mfts = ms;
 
-	ccr_der = NULL;
-	if ((ccr_der_len = i2d_CanonicalCacheRepresentation(ccr, &ccr_der)) <= 0)
-		errx(1, "i2d_CanonicalCacheRepresentation");
-
-	CanonicalCacheRepresentation_free(ccr);
-
-	if ((ci = EncapContentInfo_new()) == NULL)
-		errx(1, "EncapContentInfo_new");
+	if ((ci = CCR_ContentInfo_new()) == NULL)
+		errx(1, "CCR_ContentInfo_new");
 
 	ASN1_OBJECT_free(ci->contentType);
 	if ((ci->contentType = OBJ_dup(ccr_oid)) == NULL)
 		errx(1, "OBJ_dup");
 
-	if (!ASN1_OCTET_STRING_set(ci->content, ccr_der, ccr_der_len))
-		errx(1, "ASN1_OCTET_STRING_set");
-
-	free(ccr_der);
+	CanonicalCacheRepresentation_free(ci->content);
+	ci->content = ccr;
 
 	if ((f = calloc(1, sizeof(*f))) == NULL)
 		err(1, NULL);
 
 	f->name = NULL;
 	f->content = NULL;
-	if ((f->content_len = i2d_EncapContentInfo(ci, &f->content)) <= 0)
-		errx(1, "i2d_EncapContentInfo");
+	if ((f->content_len = i2d_CCR_ContentInfo(ci, &f->content)) <= 0)
+		errx(1, "i2d_CCR_ContentInfo");
 
-	EncapContentInfo_free(ci);
+	CCR_ContentInfo_free(ci);
 
 	return f;
 }
