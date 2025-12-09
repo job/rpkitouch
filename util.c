@@ -150,9 +150,13 @@ store_by_hash(struct file *f)
 	if (!b64uri_encode(f->hash, SHA256_DIGEST_LENGTH, &b))
 		err(1, "b64uri_encode");
 
-	/* 3 levels of directory-based sharding */
-	if (asprintf(&dir, "static/%c%c/%c%c/%c%c", b[0], b[1], b[2], b[3],
-	    b[4], b[5]) == -1)
+	/*
+	 * Two levels of directory-based sharding.
+	 * The last few byte of the hash are used as directory path to
+	 * increase prefix diversity.
+	 */
+	if (asprintf(&dir, "static/%c%c/%c%c", b[39], b[40], b[41], b[42])
+	    == -1)
 		err(1, NULL);
 
 	if (!noop) {

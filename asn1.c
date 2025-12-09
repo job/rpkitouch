@@ -389,9 +389,8 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 	if (!b64uri_encode(hash, SHA256_DIGEST_LENGTH, &hash_fn))
 		err(1, "b64uri_encode");
 
-	if (asprintf(&hash_path, "static/%c%c/%c%c/%c%c/%s", hash_fn[0],
-	    hash_fn[1], hash_fn[2], hash_fn[3], hash_fn[4], hash_fn[5],
-	    hash_fn) == -1)
+	if (asprintf(&hash_path, "static/%c%c/%c%c/%s", hash_fn[39],
+	    hash_fn[40], hash_fn[41], hash_fn[42], hash_fn) == -1)
 		err(1, NULL);
 
 	if (asprintf(&fqdn_fn, "erik/index/%s", fqdn) == -1)
