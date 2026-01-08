@@ -35,10 +35,10 @@ TEST_FILES += 9X0AhXWTJDl8lJhfOwvnac-42CA.spl
 test: $(PROG)
 	cd tests && touch $(TEST_FILES)
 	cd tests && ../rpkitouch -v $(TEST_FILES)
-	cd tests && perl -le 'print((stat $$_)[9] . " " . (stat $$_)[7]. " $$_") for @ARGV' $(TEST_FILES) | sort -n | tee outcome.txt
+	cd tests && perl -le 'print((stat $$_)[9] . " " . (stat $$_)[7]. " $$_") for @ARGV' $(TEST_FILES) | LC_ALL=C sort -n | tee outcome.txt
 	mkdir -p tests/c
 	cd tests && find $(TEST_FILES) | xargs ../rpkitouch -v -d ./c
-	find tests/c -type f | sort -f | tee -a tests/outcome.txt
+	find tests/c -type f | LC_ALL=C sort -f | tee -a tests/outcome.txt
 	diff tests/outcome.txt tests/expected_outcome.txt
 	./rpkitouch -c tests/test.ccr | tee tests/outcome-ccr.txt
 	diff tests/outcome-ccr.txt tests/expected_outcome-ccr.txt
@@ -46,7 +46,7 @@ test: $(PROG)
 	diff tests/outcome-print-mft.txt tests/expected_outcome-print-mft.txt
 	mkdir -p tests/e
 	./rpkitouch -C -v -d tests/e tests/erik.ccr
-	find tests/e -type f | xargs perl -le 'print((stat $$_)[9] . " " . (stat $$_)[7]. " $$_") for @ARGV' | sort -n | tee tests/outcome-erik.txt
+	find tests/e -type f | xargs perl -le 'print((stat $$_)[9] . " " . (stat $$_)[7]. " $$_") for @ARGV' | LC_ALL=C sort -k3 | tee tests/outcome-erik.txt
 	diff tests/outcome-erik.txt tests/expected-outcome-erik.txt
 	mkdir -p tests/a
 	./rpkitouch -R tests/a/output.ccr tests/erik.ccr tests/test.ccr
