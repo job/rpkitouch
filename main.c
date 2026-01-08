@@ -339,7 +339,8 @@ main(int argc, char *argv[])
 				    strlen(single_fqdn)) != 0)
 					continue;
 			}
-			printf("%s %s\n", ccr->mis[i]->hash, ccr->mis[i]->sia);
+			printf("%s %s\n", ccr->mis[i]->hash,
+			    ccr->mis[i]->sia + RSYNC_PROTO_LEN);
 		}
 
 		file_free(f);
@@ -378,7 +379,7 @@ main(int argc, char *argv[])
 					printf("%s/%s\n", mft->sia_dirname,
 					    mft->files[i].fn);
 				}
-				printf("%s\n", mft->sia);
+				printf("%s\n", mft->sia + RSYNC_PROTO_LEN);
 			}
 		}
 

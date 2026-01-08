@@ -109,15 +109,15 @@ Files may not contain trailing data beyond the internal length markers.
 The options are as follows:
 .Bl -tag -width Ds
 .It Fl C
-Compare and deduplicate ManifestRefs contained with the specified CCR
+Compare and deduplicate ManifestInstances contained with the specified CCR
 file(s).
 If
 .Fl d
 is specified, generate and store Erik Synchronisation objects in
 .Ar directory .
 .It Fl c Ar ccr_file
-Print the SHA-256 message digest and SIA field values of the ManifestRefs
-contained within
+Print the SHA-256 message digest and SIA field values (without the scheme) of
+the ManifestInstances contained within
 .Ar ccr_file .
 .It Fl d Ar directory
 SHA-256 message digests are calculated for all objects and their content is
@@ -127,7 +127,7 @@ using a content-addressable file naming scheme.
 To improve performance, existing files are only overwritten if the size or
 last modification timestamp differ.
 .It Fl H Ar fqdn
-Only emit ManifestRefs within the scope of
+Only emit ManifestInstances within the scope of
 .Ar fqdn .
 Can only be combined with
 .Fl C
@@ -152,7 +152,7 @@ in a Manifest's payload, followed by the Manifest's own filename.
 Output a reduced CCR in
 .Ar out_ccr
 by removing all states except the ManifestState, and comparing and deduplicating
-ManifestRefs in the specified CCR file(s).
+ManifestInstances in the specified CCR file(s).
 .It Fl V
 Display the version number and exit.
 .It Fl v

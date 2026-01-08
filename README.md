@@ -98,7 +98,7 @@ The options are as follows:
 
 **-C**
 
-> Compare and deduplicate ManifestRefs contained with the specified CCR
+> Compare and deduplicate ManifestInstances contained with the specified CCR
 > file(s).
 > If
 > **-d**
@@ -107,8 +107,8 @@ The options are as follows:
 
 **-c** *ccr\_file*
 
-> Print the SHA-256 message digest and SIA field values of the ManifestRefs
-> contained within
+> Print the SHA-256 message digest and SIA field values (without the scheme) of
+> the ManifestInstances contained within
 > *ccr\_file*.
 
 **-d** *directory*
@@ -122,7 +122,7 @@ The options are as follows:
 
 **-H** *fqdn*
 
-> Only emit ManifestRefs within the scope of
+> Only emit ManifestInstances within the scope of
 > *fqdn*.
 > Can only be combined with
 > **-C**
@@ -155,7 +155,7 @@ The options are as follows:
 > Output a reduced CCR in
 > *out\_ccr*
 > by removing all states except the ManifestState, and comparing and deduplicating
-> ManifestRefs in the specified CCR file(s).
+> ManifestInstances in the specified CCR file(s).
 
 **-V**
 
@@ -262,4 +262,4 @@ https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-rpki-erik-protocol.
 
 Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
 
-OpenBSD 7.8 - December 2, 2025 - RPKITOUCH(8)
+OpenBSD 7.8 - January 8, 2026 - RPKITOUCH(8)

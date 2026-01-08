@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Job Snijders <job@sobornost.net>
+ * Copyright (c) 2023-2026 Job Snijders <job@bsd.nl>
  * Copyright (c) 2022 Theo Buehler <tb@openbsd.org>
  * Copyright (c) 2020 Claudio Jeker <claudio@openbsd.org>
  * Copyright (c) 2019 Kristaps Dzonsons <kristaps@bsd.lv>
@@ -33,11 +33,6 @@
 
 #include "extern.h"
 #include "asn1.h"
-
-#define GENTIME_LENGTH 15
-#define MAX_URI_LENGTH 2048
-#define RSYNC_PROTO "rsync://"
-#define RSYNC_PROTO_LEN (sizeof(RSYNC_PROTO) - 1)
 
 ASN1_ITEM_EXP Manifest_it;
 ASN1_ITEM_EXP FileAndHash_it;
@@ -119,7 +114,7 @@ asn1time_to_time(const ASN1_TIME *at, time_t *t, int expect_gen)
 }
 
 /*
- * Parse the Subject Information Access (SIA) in a CCR ManifestRef.
+ * Parse the Subject Information Access (SIA) in a CCR ManifestInstance.
  * Returns 0 on failure, out_sia has to be freed after use.
  */
 static int
@@ -163,7 +158,7 @@ ccr_get_sia(STACK_OF(ACCESS_DESCRIPTION) *location, char **out_sia)
 	if (strncasecmp((char *)uri->data, RSYNC_PROTO, RSYNC_PROTO_LEN) != 0)
 		goto out;
 
-	*out_sia = strndup((char *)uri->data + RSYNC_PROTO_LEN, uri->length);
+	*out_sia = strndup((char *)uri->data, uri->length);
 	if (*out_sia == NULL)
 		err(1, NULL);
 
@@ -262,8 +257,7 @@ x509_get_sia(X509 *x, char **out_sia)
 		    RSYNC_PROTO_LEN) != 0)
 			goto out;
 
-		if ((*out_sia = strndup((char *)uri->data + RSYNC_PROTO_LEN,
-		    uri->length)) == NULL)
+		if ((*out_sia = strndup((char *)uri->data, uri->length)) == NULL)
 			err(1, NULL);
 	}
 
@@ -572,7 +566,7 @@ parse_manifest(struct file *f)
 	if (x509_get_sia(x, &mft->sia) != 1)
 		goto out;
 
-	sia_dir = strdup(mft->sia);
+	sia_dir = strdup(mft->sia + RSYNC_PROTO_LEN);
 	if (asprintf(&mft->sia_dirname, "%s", dirname(sia_dir)) == -1)
 		err(1, "asprintf");
 	free(sia_dir);
@@ -686,7 +680,7 @@ mftinstance_set_fqdn(struct mftinstance *mi)
 {
 	char *fqdn, *needle;
 
-	if ((fqdn = strdup(mi->sia)) == NULL)
+	if ((fqdn = strdup(mi->sia + RSYNC_PROTO_LEN)) == NULL)
 		err(1, NULL);
 
 	needle = strchr(fqdn, '/');

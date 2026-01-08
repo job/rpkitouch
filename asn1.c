@@ -660,7 +660,6 @@ make_manifestinstance(struct mftinstance *m)
 struct file *
 generate_reduced_ccr(struct mftinstance **mis, int count)
 {
-	struct mftinstance *mi;
 	ManifestState *ms = NULL;
 	ManifestInstance *asn1_mi = NULL;
 	time_t mostrecent = 0;
@@ -674,21 +673,13 @@ generate_reduced_ccr(struct mftinstance **mis, int count)
 		errx(1, "ManifestState_new");
 
 	for (i = 0; i < count; i++) {
-		char *sia;
-		mi = mis[i];
-
-		if (asprintf(&sia, "rsync://%s", mi->sia) == -1)
-			err(1, "asprintf");
-		free(mi->sia);
-		mi->sia = sia;
-
-		asn1_mi = make_manifestinstance(mi);
+		asn1_mi = make_manifestinstance(mis[i]);
 
 		if (sk_ManifestInstance_push(ms->mis, asn1_mi) <= 0)
 			errx(1, "sk_ManifestRef_push");
 
-		if (mi->thisupdate > mostrecent)
-			mostrecent = mi->thisupdate;
+		if (mis[i]->thisupdate > mostrecent)
+			mostrecent = mis[i]->thisupdate;
 	}
 
 	if (ASN1_GENERALIZEDTIME_set(ms->mostRecentUpdate, mostrecent) == NULL)

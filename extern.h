@@ -21,6 +21,11 @@
 #include "compat/queue.h"
 #include "compat/tree.h"
 
+#define GENTIME_LENGTH 15
+#define MAX_URI_LENGTH 2048
+#define RSYNC_PROTO "rsync://"
+#define RSYNC_PROTO_LEN (sizeof(RSYNC_PROTO) - 1)
+
 enum filetype {
 	TYPE_ASPA,
 	TYPE_CCR,

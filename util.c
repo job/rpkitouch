@@ -215,7 +215,7 @@ store_by_name(struct file *f, struct mft *mft)
 			err(1, "mkpathat %s", dir);
 	}
 
-	if (asprintf(&path, "named/%s", mft->sia) == -1)
+	if (asprintf(&path, "named/%s", mft->sia + RSYNC_PROTO_LEN) == -1)
 		err(1, "asprintf");
 
 	memset(&st, 0, sizeof(st));
