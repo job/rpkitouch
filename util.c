@@ -139,6 +139,22 @@ write_file(char *path, unsigned char *content, off_t content_len, time_t mtime)
 	free(tmpbn);
 }
 
+static int
+update_atime(const char *file)
+{
+	struct timespec ts[2];
+
+	ts[0].tv_nsec = UTIME_NOW;
+	ts[1].tv_nsec = UTIME_OMIT;
+
+	if (utimensat(outdirfd, file, ts, 0) == -1) {
+		warn("%s: utimensat failed", file);
+		return -1;
+	}
+
+	return 0;
+}
+
 int
 store_by_hash(struct file *f)
 {
@@ -188,7 +204,8 @@ store_by_hash(struct file *f)
 			    (long long)delay);
 		}
 		write_file(path, f->content, f->content_len, f->signtime);
-	}
+	} else
+		update_atime(path);
 
 	free(b);
 	free(path);
@@ -233,7 +250,8 @@ store_by_name(struct file *f, struct mft *mft)
 			    (long long)f->content_len, (long long)delay);
 		}
 		write_file(path, f->content, f->content_len, mft->thisupdate);
-	}
+	} else
+		update_atime(path);
 
 	free(dir);
 	free(path);
