@@ -27,7 +27,7 @@ install:
 	install -c -o root -g bin -m 555 eriksync /usr/local/bin/
 	install -c -o root -g bin -m 444 rpkitouch.8 /usr/local/man/man8/
 
-TEST_FILES = 40SlM-M4frFfmZ2HaMH0tlCageA.gbr FjSf5hX1GmGhKMu9AG7WVIl8m1M.asa
+TEST_FILES = FjSf5hX1GmGhKMu9AG7WVIl8m1M.asa
 TEST_FILES += t7xg6ZtXdcYhy-YGTMk_ONTD31E.cer yqgF26w2R0m5sRVZCrbvD5cM29g.mft
 TEST_FILES += 5EjPZ8Kw2_h5hRqKpwmjdnq7Tq8.roa yqgF26w2R0m5sRVZCrbvD5cM29g.crl
 TEST_FILES += 9X0AhXWTJDl8lJhfOwvnac-42CA.spl

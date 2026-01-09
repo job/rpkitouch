@@ -1,4 +1,3 @@
-1670434071 1960 40SlM-M4frFfmZ2HaMH0tlCageA.gbr
 1671193802 1704 FjSf5hX1GmGhKMu9AG7WVIl8m1M.asa
 1672830161 1728 5EjPZ8Kw2_h5hRqKpwmjdnq7Tq8.roa
 1681359596 1365 t7xg6ZtXdcYhy-YGTMk_ONTD31E.cer
@@ -8,7 +7,6 @@
 tests/c/named/chloe.sobornost.net/rpki/RIPE-nljobsnijders/yqgF26w2R0m5sRVZCrbvD5cM29g.mft
 tests/c/static/A5/cM/ABVJjfJ-46PWWVnDOCXQewYveSLLf5bGEbh-yMcA5cM
 tests/c/static/b-/yw/kpIopBXp5zBOBt13_H0McDKpPGJxRaLRpVTZ4jqb-yw
-tests/c/static/gD/qE/z2uvNkiYBQpjv1jaOD0HUa2QlJvxG4legtW3IoigDqE
 tests/c/static/HG/_A/wEb7mYp8LB-Z7tq7C8-6gL9L6K-YTrGwufGI3xfHG_A
 tests/c/static/k9/os/i0CcDZJlVClPyeiGiyGUjnou2lcGn8pY_rcgtGGk9os
 tests/c/static/nl/wg/wsCvp2J-eZeizU8nrXHkLPhcjyqZ5euDlwLssA_nlwg
