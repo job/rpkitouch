@@ -31,7 +31,6 @@ enum filetype {
 	TYPE_CCR,
 	TYPE_CER,
 	TYPE_CRL,
-	TYPE_GBR,
 	TYPE_MFT,
 	TYPE_ROA,
 	TYPE_SPL,

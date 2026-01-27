@@ -55,7 +55,6 @@ because deterministic mod-times help minimize RP synchronisation load.
 
 For
 *Autonomous System Provider Authorisation* (ASPA),
-*Ghostbuster Records* (GBR),
 *Manifests* (MFT),
 *Route Origin Authorization* (ROA),
 *Signed Prefix Lists* (SPL),
@@ -262,4 +261,4 @@ https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-rpki-erik-protocol.
 
 Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
 
-OpenBSD 7.8 - January 8, 2026 - RPKITOUCH(8)
+OpenBSD 7.8 - January 27, 2026 - RPKITOUCH(8)

@@ -441,7 +441,6 @@ get_time_from_content(struct file *f)
 		time = get_crl_thisupdate(name, content, len);
 		break;
 	case TYPE_ASPA:
-	case TYPE_GBR:
 	case TYPE_MFT:
 	case TYPE_ROA:
 	case TYPE_SPL:

@@ -47,7 +47,6 @@ const struct {
 	{ .ext = ".ccr", .type = TYPE_CCR },
 	{ .ext = ".cer", .type = TYPE_CER },
 	{ .ext = ".crl", .type = TYPE_CRL },
-	{ .ext = ".gbr", .type = TYPE_GBR },
 	{ .ext = ".mft", .type = TYPE_MFT },
 	{ .ext = ".roa", .type = TYPE_ROA },
 	{ .ext = ".spl", .type = TYPE_SPL },
@@ -374,13 +373,16 @@ main(int argc, char *argv[])
 				continue;
 			}
 
-			if (print) {
-				for (i = 0; i < mft->fh_num; i++) {
-					printf("%s/%s\n", mft->sia_dirname,
-					    mft->files[i].fn);
-				}
-				printf("%s\n", mft->sia + RSYNC_PROTO_LEN);
+			for (i = 0; i < mft->fh_num; i++) {
+				if (detect_ftype_from_fn(mft->files[i].fn)
+				    == TYPE_UNKNOWN)
+					continue;
+				if (!print)
+					continue;
+				printf("%s/%s\n", mft->sia_dirname, mft->files[i].fn);
 			}
+			if (print)
+				printf("%s\n", mft->sia + RSYNC_PROTO_LEN);
 		}
 
 		/*
