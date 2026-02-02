@@ -4,6 +4,8 @@
 1684476188 1166 yqgF26w2R0m5sRVZCrbvD5cM29g.crl
 1684476188 2628 yqgF26w2R0m5sRVZCrbvD5cM29g.mft
 1706717767 1853 9X0AhXWTJDl8lJhfOwvnac-42CA.spl
+1764844762 3579 test.ccr
+1764858182 20751937 erik.ccr
 tests/c/named/chloe.sobornost.net/rpki/RIPE-nljobsnijders/yqgF26w2R0m5sRVZCrbvD5cM29g.mft
 tests/c/static/A5/cM/ABVJjfJ-46PWWVnDOCXQewYveSLLf5bGEbh-yMcA5cM
 tests/c/static/b-/yw/kpIopBXp5zBOBt13_H0McDKpPGJxRaLRpVTZ4jqb-yw

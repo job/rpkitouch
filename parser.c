@@ -421,6 +421,42 @@ get_crl_thisupdate(const char *fn, unsigned char *content, size_t len)
 	return time;
 }
 
+static time_t
+get_ccr_producedat(const char *fn, unsigned char *content, size_t len)
+{
+	const unsigned char *oder, *der;
+	CCR_ContentInfo *ci = NULL;
+	time_t time = 0;
+
+	oder = der = content;
+	if ((ci = d2i_CCR_ContentInfo(NULL, &der, len)) == NULL) {
+		warnx("%s: d2i_CCR_ContentInfo failed", fn);
+		goto out;
+	}
+	if (der != oder + len) {
+		warnx("%s: %td bytes trailing garbage", fn, oder + len - der);
+		goto out;
+	}
+
+	if (OBJ_cmp(ci->contentType, ccr_oid) != 0) {
+		char buf[128];
+
+		OBJ_obj2txt(buf, sizeof(buf), ci->contentType, 1);
+		warnx("%s: unexpected OID: got %s, want 1.2.840.113549.1.9.16.1.54",
+		    fn, buf);
+		goto out;
+	}
+
+	if (!asn1time_to_time(ci->content->producedAt, &time, 1)) {
+		warnx("%s: failed to convert %s", fn, "producedAt");
+		goto out;
+	}
+
+ out:
+	CCR_ContentInfo_free(ci);
+	return time;
+}
+
 time_t
 get_time_from_content(struct file *f)
 {
@@ -434,6 +470,9 @@ get_time_from_content(struct file *f)
 	len = f->content_len;
 
 	switch (f->type) {
+	case TYPE_CCR:
+		time = get_ccr_producedat(name, content, len);
+		break;
 	case TYPE_CER:
 		time = get_cert_notbefore(name, content, len);
 		break;

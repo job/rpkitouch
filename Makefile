@@ -33,9 +33,9 @@ TEST_FILES += 5EjPZ8Kw2_h5hRqKpwmjdnq7Tq8.roa yqgF26w2R0m5sRVZCrbvD5cM29g.crl
 TEST_FILES += 9X0AhXWTJDl8lJhfOwvnac-42CA.spl
 
 test: $(PROG)
-	cd tests && touch $(TEST_FILES)
-	cd tests && ../rpkitouch -v $(TEST_FILES)
-	cd tests && perl -le 'print((stat $$_)[9] . " " . (stat $$_)[7]. " $$_") for @ARGV' $(TEST_FILES) | LC_ALL=C sort -n | tee outcome.txt
+	cd tests && touch $(TEST_FILES) *.ccr
+	cd tests && ../rpkitouch -v $(TEST_FILES) *.ccr
+	cd tests && perl -le 'print((stat $$_)[9] . " " . (stat $$_)[7]. " $$_") for @ARGV' $(TEST_FILES) *.ccr | LC_ALL=C sort -n | tee outcome.txt
 	mkdir -p tests/c
 	cd tests && find $(TEST_FILES) | xargs ../rpkitouch -v -d ./c
 	find tests/c -type f | LC_ALL=C sort -f | tee -a tests/outcome.txt
