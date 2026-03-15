@@ -224,7 +224,6 @@ int
 merge_ccrs(char *argv[], struct mftinstance_tree *tree)
 {
 	struct file *f;
-	unsigned char *fc;
 	struct ccr *ccr;
 	int i, count = 0;
 
@@ -239,10 +238,9 @@ merge_ccrs(char *argv[], struct mftinstance_tree *tree)
 			usage();
 		}
 
-		fc = load_file(f->name, &f->content_len, &f->disktime);
-		if (fc == NULL)
+		f->content = load_file(f->name, &f->content_len, &f->disktime);
+		if (f->content == NULL)
 			errx(1, "%s: load_file failed", f->name);
-		f->content = fc;
 
 		if ((ccr = parse_ccr(f)) == NULL) {
 			warnx("%s: parsing failed", f->name);
