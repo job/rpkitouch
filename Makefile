@@ -59,4 +59,5 @@ clean:
 	-rm -rf tests/outcome-ccr.txt tests/outcome-print-mft.txt tests/outcome-erik.txt
 
 readme:
+	mandoc -Tlint rpkitouch.8
 	mandoc -T markdown rpkitouch.8 > README.md
