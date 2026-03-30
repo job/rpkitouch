@@ -376,44 +376,59 @@ start_ErikPartition(void)
 static void
 update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 {
-	char *fqdn_fn, *hash_fn, *hash_path;
-	struct stat f_st, h_st;
+	char *fqdn_fn, *ni_fn, *ni_path;
+	struct file *oi;
+	struct stat ni_st;
 
 	if (!noop) {
 		if (mkpathat(outdirfd, "erik/index") == -1)
 			err(1, "mkpathat %s", "erik/index");
 	}
 
-	if (!b64uri_encode(hash, SHA256_DIGEST_LENGTH, &hash_fn))
-		err(1, "b64uri_encode");
-
-	if (asprintf(&hash_path, "static/%c%c/%c%c/%s", hash_fn[39],
-	    hash_fn[40], hash_fn[41], hash_fn[42], hash_fn) == -1)
-		err(1, NULL);
-
 	if (asprintf(&fqdn_fn, "erik/index/%s", fqdn) == -1)
 		err(1, NULL);
 
-	memset(&f_st, 0, sizeof(f_st));
+	if (!b64uri_encode(hash, SHA256_DIGEST_LENGTH, &ni_fn))
+		err(1, "b64uri_encode");
 
-	if ((fstatat(outdirfd, fqdn_fn, &f_st, 0) != 0) && errno != ENOENT)
-		err(1, "fstatat %s", fqdn_fn);
+	if (asprintf(&ni_path, "static/%c%c/%c%c/%s", ni_fn[39], ni_fn[40],
+	    ni_fn[41], ni_fn[42], ni_fn) == -1)
+		err(1, NULL);
 
-	memset(&h_st, 0, sizeof(h_st));
+	if ((oi = calloc(1, sizeof(*oi))) == NULL)
+		err(1, NULL);
 
-	if (fstatat(outdirfd, hash_path, &h_st, 0) != 0)
-		err(1, "fstatat %s", hash_fn);
+	oi->content = load_file(fqdn_fn, &oi->content_len, &oi->disktime);
 
-	if (f_st.st_mtim.tv_sec < h_st.st_mtim.tv_sec) {
+	memset(&ni_st, 0, sizeof(ni_st));
+
+	if (fstatat(outdirfd, ni_path, &ni_st, 0) != 0)
+		err(1, "fstatat %s", ni_path);
+
+	if (ni_st.st_mtim.tv_sec > oi->disktime) {
 		if ((unlinkat(outdirfd, fqdn_fn, 0) == -1 && errno != ENOENT) ||
-		    linkat(outdirfd, hash_path, outdirfd, fqdn_fn, 0))
-			errx(1, "linkat %s %s", hash_path, fqdn_fn);
-		warnx("erik index ptr changed: %s %s", fqdn_fn, hash_path);
+		    linkat(outdirfd, ni_path, outdirfd, fqdn_fn, 0))
+			errx(1, "linkat %s %s", ni_path, fqdn_fn);
+
+		if (oi->content == NULL)
+			warnx("new erik index ptr: %s %s", fqdn_fn, ni_fn);
+		else {
+			SHA256(oi->content, oi->content_len, oi->hash);
+
+			if (!b64uri_encode(oi->hash, SHA256_DIGEST_LENGTH,
+			    &oi->name))
+				err(1, "b64uri_encode");
+
+			warnx("erik index ptr changed: %s (%s -> %s) d:%lld",
+			    fqdn_fn, oi->name, ni_fn,
+			    ni_st.st_mtim.tv_sec - oi->disktime);
+		}
 	}
 
 	free(fqdn_fn);
-	free(hash_fn);
-	free(hash_path);
+	free(ni_fn);
+	free(ni_path);
+	file_free(oi);
 }
 
 static void
