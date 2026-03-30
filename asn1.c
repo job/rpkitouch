@@ -398,7 +398,7 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 	if ((oi = calloc(1, sizeof(*oi))) == NULL)
 		err(1, NULL);
 
-	oi->content = load_file(fqdn_fn, &oi->content_len, &oi->disktime);
+	oi->content = load_fileat(fqdn_fn, &oi->content_len, &oi->disktime);
 
 	memset(&ni_st, 0, sizeof(ni_st));
 
@@ -419,7 +419,7 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 			    &oi->name))
 				err(1, "b64uri_encode");
 
-			warnx("erik index ptr changed: %s (%s -> %s) d:%lld",
+			warnx("erik index ptr changed: %s %s -> %s (d:%lld)",
 			    fqdn_fn, oi->name, ni_fn,
 			    ni_st.st_mtim.tv_sec - oi->disktime);
 		}
