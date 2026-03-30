@@ -404,7 +404,7 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 	if (fstatat(outdirfd, hash_path, &h_st, 0) != 0)
 		err(1, "fstatat %s", hash_fn);
 
-	if (f_st.st_ino != h_st.st_ino) {
+	if (f_st.st_mtim.tv_sec < h_st.st_mtim.tv_sec) {
 		if ((unlinkat(outdirfd, fqdn_fn, 0) == -1 && errno != ENOENT) ||
 		    linkat(outdirfd, hash_path, outdirfd, fqdn_fn, 0))
 			errx(1, "linkat %s %s", hash_path, fqdn_fn);
