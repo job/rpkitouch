@@ -209,6 +209,7 @@ store_by_hash(struct file *f)
 	char *dir = NULL, *path = NULL;
 	struct stat st;
 	time_t delay = 0;
+	int wrote = 0;
 
 	if (!b64uri_encode(f->hash, SHA256_DIGEST_LENGTH, &b))
 		err(1, "b64uri_encode");
@@ -251,13 +252,14 @@ store_by_hash(struct file *f)
 			    (long long)delay);
 		}
 		write_file(path, f->content, f->content_len, f->signtime);
+		wrote = 1;
 	} else
 		update_atime(path);
 
 	free(b);
 	free(path);
 
-	return 0;
+	return wrote;
 }
 
 /*

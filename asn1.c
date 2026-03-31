@@ -469,9 +469,8 @@ finalize_ErikIndex(ErikIndex *ei, char *fqdn, time_t itime)
 	if (asprintf(&f->name, "erik index: %s", fqdn) == -1)
 		err(1, "asprintf");
 
-	store_by_hash(f);
-
-	update_index_ptr(fqdn, f->hash);
+	if (store_by_hash(f))
+		update_index_ptr(fqdn, f->hash);
 
 	file_free(f);
 }
