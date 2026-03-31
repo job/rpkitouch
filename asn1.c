@@ -406,14 +406,13 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 	if (fstatat(outdirfd, ni_path, &ni_st, 0) != 0)
 		err(1, "fstatat %s", ni_path);
 
-	if ((unlinkat(outdirfd, fqdn_fn, 0) == -1 && errno != ENOENT) ||
-	    linkat(outdirfd, ni_path, outdirfd, fqdn_fn, 0))
-		errx(1, "linkat %s %s", ni_path, fqdn_fn);
-
 	if (oi->content == NULL)
 		warnx("new erik index ptr: %s %s", fqdn_fn, ni_fn);
 	else {
 		SHA256(oi->content, oi->content_len, oi->hash);
+
+		if (memcmp(hash, oi->hash, SHA256_DIGEST_LENGTH) == 0)
+			goto out;
 
 		if (!b64uri_encode(oi->hash, SHA256_DIGEST_LENGTH,
 		    &oi->name))
@@ -424,6 +423,11 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 		    fqdn_fn, oi->name, ni_fn, delta);
 	}
 
+	if ((unlinkat(outdirfd, fqdn_fn, 0) == -1 && errno != ENOENT) ||
+	    linkat(outdirfd, ni_path, outdirfd, fqdn_fn, 0))
+		errx(1, "linkat %s %s", ni_path, fqdn_fn);
+
+ out:
 	free(fqdn_fn);
 	free(ni_fn);
 	free(ni_path);
