@@ -405,24 +405,22 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 	if (fstatat(outdirfd, ni_path, &ni_st, 0) != 0)
 		err(1, "fstatat %s", ni_path);
 
-	if (ni_st.st_mtim.tv_sec > oi->disktime) {
-		if ((unlinkat(outdirfd, fqdn_fn, 0) == -1 && errno != ENOENT) ||
-		    linkat(outdirfd, ni_path, outdirfd, fqdn_fn, 0))
-			errx(1, "linkat %s %s", ni_path, fqdn_fn);
+	if ((unlinkat(outdirfd, fqdn_fn, 0) == -1 && errno != ENOENT) ||
+	    linkat(outdirfd, ni_path, outdirfd, fqdn_fn, 0))
+		errx(1, "linkat %s %s", ni_path, fqdn_fn);
 
-		if (oi->content == NULL)
-			warnx("new erik index ptr: %s %s", fqdn_fn, ni_fn);
-		else {
-			SHA256(oi->content, oi->content_len, oi->hash);
+	if (oi->content == NULL)
+		warnx("new erik index ptr: %s %s", fqdn_fn, ni_fn);
+	else {
+		SHA256(oi->content, oi->content_len, oi->hash);
 
-			if (!b64uri_encode(oi->hash, SHA256_DIGEST_LENGTH,
-			    &oi->name))
-				err(1, "b64uri_encode");
+		if (!b64uri_encode(oi->hash, SHA256_DIGEST_LENGTH,
+		    &oi->name))
+			err(1, "b64uri_encode");
 
-			warnx("erik index ptr changed: %s %s -> %s (d:%lld)",
-			    fqdn_fn, oi->name, ni_fn,
-			    ni_st.st_mtim.tv_sec - oi->disktime);
-		}
+		warnx("erik index ptr changed: %s %s -> %s (d:%lld)",
+		    fqdn_fn, oi->name, ni_fn,
+		    ni_st.st_mtim.tv_sec - oi->disktime);
 	}
 
 	free(fqdn_fn);
