@@ -379,6 +379,7 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 	char *fqdn_fn, *ni_fn, *ni_path;
 	struct file *oi;
 	struct stat ni_st;
+	long long delta;
 
 	if (!noop) {
 		if (mkpathat(outdirfd, "erik/index") == -1)
@@ -418,9 +419,9 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 		    &oi->name))
 			err(1, "b64uri_encode");
 
+		delta = ni_st.st_mtim.tv_sec - oi->disktime;
 		warnx("erik index ptr changed: %s %s -> %s (d:%lld)",
-		    fqdn_fn, oi->name, ni_fn,
-		    ni_st.st_mtim.tv_sec - oi->disktime);
+		    fqdn_fn, oi->name, ni_fn, delta);
 	}
 
 	free(fqdn_fn);
