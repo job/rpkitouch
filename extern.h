@@ -90,6 +90,7 @@ struct mft {
 	struct fileandhash *files;
 	int fh_num;
 	char *seqnum;
+	char *crlhash;
 };
 
 struct file {
@@ -125,8 +126,10 @@ void set_mtime(int, const char *, time_t);
 
 int store_by_hash(struct file *);
 int store_by_name(struct file *, struct mft *);
+void store_pack(struct file *, char *);
 
 void ccr_free(struct ccr *);
+void mft_free(struct mft *);
 void mftref_free(struct mftref *);
 void mftinstance_free(struct mftinstance *);
 void file_free(struct file *);

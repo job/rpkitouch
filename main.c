@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Job Snijders <job@sobornost.net>
+ * Copyright (c) 2023-2026 Job Snijders <job@bsd.nl>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -31,6 +31,7 @@
 
 int compare = 0;
 int noop = 0;
+int pack = 0;
 int print = 0;
 int verbose = 0;
 int outdirfd;
@@ -205,7 +206,7 @@ main(int argc, char *argv[])
 	struct ccr *ccr = NULL;
 	struct mft *mft = NULL;
 
-	while ((c = getopt(argc, argv, "Cc:d:H:hnpR:Vv")) != -1)
+	while ((c = getopt(argc, argv, "Cc:d:H:hnPpR:Vv")) != -1)
 		switch (c) {
 		case 'C':
 			compare = 1;
@@ -221,6 +222,9 @@ main(int argc, char *argv[])
 			break;
 		case 'n':
 			noop = 1;
+			break;
+		case 'P':
+			pack = 1;
 			break;
 		case 'p':
 			noop = 1;
@@ -258,6 +262,9 @@ main(int argc, char *argv[])
 		usage();
 
 	if (ccr_file != NULL && outdir != NULL)
+		usage();
+
+	if (pack && outdir == NULL)
 		usage();
 
 	setup_oids();
@@ -377,6 +384,9 @@ main(int argc, char *argv[])
 				if (detect_ftype_from_fn(mft->files[i].fn)
 				    == TYPE_UNKNOWN)
 					continue;
+				if (detect_ftype_from_fn(mft->files[i].fn)
+				    == TYPE_CRL)
+					mft->crlhash = mft->files[i].hash;
 				if (!print)
 					continue;
 				printf("%s/%s\n", mft->sia_dirname, mft->files[i].fn);
@@ -409,6 +419,13 @@ main(int argc, char *argv[])
 		if (outdir != NULL && f->type == TYPE_MFT)
 			store_by_name(f, mft);
 
+		if (pack && f->type == TYPE_MFT)
+			store_pack(f, mft->crlhash);
+
+		if (f->type == TYPE_MFT) {
+			mft_free(mft);
+			mft = NULL;
+		}
 		file_free(f);
 		f = NULL;
 	}
@@ -420,7 +437,7 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	fprintf(stderr, "usage: rpkitouch [-CnpVv] [-d dir] [-H fqdn] file ...\n");
+	fprintf(stderr, "usage: rpkitouch [-CnPpVv] [-d dir] [-H fqdn] file ...\n");
 	fprintf(stderr, "       rpkitouch [-n] [-H fqdn] -c ccr_file\n");
 	fprintf(stderr, "       rpkitouch [-n] -R out_ccr ccr_file ...\n");
 	exit(1);

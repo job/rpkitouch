@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <zlib.h>
 
 #include <openssl/evp.h>
 #include <openssl/sha.h>
@@ -418,4 +419,99 @@ hex_decode(const char *hexstr, char *buf, size_t len)
 		hexstr += 2;
 	}
 	return 0;
+}
+
+/*
+ * Pack a manifest and CRL together and store in gzip compressed form.
+ */
+void
+store_pack(struct file *m, char *crlhash)
+{
+	char *pn;
+	struct file *crl, *pack;
+	unsigned char *buf = NULL;
+	size_t packlen;
+	z_stream zs;
+	struct stat st;
+
+	if (!noop) {
+		if (mkpathat(outdirfd, "erik/pack") == -1)
+			err(1, "mkpathat %s", "erik/pack");
+	}
+
+	if (!b64uri_encode(m->hash, SHA256_DIGEST_LENGTH, &pn))
+		err(1, "b64uri_encode");
+
+	if ((pack = calloc(1, sizeof(*pack))) == NULL)
+		err(1, NULL);
+
+	if (asprintf(&pack->name, "erik/pack/%s", pn) == -1)
+		err(1, NULL);
+
+	if ((crl = calloc(1, sizeof(*crl))) == NULL)
+		err(1, NULL);
+
+	if (asprintf(&crl->name, "static/%c%c/%c%c/%s", crlhash[39],
+	    crlhash[40], crlhash[41], crlhash[42], crlhash) == -1)
+		err(1, NULL);
+
+	crl->content = load_fileat(crl->name, &crl->content_len,
+	    &crl->disktime);
+
+	if ((buf = malloc(m->content_len + crl->content_len)) == NULL)
+		err(1, NULL);
+
+	memmove(buf, m->content, m->content_len);
+	memmove(buf + m->content_len, crl->content, crl->content_len);
+
+	memset(&zs, 0, sizeof(zs));
+
+	if (deflateInit2(&zs, Z_BEST_COMPRESSION, Z_DEFLATED, (15 + 16), 8,
+	    Z_DEFAULT_STRATEGY) != Z_OK)
+		errx(1, "deflateInit2");
+
+	packlen = deflateBound_z(&zs, m->content_len + crl->content_len);
+
+	if ((pack->content = malloc(packlen)) == NULL)
+		err(1, NULL);
+
+	zs.avail_in = m->content_len + crl->content_len;
+	zs.next_in = buf;
+	zs.avail_out = packlen;
+	zs.next_out = pack->content;
+
+	if (deflate(&zs, Z_FINISH) != Z_STREAM_END)
+		errx(1, "deflate");
+
+	pack->content_len = zs.total_out;
+
+	deflateEnd(&zs);
+
+	memset(&st, 0, sizeof(struct stat));
+	if (fstatat(outdirfd, pack->name, &st, 0) != 0) {
+		if (errno != ENOTDIR && errno != ENOENT)
+			err(1, "fstatat %s", pack->name);
+	}
+
+	/*
+	 * Skip writing packs that already are of the same size and have the
+	 * same last data modification timestamp.
+	 */
+	if (st.st_size != pack->content_len ||
+	    st.st_mtim.tv_sec != m->signtime) {
+		if (verbose) {
+			warnx("%s (st:%lld osz:%lld sz:%lld)", pack->name,
+			    (long long)m->signtime,
+			    m->content_len + crl->content_len,
+			    (long long)pack->content_len);
+		}
+		write_file(pack->name, pack->content, pack->content_len,
+		    m->signtime);
+	} else
+		update_atime(pack->name);
+
+	free(buf);
+	free(pn);
+	file_free(pack);
+	file_free(crl);
 }

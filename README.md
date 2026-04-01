@@ -15,7 +15,7 @@ RPKITOUCH(8) - System Manager's Manual
 **-R**&nbsp;*out\_ccr*
 *file&nbsp;...*  
 **rpkitouch**
-\[**-CnpVv**]
+\[**-CnPpVv**]
 \[**-d**&nbsp;*directory*]
 \[**-H**&nbsp;*fqdn*]
 *file&nbsp;...*
@@ -144,6 +144,13 @@ The options are as follows:
 > **rpkitouch**
 > would change.
 
+**-P**
+
+> Pack manifests and the associated CRLs in gzip compressed form suitable for
+> Erik Synchronisation.
+> Can only be combined with
+> **-d**.
+
 **-p**
 
 > Print the directory path derived from the SIA and the FileAndHashes contained
@@ -261,4 +268,4 @@ https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-rpki-erik-protocol.
 
 Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
 
-OpenBSD 7.8 - January 27, 2026 - RPKITOUCH(8)
+OpenBSD 7.9 - April 1, 2026 - RPKITOUCH(8)

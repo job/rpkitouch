@@ -1,0 +1,477 @@
+SEQUENCE {
+  # signedData
+  OBJECT_IDENTIFIER { 1.2.840.113549.1.7.2 }
+  [0] {
+    SEQUENCE {
+      INTEGER { 3 }
+      SET {
+        SEQUENCE {
+          # sha256
+          OBJECT_IDENTIFIER { 2.16.840.1.101.3.4.2.1 }
+        }
+      }
+      SEQUENCE {
+        # rpkiManifest
+        OBJECT_IDENTIFIER { 1.2.840.113549.1.9.16.1.26 }
+        [0] {
+          OCTET_STRING {
+            SEQUENCE {
+              INTEGER { 65926 }
+              GeneralizedTime { "20230519060308Z" }
+              GeneralizedTime { "20230519120308Z" }
+              # sha256
+              OBJECT_IDENTIFIER { 2.16.840.1.101.3.4.2.1 }
+              SEQUENCE {
+                SEQUENCE {
+                  IA5String { "40SlM-M4frFfmZ2HaMH0tlCageA.gbr" }
+                  BIT_STRING { `00` `cf6baf364898050a63bf58da383d0751ad90949bf11b895e82d5b72288a00ea1` }
+                }
+                SEQUENCE {
+                  IA5String { "5EjPZ8Kw2_h5hRqKpwmjdnq7Tq8.roa" }
+                  BIT_STRING { `00` `345cd062cbd217ef232e15171ae57043834da0cc9fac99c96d6e833666ed5d17` }
+                }
+                SEQUENCE {
+                  IA5String { "FjSf5hX1GmGhKMu9AG7WVIl8m1M.asa" }
+                  BIT_STRING { `00` `c2c0afa7627e7997a2cd4f27ad71e42cf85c8f2a99e5eb839702ecb00fe79708` }
+                }
+                SEQUENCE {
+                  IA5String { "JM9oHV3aYpDhfxsnr_kd3g-5Qf8.roa" }
+                  BIT_STRING { `00` `94829cfeeb1341de9baf30ed5480f07383c6e9164cb43e1cf894c813d5e48aee` }
+                }
+                SEQUENCE {
+                  IA5String { "SYge6O3OJFMiFYniIPfQCkNiqvc.roa" }
+                  BIT_STRING { `00` `3aab838abe5bf892dc724b1748a66081df02aa37f9feac92beb21ac68037dff4` }
+                }
+                SEQUENCE {
+                  IA5String { "XUJQ4tgdREjYop786R0p_wdeyeI.cer" }
+                  BIT_STRING { `00` `966a3dc282cd400ca1e27a10f1da088306d667da0e9a546a4f380f6d7c71961d` }
+                }
+                SEQUENCE {
+                  IA5String { "k81kCEKwOTB0VS9A4z_g2UJpfBU.roa" }
+                  BIT_STRING { `00` `17e67eb4bbaec5f270f30d52450fbf8e47e24fa8192a1c0d24ff834d4ed06af3` }
+                }
+                SEQUENCE {
+                  IA5String { "mIMiKkoco4Wz9xVfTL6I1xHv2Ts.roa" }
+                  BIT_STRING { `00` `dd2e034d8312ac2b77ee9b5a783682a4df35c4c92155935eedd97a277442210d` }
+                }
+                SEQUENCE {
+                  IA5String { "ncJXcXUYxYzrXv2ONP0i8QvMMBY.roa" }
+                  BIT_STRING {
+                    `00`
+                    [APPLICATION 6] {
+                      [PRIVATE 28] {
+                        `ac8cfac8872c74060d192a8bbd38818ac8d000062ed5733e695dc8`
+                      }
+                      `8d`
+                    }
+                  }
+                }
+                SEQUENCE {
+                  IA5String { "t7xg6ZtXdcYhy-YGTMk_ONTD31E.cer" }
+                  BIT_STRING { `00` `8b409c0d926554294fc9e8868b21948e7a2eda57069fca58feb720b461a4f68b` }
+                }
+                SEQUENCE {
+                  IA5String { "voibVdC3Nzl9dcSfSFuFj6mK0R8.cer" }
+                  BIT_STRING { `00` `17d182886203f6b9582d7bd1e87df19273205a58b0f66e78e4d31f90d8f9ab06` }
+                }
+                SEQUENCE {
+                  IA5String { "yqgF26w2R0m5sRVZCrbvD5cM29g.crl" }
+                  BIT_STRING { `00` `0015498df27ee3a3d65959c33825d07b062f7922cb7f96c611b87ec8c700e5c3` }
+                }
+              }
+            }
+          }
+        }
+      }
+      [0] {
+        SEQUENCE {
+          SEQUENCE {
+            [0] {
+              INTEGER { 2 }
+            }
+            INTEGER { 67014 }
+            SEQUENCE {
+              # sha256WithRSAEncryption
+              OBJECT_IDENTIFIER { 1.2.840.113549.1.1.11 }
+              NULL {}
+            }
+            SEQUENCE {
+              SET {
+                SEQUENCE {
+                  # commonName
+                  OBJECT_IDENTIFIER { 2.5.4.3 }
+                  PrintableString { "caa805dbac364749b9b115590ab6ef0f970cdbd8" }
+                }
+              }
+            }
+            SEQUENCE {
+              UTCTime { "230519060308Z" }
+              UTCTime { "240701000000Z" }
+            }
+            SEQUENCE {
+              SET {
+                SEQUENCE {
+                  # commonName
+                  OBJECT_IDENTIFIER { 2.5.4.3 }
+                  PrintableString { "CF75C749EB96455C6E8FF8701BEB1F964F79F1B4" }
+                }
+              }
+            }
+            SEQUENCE {
+              SEQUENCE {
+                # rsaEncryption
+                OBJECT_IDENTIFIER { 1.2.840.113549.1.1.1 }
+                NULL {}
+              }
+              BIT_STRING {
+                `00`
+                SEQUENCE {
+                  INTEGER { `00c5e6e756e4877315f5a4ce2f9f824d05068f6deda77f0f181792fc486f25356508a6601d5eb57fd73acc2941ae4f9e19a1131326a9fa091ef6636bb2d732e4b0fe81178fc9e7a66dfeec0d4460516cb3c9bfac0fe13176a02d4208a9f731fca721ad964f6c029146803f0a43de37dc90a1c4be2002d15d50e37e021598a1e3cf9afce831eae47e8d9cc06f5a5ccb188ac7e3b4dab5e39cf5e4ee40f6160304cb0c5bcc2939d4a34aa78a52136e7205f179f580123d1e4907bbae48f2497cbf7c97630adf40cd340a9712ba27851b842c99b5340788912c0947063334cf151b09367ebf9792958d5eb9c1501ac005a0878d373c1342182d62d6264064a5a22f6b` }
+                  INTEGER { 65537 }
+                }
+              }
+            }
+            [3] {
+              SEQUENCE {
+                SEQUENCE {
+                  # subjectKeyIdentifier
+                  OBJECT_IDENTIFIER { 2.5.29.14 }
+                  OCTET_STRING {
+                    OCTET_STRING { `cf75c749eb96455c6e8ff8701beb1f964f79f1b4` }
+                  }
+                }
+                SEQUENCE {
+                  # authorityKeyIdentifier
+                  OBJECT_IDENTIFIER { 2.5.29.35 }
+                  OCTET_STRING {
+                    SEQUENCE {
+                      [0 PRIMITIVE] { `caa805dbac364749b9b115590ab6ef0f970cdbd8` }
+                    }
+                  }
+                }
+                SEQUENCE {
+                  # certificatePolicies
+                  OBJECT_IDENTIFIER { 2.5.29.32 }
+                  BOOLEAN { TRUE }
+                  OCTET_STRING {
+                    SEQUENCE {
+                      SEQUENCE {
+                        # ipAddr-asNumber
+                        OBJECT_IDENTIFIER { 1.3.6.1.5.5.7.14.2 }
+                      }
+                    }
+                  }
+                }
+                SEQUENCE {
+                  # cRLDistributionPoints
+                  OBJECT_IDENTIFIER { 2.5.29.31 }
+                  OCTET_STRING {
+                    SEQUENCE {
+                      SEQUENCE {
+                        [0] {
+                          [0] {
+                            [6 PRIMITIVE] { "rsync://chloe.sobornost.net/rpki/RIPE-nljobsnijders/yqgF26w2R0m5sRVZCrbvD5cM29g.crl" }
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+                SEQUENCE {
+                  # authorityInfoAccess
+                  OBJECT_IDENTIFIER { 1.3.6.1.5.5.7.1.1 }
+                  OCTET_STRING {
+                    SEQUENCE {
+                      SEQUENCE {
+                        # caIssuers
+                        OBJECT_IDENTIFIER { 1.3.6.1.5.5.7.48.2 }
+                        [6 PRIMITIVE] { "rsync://rpki.ripe.net/repository/DEFAULT/yqgF26w2R0m5sRVZCrbvD5cM29g.cer" }
+                      }
+                    }
+                  }
+                }
+                SEQUENCE {
+                  # keyUsage
+                  OBJECT_IDENTIFIER { 2.5.29.15 }
+                  BOOLEAN { TRUE }
+                  OCTET_STRING {
+                    BIT_STRING { b`1` }
+                  }
+                }
+                SEQUENCE {
+                  # subjectInfoAccess
+                  OBJECT_IDENTIFIER { 1.3.6.1.5.5.7.1.11 }
+                  OCTET_STRING {
+                    SEQUENCE {
+                      SEQUENCE {
+                        # signedObject
+                        OBJECT_IDENTIFIER { 1.3.6.1.5.5.7.48.11 }
+                        [6 PRIMITIVE] { "rsync://chloe.sobornost.net/rpki/RIPE-nljobsnijders/yqgF26w2R0m5sRVZCrbvD5cM29g.mft" }
+                      }
+                    }
+                  }
+                }
+                SEQUENCE {
+                  # autonomousSysIds
+                  OBJECT_IDENTIFIER { 1.3.6.1.5.5.7.1.8 }
+                  BOOLEAN { TRUE }
+                  OCTET_STRING {
+                    SEQUENCE {
+                      [0] {
+                        NULL {}
+                      }
+                    }
+                  }
+                }
+                SEQUENCE {
+                  # ipAddrBlocks
+                  OBJECT_IDENTIFIER { 1.3.6.1.5.5.7.1.7 }
+                  BOOLEAN { TRUE }
+                  OCTET_STRING {
+                    SEQUENCE {
+                      SEQUENCE {
+                        OCTET_STRING { `0001` }
+                        NULL {}
+                      }
+                      SEQUENCE {
+                        OCTET_STRING { `0002` }
+                        NULL {}
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+          SEQUENCE {
+            # sha256WithRSAEncryption
+            OBJECT_IDENTIFIER { 1.2.840.113549.1.1.11 }
+            NULL {}
+          }
+          BIT_STRING { `00` `70fc96a00e001dc84e7e050de128a8800b46ee19820daa5adf6392897015713d48bb8ba18ef3e7fada1d26185ee6815deae6c2ad7b6c5dcd2d84e04ba347cc699c21e496be8d19c3f4a520790eef38dbbf52063f2224b905bba17b51fcd5c1f27bfe09aa36e4a2735f10dfd5ec053696b905d465cfce3bcfd611b20b4495b577debd6b831a55af5f524e6be49cf9fbf132466ebe0e03b1d7f20bfb4e97ab250e24254e5585204e78484607b0ecaab8101dce389e0a33baa6ae29e71bd2625b5f616972b04c8551306f1066a7a717f1db905a2888aa4e7efa7475b7b7e0ba46c5e864861a6e262560a753d59ea9d7f4a40217dc0959c9658d8de5c2787f99817a` }
+        }
+      }
+      SET {
+        SEQUENCE {
+          INTEGER { 3 }
+          [0 PRIMITIVE] { `cf75c749eb96455c6e8ff8701beb1f964f79f1b4` }
+          SEQUENCE {
+            # sha256
+            OBJECT_IDENTIFIER { 2.16.840.1.101.3.4.2.1 }
+          }
+          [0] {
+            SEQUENCE {
+              # contentType
+              OBJECT_IDENTIFIER { 1.2.840.113549.1.9.3 }
+              SET {
+                # rpkiManifest
+                OBJECT_IDENTIFIER { 1.2.840.113549.1.9.16.1.26 }
+              }
+            }
+            SEQUENCE {
+              # signingTime
+              OBJECT_IDENTIFIER { 1.2.840.113549.1.9.5 }
+              SET {
+                UTCTime { "230519060308Z" }
+              }
+            }
+            SEQUENCE {
+              # messageDigest
+              OBJECT_IDENTIFIER { 1.2.840.113549.1.9.4 }
+              SET {
+                OCTET_STRING { `861f79387e69af6f7f245407880bd1ce5b7ca5476a73ff7fe35800b73ac6a5b3` }
+              }
+            }
+          }
+          SEQUENCE {
+            # rsaEncryption
+            OBJECT_IDENTIFIER { 1.2.840.113549.1.1.1 }
+            NULL {}
+          }
+          OCTET_STRING { `5d0492d5b86bbb87a7fdf5f4172aaa25fb94fe859ea94f63d129ece2b17baf8e88be6d5f45fa049c869b7c821478e0560f8e97ba5c26aae4d4279cb8add2ece0ae455276d3ce90928d60b6dd8cb9b27a2e6b9335b488c5ec894ff21efe59ec0b92a990b9aaac2057c9c3a2914731d433c693f2844f23b484b5a909ed6b692051cd143fb8dfc2a60a12db479880cb055b4ca388cd481bc8635b8769424e70cd3cdad82728800fac68bbfdc56939dec258e08c8472de460d087e01015b57d5d11c0566e5560ed63428a7567b2023adbaab5db562dd9c417bc281373de4b402f4486815a8ff8b849757389920917882ca389153ce067c5475dfc8abf7726eb56d89` }
+        }
+      }
+    }
+  }
+}
+SEQUENCE {
+  SEQUENCE {
+    INTEGER { 1 }
+    SEQUENCE {
+      # sha256WithRSAEncryption
+      OBJECT_IDENTIFIER { 1.2.840.113549.1.1.11 }
+      NULL {}
+    }
+    SEQUENCE {
+      SET {
+        SEQUENCE {
+          # commonName
+          OBJECT_IDENTIFIER { 2.5.4.3 }
+          PrintableString { "caa805dbac364749b9b115590ab6ef0f970cdbd8" }
+        }
+      }
+    }
+    UTCTime { "230519060308Z" }
+    UTCTime { "230519120308Z" }
+    SEQUENCE {
+      SEQUENCE {
+        INTEGER { 48078 }
+        UTCTime { "221104122854Z" }
+      }
+      SEQUENCE {
+        INTEGER { 48079 }
+        UTCTime { "221104122854Z" }
+      }
+      SEQUENCE {
+        INTEGER { 48080 }
+        UTCTime { "221104122854Z" }
+      }
+      SEQUENCE {
+        INTEGER { 48084 }
+        UTCTime { "221202120443Z" }
+      }
+      SEQUENCE {
+        INTEGER { 48085 }
+        UTCTime { "221202120442Z" }
+      }
+      SEQUENCE {
+        INTEGER { 48086 }
+        UTCTime { "221202120442Z" }
+      }
+      SEQUENCE {
+        INTEGER { 48088 }
+        UTCTime { "221202120443Z" }
+      }
+      SEQUENCE {
+        INTEGER { 50791 }
+        UTCTime { "221207165932Z" }
+      }
+      SEQUENCE {
+        INTEGER { 50792 }
+        UTCTime { "221206125116Z" }
+      }
+      SEQUENCE {
+        INTEGER { 50793 }
+        UTCTime { "221206125116Z" }
+      }
+      SEQUENCE {
+        INTEGER { 50794 }
+        UTCTime { "221207165936Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51190 }
+        UTCTime { "221207165932Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51191 }
+        UTCTime { "221207165935Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51192 }
+        UTCTime { "221207165933Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51193 }
+        UTCTime { "221207165935Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51341 }
+        UTCTime { "221207172022Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51342 }
+        UTCTime { "221207172023Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51343 }
+        UTCTime { "221207172022Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51344 }
+        UTCTime { "221207172022Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51345 }
+        UTCTime { "221207172023Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51346 }
+        UTCTime { "221207172024Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51352 }
+        UTCTime { "221207172750Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51353 }
+        UTCTime { "221207172750Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51354 }
+        UTCTime { "221207172750Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51355 }
+        UTCTime { "221207172751Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51356 }
+        UTCTime { "221207172751Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51357 }
+        UTCTime { "221207172751Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51366 }
+        UTCTime { "221207174153Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51369 }
+        UTCTime { "221207174153Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51378 }
+        UTCTime { "221207174513Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51382 }
+        UTCTime { "221216123526Z" }
+      }
+      SEQUENCE {
+        INTEGER { 51383 }
+        UTCTime { "221216123526Z" }
+      }
+      SEQUENCE {
+        INTEGER { 52231 }
+        UTCTime { "221216123902Z" }
+      }
+    }
+    [0] {
+      SEQUENCE {
+        SEQUENCE {
+          # authorityKeyIdentifier
+          OBJECT_IDENTIFIER { 2.5.29.35 }
+          OCTET_STRING {
+            SEQUENCE {
+              [0 PRIMITIVE] { `caa805dbac364749b9b115590ab6ef0f970cdbd8` }
+            }
+          }
+        }
+        SEQUENCE {
+          # cRLNumber
+          OBJECT_IDENTIFIER { 2.5.29.20 }
+          OCTET_STRING {
+            INTEGER { 65926 }
+          }
+        }
+      }
+    }
+  }
+  SEQUENCE {
+    # sha256WithRSAEncryption
+    OBJECT_IDENTIFIER { 1.2.840.113549.1.1.11 }
+    NULL {}
+  }
+  BIT_STRING { `00` `4d808cce804ecf718012d0627b0c52adeaff18be4b5cba8cf636f9b5035bc91393fea7c160a6c4c5edf798797ed5aff2a7c7fc5d8c4ba0e1dae3e78e310c08e0ee3407d607130a8f0b676479cfdc55557af0d87e9a9a8be71ce98b7c8c2f02e5856371eceaf409f3c96e7c70b41ff6b03f4f3568a5af76b53be62fd848a0ab35cb6356ecd0a4da25ee889016543f57c2905a538d247ea3f7240aca262630e1cb1eb2982b2c113cb2d5d6ae69b2b6d029cf8f72a12aa0083e4d9c91068f59b69b73c183f7cba815bf5765aa71f0c7ac5d718fdd07051f3707ca654826fc9cb5e8f8bdf3e3f94d6592d79136bed5e978a22dbdd641b794cf3c3ffe7c366fe8bd3c` }
+}

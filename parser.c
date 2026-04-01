@@ -539,7 +539,7 @@ valid_mft_filename(const unsigned char *fn, size_t len)
 	return 1;
 }
 
-static void
+void
 mft_free(struct mft *mft)
 {
 	if (mft == NULL)

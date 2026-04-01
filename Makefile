@@ -3,7 +3,7 @@ RC_INT= parser.c asn1.c mkdir.c mktemp.c util.c
 SRCS=	main.c $(RC_INT)
 MAN=	rpkitouch.8
 
-LDADD+= -lc -lcrypto
+LDADD+= -lc -lcrypto -lz
 
 CFLAGS+= -O2 -pipe
 CFLAGS+= -Wall
@@ -52,11 +52,15 @@ test: $(PROG)
 	./rpkitouch -R tests/a/output.ccr tests/erik.ccr tests/test.ccr
 	./rpkitouch -c tests/a/output.ccr > tests/a/output.list
 	diff tests/a/output.list tests/expected-outcome-reduced-ccr.list
+	./rpkitouch -v -P -d ./tests/c tests/c/named/chloe.sobornost.net/rpki/RIPE-nljobsnijders/yqgF26w2R0m5sRVZCrbvD5cM29g.mft
+	zcat tests/c/erik/pack/kpIopBXp5zBOBt13_H0McDKpPGJxRaLRpVTZ4jqb-yw | der2ascii > tests/a/output.pack
+	diff tests/a/output.pack tests/expected-outcome-uncompressed-pack.txt
 	echo OK
 
 clean:
 	-rm -rf rpkitouch rpkitouch.d tests/outcome.txt tests/c tests/e tags tests/a
 	-rm -rf tests/outcome-ccr.txt tests/outcome-print-mft.txt tests/outcome-erik.txt
+	-rm tests/c/erik/pack/kpIopBXp5zBOBt13_H0McDKpPGJxRaLRpVTZ4jqb-yw
 
 readme:
 	mandoc -Tlint rpkitouch.8
