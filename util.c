@@ -502,7 +502,7 @@ store_pack(struct file *m, char *crlhash)
 		if (verbose) {
 			warnx("%s (st:%lld osz:%lld sz:%lld)", pack->name,
 			    (long long)m->signtime,
-			    m->content_len + crl->content_len,
+			    (long long)(m->content_len + crl->content_len),
 			    (long long)pack->content_len);
 		}
 		write_file(pack->name, pack->content, pack->content_len,
