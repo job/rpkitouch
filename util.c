@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2026 Job Snijders <job@bsd.nl>
  * Copyright (c) 2020 Claudio Jeker <claudio@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
