@@ -430,7 +430,7 @@ store_pack(struct file *m, char *crlhash)
 	char *pn;
 	struct file *crl, *pack;
 	unsigned char *buf = NULL;
-	size_t packlen;
+	off_t packlen;
 	z_stream zs;
 	struct stat st;
 
@@ -470,7 +470,7 @@ store_pack(struct file *m, char *crlhash)
 	    Z_DEFAULT_STRATEGY) != Z_OK)
 		errx(1, "deflateInit2");
 
-	packlen = deflateBound_z(&zs, m->content_len + crl->content_len);
+	packlen = deflateBound(&zs, m->content_len + crl->content_len);
 
 	if ((pack->content = malloc(packlen)) == NULL)
 		err(1, NULL);
