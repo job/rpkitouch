@@ -428,25 +428,29 @@ hex_decode(const char *hexstr, char *buf, size_t len)
 void
 store_pack(struct file *m, char *crlhash)
 {
-	char *pn;
+	char *dir, *pn;
 	struct file *crl, *pack;
 	unsigned char *buf = NULL;
 	off_t packlen;
 	z_stream zs;
 	struct stat st;
 
-	if (!noop) {
-		if (mkpathat(outdirfd, "erik/pack") == -1)
-			err(1, "mkpathat %s", "erik/pack");
-	}
-
 	if (!b64uri_encode(m->hash, SHA256_DIGEST_LENGTH, &pn))
 		err(1, "b64uri_encode");
+
+	if (asprintf(&dir, "erik/pack/%c%c/%c%c", pn[39], pn[40], pn[41],
+	    pn[42]) == -1)
+		err(1, NULL);
+
+	if (!noop) {
+		if (mkpathat(outdirfd, dir) == -1)
+			err(1, "mkpathat %s", dir);
+	}
 
 	if ((pack = calloc(1, sizeof(*pack))) == NULL)
 		err(1, NULL);
 
-	if (asprintf(&pack->name, "erik/pack/%s", pn) == -1)
+	if (asprintf(&pack->name, "%s/%s", dir, pn) == -1)
 		err(1, NULL);
 
 	if ((crl = calloc(1, sizeof(*crl))) == NULL)
@@ -511,6 +515,7 @@ store_pack(struct file *m, char *crlhash)
 	} else
 		update_atime(pack->name);
 
+	free(dir);
 	free(buf);
 	free(pn);
 	file_free(pack);
