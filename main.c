@@ -414,7 +414,7 @@ main(int argc, char *argv[])
 		 * addressable scheme.
 		 */
 		if (outdir != NULL)
-			store_by_hash(f);
+			store_by_hash(f, 0);
 
 		if (outdir != NULL && f->type == TYPE_MFT)
 			store_by_name(f, mft);

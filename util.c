@@ -205,7 +205,7 @@ update_atime(const char *file)
 }
 
 int
-store_by_hash(struct file *f)
+store_by_hash(struct file *f, uint64_t csize)
 {
 	char *b = NULL;
 	char *dir = NULL, *path = NULL;
@@ -249,9 +249,16 @@ store_by_hash(struct file *f)
 		if (verbose) {
 			if (time(NULL) > f->signtime)
 				delay = time(NULL) - f->signtime;
-			warnx("%s %s (st:%lld sz:%lld d:%lld)", f->name, b,
-			    (long long)f->signtime, (long long)f->content_len,
-			    (long long)delay);
+			if (csize)
+				warnx("%s %s (st:%lld sz:%lld d:%lld csize:%llu)",
+				    f->name, b, (long long)f->signtime,
+				    (long long)f->content_len,
+				    (long long)delay, csize);
+			else
+				warnx("%s %s (st:%lld sz:%lld d:%lld)",
+				    f->name, b, (long long)f->signtime,
+				    (long long)f->content_len,
+				    (long long)delay);
 		}
 		write_file(path, f->content, f->content_len, f->signtime);
 		wrote = 1;

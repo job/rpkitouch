@@ -124,7 +124,7 @@ time_t get_time_from_content(struct file *f);
 
 void set_mtime(int, const char *, time_t);
 
-int store_by_hash(struct file *);
+int store_by_hash(struct file *, uint64_t);
 int store_by_name(struct file *, struct mft *);
 void store_pack(struct file *, char *);
 

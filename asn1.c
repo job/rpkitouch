@@ -435,7 +435,7 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 }
 
 static void
-finalize_ErikIndex(ErikIndex *ei, char *fqdn, time_t itime)
+finalize_ErikIndex(ErikIndex *ei, char *fqdn, time_t itime, uint64_t csize)
 {
 	EI_ContentInfo *ci = NULL;
 	struct file *f;
@@ -469,7 +469,7 @@ finalize_ErikIndex(ErikIndex *ei, char *fqdn, time_t itime)
 	if (asprintf(&f->name, "erik index: %s", fqdn) == -1)
 		err(1, "asprintf");
 
-	if (store_by_hash(f))
+	if (store_by_hash(f, csize))
 		update_index_ptr(fqdn, f->hash);
 
 	file_free(f);
@@ -511,7 +511,7 @@ finalize_ErikPartition(ErikPartition *ep, char *fqdn, int num, time_t ptime)
 	if (asprintf(&f->name, "erik partition: %s#%d", fqdn, num) == -1)
 		err(1, "asprintf");
 
-	store_by_hash(f);
+	store_by_hash(f, 0);
 
 	if ((pr = PartitionRef_new()) == NULL)
 		errx(1, "PartitionRef_new");
@@ -537,6 +537,7 @@ generate_erik_objects(struct mftinstance **mis, int count, char *single_fqdn)
 	PartitionRef *pr = NULL;
 	ManifestRef *mr = NULL;
 	time_t itime = 0, ptime = 0;
+	uint64_t csize = 0;
 	int i, num;
 
 	prev_fqdn = prev_aki = NULL;
@@ -555,6 +556,7 @@ generate_erik_objects(struct mftinstance **mis, int count, char *single_fqdn)
 
 			ei = start_ErikIndex(mi->fqdn);
 			itime = 0;
+			csize = 0;
 
 			ep = start_ErikPartition();
 			ptime = 0;
@@ -568,10 +570,11 @@ generate_erik_objects(struct mftinstance **mis, int count, char *single_fqdn)
 			if (sk_PartitionRef_push(ei->partitionList, pr) <= 0)
 				errx(1, "sk_PartitionRef_push");
 
-			finalize_ErikIndex(ei, prev_fqdn, itime);
+			finalize_ErikIndex(ei, prev_fqdn, itime, csize);
 
 			ei = start_ErikIndex(mi->fqdn);
 			itime = 0;
+			csize = 0;
 
 			ep = start_ErikPartition();
 			ptime = 0;
@@ -596,6 +599,8 @@ generate_erik_objects(struct mftinstance **mis, int count, char *single_fqdn)
 		if (mi->thisupdate > ptime)
 			ptime = mi->thisupdate;
 
+		csize += mi->size;
+
 		prev_fqdn = mi->fqdn;
 		prev_aki = mi->aki;
 	}
@@ -607,7 +612,7 @@ generate_erik_objects(struct mftinstance **mis, int count, char *single_fqdn)
 	pr = finalize_ErikPartition(ep, prev_fqdn, num, ptime);
 	if (sk_PartitionRef_push(ei->partitionList, pr) <= 0)
 		errx(1, "sk_PartitionRef_push");
-	finalize_ErikIndex(ei, mi->fqdn, itime);
+	finalize_ErikIndex(ei, mi->fqdn, itime, csize);
 }
 
 static int
