@@ -925,7 +925,7 @@ repair_ccr(struct file *f)
 	ROAIPAddressFamily *ripaf;
 	char *old_hash = NULL, *new_hash = NULL;
 	int i, j, rps_num, ipb_num;
-	struct file *repaired;
+	struct file *repaired = NULL;
 	int rc = 0;
 
 	oder = der = f->content;
@@ -1020,6 +1020,7 @@ repair_ccr(struct file *f)
 
 	free(old_hash);
 	free(new_hash);
+	file_free(repaired);
 
 	return rc;
 }
