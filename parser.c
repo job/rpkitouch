@@ -923,7 +923,6 @@ repair_ccr(struct file *f)
 	time_t producedat;
 	ROAPayloadSet *rp;
 	ROAIPAddressFamily *ripaf;
-	STACK_OF(ROAIPAddress) *new_addrs;
 	char *old_hash = NULL, *new_hash = NULL;
 	int i, j, rps_num, ipb_num;
 	struct file *repaired;
@@ -985,16 +984,9 @@ repair_ccr(struct file *f)
 		for (j = 0; j < ipb_num; j++) {
 			ripaf = sk_ROAIPAddressFamily_value(rp->ipAddrBlocks, j);
 
-			new_addrs = sk_ROAIPAddress_dup(ripaf->addresses);
-			if (new_addrs == NULL)
-				err(1, NULL);
-
-			sk_ROAIPAddress_free(ripaf->addresses);
-
-			(void)sk_ROAIPAddress_set_cmp_func(new_addrs,
+			(void)sk_ROAIPAddress_set_cmp_func(ripaf->addresses,
 			    roaipaddress_cmp);
-			sk_ROAIPAddress_sort(new_addrs);
-			ripaf->addresses = new_addrs;
+			sk_ROAIPAddress_sort(ripaf->addresses);
 		}
 	}
 
