@@ -1016,6 +1016,8 @@ repair_ccr(struct file *f)
 	rc = 1;
  out:
 
+	CCR_ContentInfo_free(ci);
+
 	free(old_hash);
 	free(new_hash);
 
