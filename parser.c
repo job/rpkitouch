@@ -971,7 +971,8 @@ repair_ccr(struct file *f)
 		goto out;
 	}
 
-	if (!b64_encode(ccr_asn1->vrps->hash->data, ccr_asn1->vrps->hash->length, &old_hash))
+	if (!b64_encode(ccr_asn1->vrps->hash->data,
+	    ccr_asn1->vrps->hash->length, &old_hash))
 		err(1, NULL);
 	printf("OLD %s", old_hash);
 
@@ -984,12 +985,14 @@ repair_ccr(struct file *f)
 		for (j = 0; j < ipb_num; j++) {
 			ripaf = sk_ROAIPAddressFamily_value(rp->ipAddrBlocks, j);
 
-			if ((new_addrs = sk_ROAIPAddress_dup(ripaf->addresses)) == NULL)
+			new_addrs = sk_ROAIPAddress_dup(ripaf->addresses);
+			if (new_addrs == NULL)
 				err(1, NULL);
 
 			sk_ROAIPAddress_free(ripaf->addresses);
 
-			(void)sk_ROAIPAddress_set_cmp_func(new_addrs, roaipaddress_cmp);
+			(void)sk_ROAIPAddress_set_cmp_func(new_addrs,
+			    roaipaddress_cmp);
 			sk_ROAIPAddress_sort(new_addrs);
 			ripaf->addresses = new_addrs;
 		}
@@ -998,7 +1001,8 @@ repair_ccr(struct file *f)
 	hash_asn1_item(ccr_asn1->vrps->hash, ASN1_ITEM_rptr(ROAPayloadSets),
 	    ccr_asn1->vrps->rps);
 
-	if (!b64_encode(ccr_asn1->vrps->hash->data, ccr_asn1->vrps->hash->length, &new_hash))
+	if (!b64_encode(ccr_asn1->vrps->hash->data,
+	    ccr_asn1->vrps->hash->length, &new_hash))
 		err(1, NULL);
 	printf(" NEW %s\n", new_hash);
 
@@ -1011,7 +1015,8 @@ repair_ccr(struct file *f)
 		err(1, NULL);
 
 	repaired->content = NULL;
-	if ((repaired->content_len = i2d_CCR_ContentInfo(ci, &repaired->content)) <= 0)
+	repaired->content_len = i2d_CCR_ContentInfo(ci, &repaired->content);
+	if (repaired->content_len <= 0)
 		errx(1, "i2d_CCR_ContentInfo");
 
 	write_file(f->name, repaired->content, repaired->content_len, producedat);
