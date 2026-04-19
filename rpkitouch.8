@@ -29,6 +29,9 @@
 .Fl R Ar out_ccr
 .Ar
 .Nm rpkitouch
+.Op Fl n
+.Fl r Ar ccr_file
+.Nm rpkitouch
 .Op Fl CnPpVv
 .Op Fl d Ar directory
 .Op Fl H Ar fqdn
@@ -157,6 +160,10 @@ Output a reduced CCR in
 .Ar out_ccr
 by removing all states except the ManifestState, and comparing and deduplicating
 ManifestInstances in the specified CCR file(s).
+.It Fl r Ar ccr_file
+Repair the sorting in
+.Ar ccr_file .
+Useful to rectify files produced by rpki-client 9.7.
 .It Fl V
 Display the version number and exit.
 .It Fl v

@@ -334,6 +334,31 @@ set_mtime(int fd, const char *fn, time_t mtime)
 }
 
 /*
+ * Base 64 encoding.
+ */
+int
+b64_encode(const unsigned char *in, size_t inlen, char **out)
+{
+	char *to;
+	size_t tolen = 0;
+
+	*out = NULL;
+
+	if (inlen >= INT_MAX / 2)
+		return 0;
+
+	tolen = ((inlen + 2) / 3) * 4 + 1;
+
+	if ((to = malloc(tolen)) == NULL)
+		return 0;
+
+	EVP_EncodeBlock((unsigned char *)to, in, inlen);
+	*out = to;
+
+	return 1;
+}
+
+/*
  * Base 64 encoding with URL and filename safe alphabet.
  * RFC 4648 section 5.
  */

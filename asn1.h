@@ -163,12 +163,80 @@ typedef struct {
 
 DECLARE_ASN1_FUNCTIONS(ManifestState);
 
+extern ASN1_ITEM_EXP ROAIPAddress_it;
+extern ASN1_ITEM_EXP ROAIPAddressFamily_it;
+
+typedef struct {
+	ASN1_BIT_STRING *address;
+	ASN1_INTEGER *maxLength;
+} ROAIPAddress;
+
+DECLARE_ASN1_FUNCTIONS(ROAIPAddress);
+DECLARE_STACK_OF(ROAIPAddress);
+
+#ifndef DEFINE_STACK_OF
+#define sk_ROAIPAddress_dup(st) SKM_sk_dup(ROAIPAddress, (st))
+#define sk_ROAIPAddress_free(st) SKM_sk_free(ROAIPAddress, (st))
+#define sk_ROAIPAddress_new(cmp) SKM_sk_new(ROAIPAddress, (cmp))
+#define sk_ROAIPAddress_num(st) SKM_sk_num(ROAIPAddress, (st))
+#define sk_ROAIPAddress_push(st, i) SKM_sk_push(ROAIPAddress, (st), (i))
+#define sk_ROAIPAddress_set_cmp_func(sk, cmp) \
+    SKM_sk_set_cmp_func(ROAIPAddress, (sk), (cmp))
+#define sk_ROAIPAddress_sort(st) SKM_sk_sort(ROAIPAddress, (st))
+#define sk_ROAIPAddress_value(st, i) SKM_sk_value(ROAIPAddress, (st), (i))
+#endif
+
+typedef struct {
+	ASN1_OCTET_STRING *addressFamily;
+	STACK_OF(ROAIPAddress) *addresses;
+} ROAIPAddressFamily;
+
+DECLARE_ASN1_FUNCTIONS(ROAIPAddressFamily);
+DECLARE_STACK_OF(ROAIPAddressFamily);
+
+#ifndef DEFINE_STACK_OF
+#define sk_ROAIPAddressFamily_num(st) SKM_sk_num(ROAIPAddressFamily, (st))
+#define sk_ROAIPAddressFamily_push(st, i) \
+    SKM_sk_push(ROAIPAddressFamily, (st), (i))
+#define sk_ROAIPAddressFamily_value(st, i) \
+    SKM_sk_value(ROAIPAddressFamily, (st), (i))
+#endif
+
+extern ASN1_ITEM_EXP ROAPayloadSets_it;
+extern ASN1_ITEM_EXP ROAPayloadSet_it;
+
+typedef struct {
+	ASN1_INTEGER *asID;
+	STACK_OF(ROAIPAddressFamily) *ipAddrBlocks;
+} ROAPayloadSet;
+
+DECLARE_STACK_OF(ROAPayloadSet);
+
+#ifndef DEFINE_STACK_OF
+#define sk_ROAPayloadSet_num(st) SKM_sk_num(ROAPayloadSet, (st))
+#define sk_ROAPayloadSet_push(st, i) SKM_sk_push(ROAPayloadSet, (st), (i))
+#define sk_ROAPayloadSet_value(st, i) SKM_sk_value(ROAPayloadSet, (st), (i))
+#endif
+
+DECLARE_ASN1_FUNCTIONS(ROAPayloadSet);
+
+typedef STACK_OF(ROAPayloadSet) ROAPayloadSets;
+
+DECLARE_ASN1_FUNCTIONS(ROAPayloadSets);
+
+typedef struct {
+	STACK_OF(ROAPayloadSet) *rps;
+	ASN1_OCTET_STRING *hash;
+} ROAPayloadState;
+
+DECLARE_ASN1_FUNCTIONS(ROAPayloadState);
+
 typedef struct {
 	ASN1_INTEGER *version;
 	X509_ALGOR *hashAlg;
 	ASN1_GENERALIZEDTIME *producedAt;
 	ManifestState *mfts;
-	ASN1_SEQUENCE_ANY *vrps;
+	ROAPayloadState *vrps;
 	ASN1_SEQUENCE_ANY *vaps;
 	ASN1_SEQUENCE_ANY *tas;
 	ASN1_SEQUENCE_ANY *rks;

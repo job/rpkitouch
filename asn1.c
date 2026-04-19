@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2025 Job Snijders <job@sobornost.net>
+ * Copyright (c) 2025-2026 Job Snijders <job@bsd.nl>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -41,6 +41,10 @@ ASN1_ITEM_EXP ErikPartition_it;
 ASN1_ITEM_EXP ManifestRef_it;
 ASN1_ITEM_EXP ManifestInstance_it;
 ASN1_ITEM_EXP ManifestInstances_it;
+ASN1_ITEM_EXP ROAIPAddress_it;
+ASN1_ITEM_EXP ROAIPAddressFamily_it;
+ASN1_ITEM_EXP ROAPayloadSet_it;
+ASN1_ITEM_EXP ROAPayloadSets_it;
 
 ASN1_SEQUENCE(CCR_ContentInfo) = {
 	ASN1_SIMPLE(CCR_ContentInfo, contentType, ASN1_OBJECT),
@@ -69,13 +73,43 @@ ASN1_SEQUENCE(CanonicalCacheRepresentation) = {
 	ASN1_SIMPLE(CanonicalCacheRepresentation, producedAt,
 	    ASN1_GENERALIZEDTIME),
 	ASN1_EXP_OPT(CanonicalCacheRepresentation, mfts, ManifestState, 1),
-	ASN1_EXP_OPT(CanonicalCacheRepresentation, vrps, ASN1_SEQUENCE_ANY, 2),
+	ASN1_EXP_OPT(CanonicalCacheRepresentation, vrps, ROAPayloadState, 2),
 	ASN1_EXP_OPT(CanonicalCacheRepresentation, vaps, ASN1_SEQUENCE_ANY, 3),
 	ASN1_EXP_OPT(CanonicalCacheRepresentation, tas, ASN1_SEQUENCE_ANY, 4),
 	ASN1_EXP_OPT(CanonicalCacheRepresentation, rks, ASN1_SEQUENCE_ANY, 5),
 } ASN1_SEQUENCE_END(CanonicalCacheRepresentation);
 
 IMPLEMENT_ASN1_FUNCTIONS(CanonicalCacheRepresentation);
+
+ASN1_SEQUENCE(ROAPayloadState) = {
+	ASN1_SEQUENCE_OF(ROAPayloadState, rps, ROAPayloadSet),
+	ASN1_SIMPLE(ROAPayloadState, hash, ASN1_OCTET_STRING),
+} ASN1_SEQUENCE_END(ROAPayloadState);
+
+IMPLEMENT_ASN1_FUNCTIONS(ROAPayloadState);
+
+ASN1_ITEM_TEMPLATE(ROAPayloadSets) =
+    ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, rps, ROAPayloadSet)
+ASN1_ITEM_TEMPLATE_END(ROAPayloadSets);
+
+ASN1_SEQUENCE(ROAPayloadSet) = {
+	ASN1_SIMPLE(ROAPayloadSet, asID, ASN1_INTEGER),
+	ASN1_SEQUENCE_OF(ROAPayloadSet, ipAddrBlocks, ROAIPAddressFamily),
+} ASN1_SEQUENCE_END(ROAPayloadSet);
+
+ASN1_SEQUENCE(ROAIPAddressFamily) = {
+	ASN1_SIMPLE(ROAIPAddressFamily, addressFamily, ASN1_OCTET_STRING),
+	ASN1_SEQUENCE_OF(ROAIPAddressFamily, addresses, ROAIPAddress),
+} ASN1_SEQUENCE_END(ROAIPAddressFamily);
+
+ASN1_SEQUENCE(ROAIPAddress) = {
+	ASN1_SIMPLE(ROAIPAddress, address, ASN1_BIT_STRING),
+	ASN1_OPT(ROAIPAddress, maxLength, ASN1_INTEGER),
+} ASN1_SEQUENCE_END(ROAIPAddress);
+
+IMPLEMENT_ASN1_FUNCTIONS(ROAPayloadSet);
+IMPLEMENT_ASN1_FUNCTIONS(ROAIPAddressFamily);
+IMPLEMENT_ASN1_FUNCTIONS(ROAIPAddress);
 
 ASN1_SEQUENCE(ManifestState) = {
 	ASN1_SEQUENCE_OF(ManifestState, mis, ManifestInstance),

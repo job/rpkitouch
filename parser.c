@@ -53,7 +53,6 @@ ASN1_SEQUENCE(FileAndHash) = {
 	ASN1_SIMPLE(FileAndHash, hash, ASN1_BIT_STRING),
 } ASN1_SEQUENCE_END(FileAndHash);
 
-
 void
 hash_asn1_item(ASN1_OCTET_STRING *astr, const ASN1_ITEM *it, void *val)
 {
@@ -845,4 +844,183 @@ parse_ccr(struct file *f)
 	CCR_ContentInfo_free(ci);
 
 	return ccr;
+}
+
+static int
+roaaddr_parse(const ASN1_BIT_STRING *abs, struct roaipaddr *addr)
+{
+	const unsigned char *data;
+	int length, unused = 0;
+
+	data = ASN1_STRING_get0_data(abs);
+	length = ASN1_STRING_length(abs);
+
+	if ((abs->flags & ASN1_STRING_FLAG_BITS_LEFT))
+		unused = abs->flags & 0x07;
+
+	if (length == 0 && unused != 0) {
+		warnx("RFC 3779 section 2.2.3.8 unused bit count must be 0 if length is 0");
+		return 0;
+	}
+
+	if (length != 0 && (data[length - 1] & ((1 << unused) - 1))) {
+		warnx("RFC 3779 section 2.2.3.8 unused bits must be set to 0");
+		return 0;
+	}
+
+	addr->prefixlen = length * 8 - unused;
+	memcpy(addr->addr, data, length);
+	return 1;
+}
+
+static int
+roaipaddress_cmp(const ROAIPAddress *const *a, const ROAIPAddress *const *b)
+{
+	struct roaipaddr ra, rb;
+	int cmp;
+
+	memset(&ra, 0, sizeof(ra));
+	if (!roaaddr_parse((*a)->address, &ra))
+		errx(1, "roaaddr_parse");
+
+	memset(&rb, 0, sizeof(rb));
+	if (!roaaddr_parse((*b)->address, &rb))
+		errx(1, "roaaddr_parse");
+
+	if ((*a)->maxLength != NULL)
+		ra.maxlen = ASN1_INTEGER_get((*a)->maxLength);
+	else
+		ra.maxlen = ra.prefixlen;
+
+	if ((*b)->maxLength != NULL)
+		rb.maxlen = ASN1_INTEGER_get((*b)->maxLength);
+	else
+		rb.maxlen = rb.prefixlen;
+
+	cmp = memcmp(ra.addr, rb.addr, sizeof(ra.addr));
+	if (cmp)
+		return cmp;
+
+	if (ra.prefixlen > rb.prefixlen)
+		return 1;
+	if (ra.prefixlen < rb.prefixlen)
+		return -1;
+
+	if (ra.maxlen > rb.maxlen)
+		return 1;
+	if (ra.maxlen < rb.maxlen)
+		return -1;
+
+	errx(1, "roaipaddress_cmp");
+}
+
+int
+repair_ccr(struct file *f)
+{
+	const unsigned char *oder, *der;
+	CCR_ContentInfo *ci = NULL;
+	CanonicalCacheRepresentation *ccr_asn1;
+	time_t producedat;
+	ROAPayloadSet *rp;
+	ROAIPAddressFamily *ripaf;
+	STACK_OF(ROAIPAddress) *new_addrs;
+	char *old_hash = NULL, *new_hash = NULL;
+	int i, j, rps_num, ipb_num;
+	struct file *repaired;
+	int rc = 0;
+
+	oder = der = f->content;
+	if ((ci = d2i_CCR_ContentInfo(NULL, &der, f->content_len)) == NULL) {
+		warnx("%s: d2i_CCR_ContentInfo failed", f->name);
+		goto out;
+	}
+	if (der != oder + f->content_len) {
+		warnx("%s: %td bytes trailing garbage", f->name,
+		    oder + f->content_len - der);
+		goto out;
+	}
+
+	if (OBJ_cmp(ci->contentType, ccr_oid) != 0) {
+		char buf[128];
+
+		OBJ_obj2txt(buf, sizeof(buf), ci->contentType, 1);
+		warnx("%s: unexpected OID: got %s, want 1.2.840.113549.1.9.16.1.54",
+		    f->name, buf);
+		goto out;
+	}
+
+	ccr_asn1 = ci->content;
+
+	if (!asn1time_to_time(ccr_asn1->producedAt, &producedat, 1)) {
+		warnx("%s: failed to convert %s", f->name, "producedAt");
+		goto out;
+	}
+
+	if (f->disktime != producedat)
+		set_mtime(AT_FDCWD, f->name, producedat);
+
+	if (ccr_asn1->vrps == NULL || ccr_asn1->vrps->hash == NULL ||
+	    ccr_asn1->vrps->rps == NULL) {
+		warnx("%s: missing ROAPayloadState", f->name);
+		goto out;
+	}
+
+	if (!validate_asn1_hash(f->name, "ROAPayloadState", ccr_asn1->vrps->hash,
+	    ASN1_ITEM_rptr(ROAPayloadSets), ccr_asn1->vrps->rps)) {
+		warnx("%s: ROAPayloadState hash mismatch", f->name);
+		goto out;
+	}
+
+	if (!b64_encode(ccr_asn1->vrps->hash->data, ccr_asn1->vrps->hash->length, &old_hash))
+		err(1, NULL);
+	printf("OLD %s", old_hash);
+
+	rps_num = sk_ROAPayloadSet_num(ccr_asn1->vrps->rps);
+	for (i = 0; i < rps_num; i++) {
+		rp = sk_ROAPayloadSet_value(ccr_asn1->vrps->rps, i);
+
+		ipb_num = sk_ROAIPAddressFamily_num(rp->ipAddrBlocks);
+
+		for (j = 0; j < ipb_num; j++) {
+			ripaf = sk_ROAIPAddressFamily_value(rp->ipAddrBlocks, j);
+
+			if ((new_addrs = sk_ROAIPAddress_dup(ripaf->addresses)) == NULL)
+				err(1, NULL);
+
+			sk_ROAIPAddress_free(ripaf->addresses);
+
+			(void)sk_ROAIPAddress_set_cmp_func(new_addrs, roaipaddress_cmp);
+			sk_ROAIPAddress_sort(new_addrs);
+			ripaf->addresses = new_addrs;
+		}
+	}
+
+	hash_asn1_item(ccr_asn1->vrps->hash, ASN1_ITEM_rptr(ROAPayloadSets),
+	    ccr_asn1->vrps->rps);
+
+	if (!b64_encode(ccr_asn1->vrps->hash->data, ccr_asn1->vrps->hash->length, &new_hash))
+		err(1, NULL);
+	printf(" NEW %s\n", new_hash);
+
+	if (strcmp(old_hash, new_hash) == 0) {
+		rc = 1;
+		goto out;
+	}
+
+	if ((repaired = calloc(1, sizeof(*repaired))) == NULL)
+		err(1, NULL);
+
+	repaired->content = NULL;
+	if ((repaired->content_len = i2d_CCR_ContentInfo(ci, &repaired->content)) <= 0)
+		errx(1, "i2d_CCR_ContentInfo");
+
+	write_file(f->name, repaired->content, repaired->content_len, producedat);
+
+	rc = 1;
+ out:
+
+	free(old_hash);
+	free(new_hash);
+
+	return rc;
 }

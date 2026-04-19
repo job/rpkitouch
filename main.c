@@ -198,7 +198,7 @@ int
 main(int argc, char *argv[])
 {
 	int c, count = 0, i, rc = 0;
-	char *ccr_file = NULL, *outdir = NULL, *reduce = NULL;
+	char *ccr_file = NULL, *outdir = NULL, *reduce = NULL, *repair = NULL;
 	char *single_fqdn = NULL;
 	struct file *f;
 	unsigned char *fc;
@@ -206,7 +206,7 @@ main(int argc, char *argv[])
 	struct ccr *ccr = NULL;
 	struct mft *mft = NULL;
 
-	while ((c = getopt(argc, argv, "Cc:d:H:hnPpR:Vv")) != -1)
+	while ((c = getopt(argc, argv, "Cc:d:H:hnPpR:r:Vv")) != -1)
 		switch (c) {
 		case 'C':
 			compare = 1;
@@ -233,6 +233,9 @@ main(int argc, char *argv[])
 		case 'R':
 			reduce = optarg;
 			break;
+		case 'r':
+			repair = optarg;
+			break;
 		case 'V':
 			printf("version 1.7\n");
 			exit(0);
@@ -247,7 +250,7 @@ main(int argc, char *argv[])
 	argc -= optind;
 	argv += optind;
 
-	if (outdir == NULL && *argv == NULL && ccr_file == NULL)
+	if (outdir == NULL && *argv == NULL && ccr_file == NULL && repair == NULL)
 		usage();
 
 	if (outdir != NULL && print) {
@@ -264,8 +267,11 @@ main(int argc, char *argv[])
 	if (ccr_file != NULL && outdir != NULL)
 		usage();
 
-	if (pack && outdir == NULL)
-		usage();
+	if (outdir == NULL && repair == NULL) {
+		if (pack) {
+			usage();
+		}
+	}
 
 	setup_oids();
 
@@ -316,6 +322,31 @@ main(int argc, char *argv[])
 
 		free(mis);
 		file_free(f);
+	}
+
+	if (repair != NULL) {
+		if ((f = calloc(1, sizeof(*f))) == NULL)
+			err(1, NULL);
+
+		if ((f->type = detect_ftype_from_fn(repair)) != TYPE_CCR) {
+			warnx("%s: -r only accepts .ccr", repair);
+			usage();
+		}
+
+		f->name = strdup(repair);
+
+		fc = load_file(repair, &f->content_len, &f->disktime);
+		if (fc == NULL)
+			errx(1, "%s: load_file failed", f->name);
+		f->content = fc;
+
+		if (!repair_ccr(f)) {
+			warnx("%s: repair failed", f->name);
+			file_free(f);
+			return 1;
+		}
+
+		return 0;
 	}
 
 	if (ccr_file != NULL) {
@@ -440,5 +471,6 @@ usage(void)
 	fprintf(stderr, "usage: rpkitouch [-CnPpVv] [-d dir] [-H fqdn] file ...\n");
 	fprintf(stderr, "       rpkitouch [-n] [-H fqdn] -c ccr_file\n");
 	fprintf(stderr, "       rpkitouch [-n] -R out_ccr ccr_file ...\n");
+	fprintf(stderr, "       rpkitouch [-n] -r ccr_file\n");
 	exit(1);
 }

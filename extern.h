@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2023-2025 Job Snijders <job@sobornost.net>
+ * Copyright (c) 2023-2026 Job Snijders <job@bsd.nl>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -104,8 +104,14 @@ struct file {
 	off_t content_len;
 };
 
+struct roaipaddr {
+	unsigned char addr[16];
+	unsigned char prefixlen;
+	long maxlen;
+};
 
 int b64uri_encode(const unsigned char *, size_t, char **);
+int b64_encode(const unsigned char *, size_t, char **);
 char *hex_encode(const unsigned char *, size_t);
 int hex_decode(const char *, char *, size_t);
 
@@ -116,6 +122,7 @@ void write_file(char *, unsigned char *, off_t, time_t);
 int mkpathat(int, const char *);
 int mkstempat(int, char *);
 
+int repair_ccr(struct file *f);
 struct ccr *parse_ccr(struct file *f);
 struct mft *parse_manifest(struct file *f);
 void hash_asn1_item(ASN1_OCTET_STRING *, const ASN1_ITEM *, void *);
