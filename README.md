@@ -15,6 +15,9 @@ RPKITOUCH(8) - System Manager's Manual
 **-R**&nbsp;*out\_ccr*
 *file&nbsp;...*  
 **rpkitouch**
+\[**-n**]
+**-r**&nbsp;*ccr\_file*  
+**rpkitouch**
 \[**-CnPpVv**]
 \[**-d**&nbsp;*directory*]
 \[**-H**&nbsp;*fqdn*]
@@ -163,6 +166,12 @@ The options are as follows:
 > by removing all states except the ManifestState, and comparing and deduplicating
 > ManifestInstances in the specified CCR file(s).
 
+**-r** *ccr\_file*
+
+> Repair the sorting in
+> *ccr\_file*.
+> Useful to rectify files produced by rpki-client 9.7.
+
 **-V**
 
 > Display the version number and exit.
@@ -268,4 +277,4 @@ https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-rpki-erik-protocol.
 
 Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
 
-OpenBSD 7.9 - April 1, 2026 - RPKITOUCH(8)
+OpenBSD 7.9 - April 20, 2026 - RPKITOUCH(8)
