@@ -35,6 +35,9 @@ TEST_FILES += 9X0AhXWTJDl8lJhfOwvnac-42CA.spl
 test: $(PROG)
 	cd tests && touch $(TEST_FILES) *.ccr
 	cd tests && ../rpkitouch -v $(TEST_FILES) *.ccr
+	cd tests && ../rpkitouch -r test.ccr | tee repair.txt
+	cd tests && ../rpkitouch -r erik.ccr | tee -a repair.txt
+	diff tests/repair.txt tests/expected-repair.txt
 	cd tests && perl -le 'print((stat $$_)[9] . " " . (stat $$_)[7]. " $$_") for @ARGV' $(TEST_FILES) *.ccr | LC_ALL=C sort -n | tee outcome.txt
 	mkdir -p tests/c
 	cd tests && find $(TEST_FILES) | xargs ../rpkitouch -v -d ./c
@@ -60,6 +63,7 @@ test: $(PROG)
 clean:
 	-rm -rf rpkitouch rpkitouch.d tests/outcome.txt tests/c tests/e tags tests/a
 	-rm -rf tests/outcome-ccr.txt tests/outcome-print-mft.txt tests/outcome-erik.txt
+	-rm -rf tests/repair.txt
 
 readme:
 	mandoc -Tlint rpkitouch.8
