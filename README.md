@@ -275,6 +275,6 @@ https://datatracker.ietf.org/doc/html/draft-ietf-sidrops-rpki-erik-protocol.
 
 # AUTHORS
 
-Job Snijders &lt;[job@openbsd.org](mailto:job@openbsd.org)&gt;
+Job Snijders &lt;[job@bsd.nl](mailto:job@bsd.nl)&gt;
 
 OpenBSD 7.9 - April 20, 2026 - RPKITOUCH(8)
