@@ -253,7 +253,7 @@ store_by_hash(struct file *f, uint64_t csize)
 				warnx("%s %s (st:%lld sz:%lld d:%lld csize:%llu)",
 				    f->name, b, (long long)f->signtime,
 				    (long long)f->content_len,
-				    (long long)delay, csize);
+				    (long long)delay, (long long)csize);
 			else
 				warnx("%s %s (st:%lld sz:%lld d:%lld)",
 				    f->name, b, (long long)f->signtime,
