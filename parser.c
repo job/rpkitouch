@@ -955,9 +955,6 @@ repair_ccr(struct file *f)
 		goto out;
 	}
 
-	if (f->disktime != producedat)
-		set_mtime(AT_FDCWD, f->name, producedat);
-
 	if (ccr_asn1->vrps == NULL || ccr_asn1->vrps->hash == NULL ||
 	    ccr_asn1->vrps->rps == NULL) {
 		warnx("%s: missing ROAPayloadState", f->name);
@@ -973,7 +970,6 @@ repair_ccr(struct file *f)
 	if (!b64_encode(ccr_asn1->vrps->hash->data,
 	    ccr_asn1->vrps->hash->length, &old_hash))
 		err(1, NULL);
-	printf("OLD %s", old_hash);
 
 	rps_num = sk_ROAPayloadSet_num(ccr_asn1->vrps->rps);
 	for (i = 0; i < rps_num; i++) {
@@ -996,7 +992,6 @@ repair_ccr(struct file *f)
 	if (!b64_encode(ccr_asn1->vrps->hash->data,
 	    ccr_asn1->vrps->hash->length, &new_hash))
 		err(1, NULL);
-	printf(" NEW %s\n", new_hash);
 
 	if (strcmp(old_hash, new_hash) == 0) {
 		rc = 1;
@@ -1012,6 +1007,8 @@ repair_ccr(struct file *f)
 		errx(1, "i2d_CCR_ContentInfo");
 
 	write_file(f->name, repaired->content, repaired->content_len, producedat);
+
+	printf("OLD %s NEW %s\n", old_hash, new_hash);
 
 	rc = 1;
  out:
