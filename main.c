@@ -237,7 +237,7 @@ main(int argc, char *argv[])
 			repair = optarg;
 			break;
 		case 'V':
-			printf("version 1.7\n");
+			printf("version 1.8\n");
 			exit(0);
 		case 'v':
 			verbose = 1;
