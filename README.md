@@ -168,7 +168,7 @@ The options are as follows:
 
 **-r** *ccr\_file*
 
-> Repair the sorting in
+> Repair ROAIPAddressFamily sorting in
 > *ccr\_file*.
 > Useful to rectify files produced by rpki-client 9.7.
 
