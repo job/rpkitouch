@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2023-2026 Job Snijders <job@bsd.nl>
+ * Copyright (c) 2025 Theo Buehler <tb@openbsd.org>
  *
  * Permission to use, copy, modify, and distribute this software for any
  * purpose with or without fee is hereby granted, provided that the above
@@ -22,6 +23,7 @@
 #include <unistd.h>
 
 #include <openssl/objects.h>
+#include <openssl/cms.h>
 #include <openssl/sha.h>
 
 #include "compat/queue.h"
@@ -62,6 +64,10 @@ ASN1_OBJECT *manifest_oid;
 ASN1_OBJECT *ccr_oid;
 ASN1_OBJECT *eidx_oid;
 ASN1_OBJECT *epar_oid;
+ASN1_OBJECT *aspa_oid;
+ASN1_OBJECT *roa_oid;
+ASN1_OBJECT *spl_oid;
+ASN1_OBJECT *tak_oid;
 
 static void
 setup_oids(void) {
@@ -80,6 +86,14 @@ setup_oids(void) {
 		errx(1, "OBJ_txt2obj for %s failed", "eidx_oid");
 	if ((epar_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.56", 1)) == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "epar_oid");
+	if ((aspa_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.49", 1)) == NULL)
+		errx(1, "OBJ_txt2obj for %s failed", "aspa_oid");
+	if ((roa_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.24", 1)) == NULL)
+		errx(1, "OBJ_txt2obj for %s failed", "roa_oid");
+	if ((spl_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.51", 1)) == NULL)
+		errx(1, "OBJ_txt2obj for %s failed", "spl_oid");
+	if ((tak_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.50", 1)) == NULL)
+		errx(1, "OBJ_txt2obj for %s failed", "tak_oid");
 }
 
 static void
@@ -114,6 +128,81 @@ detect_ftype_from_fn(char *fn)
 	}
 
  out:
+	return ftype;
+}
+
+enum filetype
+detect_ftype_from_der(struct file *f)
+{
+	CMS_ContentInfo *cms = NULL;
+	X509 *x509 = NULL;
+	X509_CRL *crl = NULL;
+	const unsigned char *p;
+	enum filetype ftype = TYPE_UNKNOWN;
+
+	p = f->content;
+	if ((cms = d2i_CMS_ContentInfo(NULL, &p, f->content_len)) != NULL) {
+		const ASN1_OBJECT *obj;
+
+		if ((obj = CMS_get0_type(cms)) != NULL) {
+			if (OBJ_cmp(obj, ccr_oid) == 0) {
+				ftype = TYPE_CCR;
+				goto out;
+			}
+			if (OBJ_cmp(obj, eidx_oid) == 0) {
+				ftype = TYPE_EIDX;
+				goto out;
+			}
+			if (OBJ_cmp(obj, epar_oid) == 0) {
+				ftype = TYPE_EPAR;
+				goto out;
+			}
+		}
+
+		if (CMS_get0_SignerInfos(cms) == NULL) {
+			warnx("%s: CMS object not signedData", f->name);
+			goto out;
+		}
+
+		if ((obj = CMS_get0_eContentType(cms)) == NULL) {
+			warnx("%s: RFC 6488, section 2.1.3.1: eContentType: "
+			    "OID object is NULL", f->name);
+			goto out;
+		}
+
+		if (OBJ_cmp(obj, aspa_oid) == 0)
+			ftype = TYPE_ASPA;
+		else if (OBJ_cmp(obj, manifest_oid) == 0)
+			ftype = TYPE_MFT;
+		else if (OBJ_cmp(obj, roa_oid) == 0)
+			ftype = TYPE_ROA;
+		else if (OBJ_cmp(obj, spl_oid) == 0)
+			ftype = TYPE_SPL;
+		else if (OBJ_cmp(obj, tak_oid) == 0)
+			ftype = TYPE_TAK;
+
+		goto out;
+	}
+
+	/* Does der parse as a certificate? */
+	p = f->content;
+	if ((x509 = d2i_X509(NULL, &p, f->content_len)) != NULL) {
+		ftype = TYPE_CER;
+		goto out;
+	}
+
+	/* Does der parse as a CRL? */
+	p = f->content;
+	if ((crl = d2i_X509_CRL(NULL, &p, f->content_len)) != NULL) {
+		ftype = TYPE_CRL;
+		goto out;
+	}
+
+ out:
+	CMS_ContentInfo_free(cms);
+	X509_free(x509);
+	X509_CRL_free(crl);
+
 	return ftype;
 }
 
@@ -399,6 +488,9 @@ main(int argc, char *argv[])
 
 		f->content = fc;
 		SHA256(f->content, f->content_len, f->hash);
+
+		if (f->type == TYPE_UNKNOWN)
+			f->type = detect_ftype_from_der(f);
 
 		if ((f->signtime = get_time_from_content(f)) == 0) {
 			file_free(f);

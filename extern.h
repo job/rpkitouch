@@ -143,6 +143,7 @@ void mftref_free(struct mftref *);
 void mftinstance_free(struct mftinstance *);
 void file_free(struct file *);
 enum filetype detect_ftype_from_fn(char *);
+enum filetype detect_ftype_from_der(struct file *);
 int merge_ccrs(char **, struct mftinstance_tree *);
 void generate_erik_objects(struct mftinstance **, int, char *);
 struct file *generate_reduced_ccr(struct mftinstance **, int);
