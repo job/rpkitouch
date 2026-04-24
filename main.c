@@ -60,8 +60,8 @@ ASN1_OBJECT *sign_time_oid;
 ASN1_OBJECT *signedobj_oid;
 ASN1_OBJECT *manifest_oid;
 ASN1_OBJECT *ccr_oid;
-ASN1_OBJECT *idx_oid;
-ASN1_OBJECT *par_oid;
+ASN1_OBJECT *eidx_oid;
+ASN1_OBJECT *epar_oid;
 
 static void
 setup_oids(void) {
@@ -76,10 +76,10 @@ setup_oids(void) {
 		errx(1, "OBJ_txt2obj for %s failed", "manifest_oid");
 	if ((ccr_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.54", 1)) == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "ccr_oid");
-	if ((idx_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.55", 1)) == NULL)
-		errx(1, "OBJ_txt2obj for %s failed", "idx_oid");
-	if ((par_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.56", 1)) == NULL)
-		errx(1, "OBJ_txt2obj for %s failed", "par_oid");
+	if ((eidx_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.55", 1)) == NULL)
+		errx(1, "OBJ_txt2obj for %s failed", "eidx_oid");
+	if ((epar_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.56", 1)) == NULL)
+		errx(1, "OBJ_txt2obj for %s failed", "epar_oid");
 }
 
 static void
@@ -90,8 +90,8 @@ destroy_oids(void)
 	ASN1_OBJECT_free(signedobj_oid);
 	ASN1_OBJECT_free(manifest_oid);
 	ASN1_OBJECT_free(ccr_oid);
-	ASN1_OBJECT_free(idx_oid);
-	ASN1_OBJECT_free(par_oid);
+	ASN1_OBJECT_free(eidx_oid);
+	ASN1_OBJECT_free(epar_oid);
 }
 
 enum filetype
@@ -424,6 +424,10 @@ main(int argc, char *argv[])
 			}
 			if (print)
 				printf("%s\n", mft->sia + RSYNC_PROTO_LEN);
+		}
+		if (f->type == TYPE_EIDX || f->type == TYPE_EPAR) {
+			if (print)
+				printf("%s %lld\n", f->name, (long long)f->signtime);
 		}
 
 		/*

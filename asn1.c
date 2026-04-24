@@ -481,7 +481,7 @@ finalize_ErikIndex(ErikIndex *ei, char *fqdn, time_t itime, uint64_t csize)
 		errx(1, "EI_ContentInfo_new");
 
 	ASN1_OBJECT_free(ci->contentType);
-	if ((ci->contentType = OBJ_dup(idx_oid)) == NULL)
+	if ((ci->contentType = OBJ_dup(eidx_oid)) == NULL)
 		errx(1, "OBJ_dup");
 
 	ErikIndex_free(ci->content);
@@ -523,7 +523,7 @@ finalize_ErikPartition(ErikPartition *ep, char *fqdn, int num, time_t ptime)
 		errx(1, "EP_ContentInfo_new");
 
 	ASN1_OBJECT_free(ci->contentType);
-	if ((ci->contentType = OBJ_dup(par_oid)) == NULL)
+	if ((ci->contentType = OBJ_dup(epar_oid)) == NULL)
 		errx(1, "OBJ_dup");
 
 	ErikPartition_free(ci->content);

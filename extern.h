@@ -36,6 +36,8 @@ enum filetype {
 	TYPE_SPL,
 	TYPE_TAK,
 	TYPE_TAL,
+	TYPE_EIDX,
+	TYPE_EPAR,
 	TYPE_UNKNOWN,
 };
 
@@ -151,8 +153,8 @@ extern ASN1_OBJECT *manifest_oid;
 extern ASN1_OBJECT *notify_oid;
 extern ASN1_OBJECT *sign_time_oid;
 extern ASN1_OBJECT *signedobj_oid;
-extern ASN1_OBJECT *idx_oid;
-extern ASN1_OBJECT *par_oid;
+extern ASN1_OBJECT *eidx_oid;
+extern ASN1_OBJECT *epar_oid;
 
 extern int noop;
 extern int verbose;

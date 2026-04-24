@@ -456,6 +456,78 @@ get_ccr_producedat(const char *fn, unsigned char *content, size_t len)
 	return time;
 }
 
+static time_t
+get_erik_indextime(const char *fn, unsigned char *content, size_t len)
+{
+	const unsigned char *oder, *der;
+	EI_ContentInfo *ei = NULL;
+	time_t time = 0;
+
+	oder = der = content;
+	if ((ei = d2i_EI_ContentInfo(NULL, &der, len)) == NULL) {
+		warnx("%s: d2i_EI_ContentInfo failed", fn);
+		goto out;
+	}
+	if (der != oder + len) {
+		warnx("%s: %td bytes trailing garbage", fn, oder + len - der);
+		goto out;
+	}
+
+	if (OBJ_cmp(ei->contentType, eidx_oid) != 0) {
+		char buf[128];
+
+		OBJ_obj2txt(buf, sizeof(buf), ei->contentType, 1);
+		warnx("%s: unexpected OID: got %s, want "
+		    "1.2.840.113549.1.9.16.1.55", fn, buf);
+		goto out;
+	}
+
+	if (!asn1time_to_time(ei->content->indexTime, &time, 1)) {
+		warnx("%s: failed to convert %s", fn, "indexTime");
+		goto out;
+	}
+
+ out:
+	EI_ContentInfo_free(ei);
+	return time;
+}
+
+static time_t
+get_erik_partitiontime(const char *fn, unsigned char *content, size_t len)
+{
+	const unsigned char *oder, *der;
+	EP_ContentInfo *ep = NULL;
+	time_t time = 0;
+
+	oder = der = content;
+	if ((ep = d2i_EP_ContentInfo(NULL, &der, len)) == NULL) {
+		warnx("%s: d2i_EP_ContentInfo failed", fn);
+		goto out;
+	}
+	if (der != oder + len) {
+		warnx("%s: %td bytes trailing garbage", fn, oder + len - der);
+		goto out;
+	}
+
+	if (OBJ_cmp(ep->contentType, epar_oid) != 0) {
+		char buf[128];
+
+		OBJ_obj2txt(buf, sizeof(buf), ep->contentType, 1);
+		warnx("%s: unexpected OID: got %s, want "
+		    "1.2.840.113549.1.9.16.1.56", fn, buf);
+		goto out;
+	}
+
+	if (!asn1time_to_time(ep->content->partitionTime, &time, 1)) {
+		warnx("%s: failed to convert %s", fn, "partitionTime");
+		goto out;
+	}
+
+ out:
+	EP_ContentInfo_free(ep);
+	return time;
+}
+
 time_t
 get_time_from_content(struct file *f)
 {
@@ -477,6 +549,12 @@ get_time_from_content(struct file *f)
 		break;
 	case TYPE_CRL:
 		time = get_crl_thisupdate(name, content, len);
+		break;
+	case TYPE_EIDX:
+		time = get_erik_indextime(name, content, len);
+		break;
+	case TYPE_EPAR:
+		time = get_erik_partitiontime(name, content, len);
 		break;
 	case TYPE_ASPA:
 	case TYPE_MFT:
