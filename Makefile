@@ -13,6 +13,9 @@ CFLAGS+= -Werror-implicit-function-declaration
 CFLAGS+= -MD -MP
 CFLAGS+= -D_DEFAULT_SOURCE -D_BSD_SOURCE -D_GNU_SOURCE
 
+# for Apple macOS / Darwin with libcrypto from MacPorts
+CFLAGS+= -I/opt/local/include -L/opt/local/lib
+
 $(PROG): $(SRCS) extern.h
 	cc -o $(PROG) $(CFLAGS) $(SRCS) $(LDADD)
 

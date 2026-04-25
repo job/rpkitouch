@@ -32,6 +32,16 @@
 #include <ctype.h>
 #include <unistd.h>
 
+#ifndef O_RSYNC
+#define O_RSYNC 0
+#endif
+#ifndef SOCK_CLOEXEC
+#define SOCK_CLOEXEC 0
+#endif
+#ifndef SOCK_NONBLOCK
+#define SOCK_NONBLOCK 0
+#endif
+
 int mkstempat(int, char *);
 
 /*
