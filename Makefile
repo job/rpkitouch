@@ -1,5 +1,5 @@
 PROG=	rpkitouch
-RC_INT= parser.c asn1.c mkdir.c mktemp.c util.c
+RC_INT= parser.c asn1.c mkdir.c mktemp.c util.c memrchr.c
 SRCS=	main.c $(RC_INT)
 MAN=	rpkitouch.8
 

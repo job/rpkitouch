@@ -21,6 +21,9 @@
 #include "compat/queue.h"
 #include "compat/tree.h"
 
+#define memrchr rpkitouch_memrchr
+void *memrchr(const void *, int, size_t);
+
 #define GENTIME_LENGTH 15
 #define MAX_URI_LENGTH 2048
 #define RSYNC_PROTO "rsync://"
