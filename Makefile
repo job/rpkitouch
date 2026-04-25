@@ -35,11 +35,13 @@ TEST_FILES += 9X0AhXWTJDl8lJhfOwvnac-42CA.spl
 test: $(PROG)
 	cd tests && touch $(TEST_FILES) *.ccr
 	cd tests && ../rpkitouch -v $(TEST_FILES) *.ccr
-	cd tests && cp -p test.ccr test.ccr.bak
-	cd tests && ../rpkitouch -r test.ccr | tee repair.txt
-	cd tests && cp -p erik.ccr erik.ccr.bak
-	cd tests && ../rpkitouch -r erik.ccr | tee -a repair.txt
+	cp -p tests/test.ccr tests/test.ccr.bak
+	./rpkitouch -r tests/test.ccr | tee tests/repair.txt
+	cp -p tests/erik.ccr tests/erik.ccr.bak
+	./rpkitouch -r tests/erik.ccr | tee -a tests/repair.txt
 	diff tests/repair.txt tests/expected-repair.txt
+	-mv tests/test.ccr.bak tests/test.ccr
+	-mv tests/erik.ccr.bak tests/erik.ccr
 	cd tests && perl -le 'print((stat $$_)[9] . " " . (stat $$_)[7]. " $$_") for @ARGV' $(TEST_FILES) *.ccr | LC_ALL=C sort -n | tee outcome.txt
 	mkdir -p tests/c
 	cd tests && find $(TEST_FILES) | xargs ../rpkitouch -v -d ./c
@@ -66,8 +68,6 @@ clean:
 	-rm -rf rpkitouch rpkitouch.d tests/outcome.txt tests/c tests/e tags tests/a
 	-rm -rf tests/outcome-ccr.txt tests/outcome-print-mft.txt tests/outcome-erik.txt
 	-rm -rf tests/repair.txt
-	-mv tests/erik.ccr.bak tests/erik.ccr
-	-mv tests/test.ccr.bak tests/test.ccr
 
 readme:
 	mandoc -Tlint rpkitouch.8
