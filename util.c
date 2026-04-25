@@ -68,7 +68,7 @@ load_file(const char *fn, off_t *len, time_t *time)
 
 	close(fd);
 	*len = size;
-	*time = st.st_mtim.tv_sec;
+	*time = st.st_mtime;
 	return buf;
 
  err:
@@ -115,7 +115,7 @@ load_fileat(const char *fn, off_t *len, time_t *time)
 
 	close(fd);
 	*len = size;
-	*time = st.st_mtim.tv_sec;
+	*time = st.st_mtime;
 	return buf;
 
  err:
@@ -245,7 +245,7 @@ store_by_hash(struct file *f, uint64_t csize)
 	 * Skip files that already are of the same size and have the same
 	 * last data modification timestamp.
 	 */
-	if (st.st_size != f->content_len || st.st_mtim.tv_sec != f->signtime) {
+	if (st.st_size != f->content_len || st.st_mtime != f->signtime) {
 		if (verbose) {
 			if (time(NULL) > f->signtime)
 				delay = time(NULL) - f->signtime;
@@ -299,7 +299,7 @@ store_by_name(struct file *f, struct mft *mft)
 			err(1, "fstatat %s", path);
 	}
 
-	if (st.st_mtim.tv_sec < mft->thisupdate) {
+	if (st.st_mtime < mft->thisupdate) {
 		if (verbose) {
 			if (time(NULL) > mft->thisupdate)
 				delay = time(NULL) - mft->thisupdate;
@@ -535,7 +535,7 @@ store_pack(struct file *m, char *crlhash)
 	 * same last data modification timestamp.
 	 */
 	if (st.st_size != pack->content_len ||
-	    st.st_mtim.tv_sec != m->signtime) {
+	    st.st_mtime != m->signtime) {
 		if (verbose) {
 			warnx("%s (st:%lld osz:%lld sz:%lld)", pack->name,
 			    (long long)m->signtime,

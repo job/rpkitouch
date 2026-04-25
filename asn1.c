@@ -452,7 +452,7 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 		    &oi->name))
 			err(1, "b64uri_encode");
 
-		delta = ni_st.st_mtim.tv_sec - oi->disktime;
+		delta = ni_st.st_mtime - oi->disktime;
 		warnx("erik index ptr changed: %s %s -> %s (d:%lld)",
 		    fqdn_fn, oi->name, ni_fn, delta);
 	}
