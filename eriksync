@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (c) 2025 Job Snijders <job@sobornost.net>
+# Copyright (c) 2026 Job Snijders <job@bsd.nl>
 #
 # Permission to use, copy, modify, and distribute this software for any
 # purpose with or without fee is hereby granted, provided that the above
@@ -13,7 +13,13 @@
 # ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
-case "${18}" in
+RELAY=miso.sobornost.net
+CACHEDIR=/var/cache/rpki-client
+CCRDIR=/var/db/rpki-client
+
+FQDN=$(echo ${18} | sed 's|rsync://||' | xargs -r dirname)
+
+case "${17}" in
         ".ta/ripe"|".ta/afrinic"|".ta/arin"|".ta/lacnic"|".ta/apnic")
                 rsync $@
                 exit $?
@@ -21,16 +27,27 @@ case "${18}" in
         *)
 esac
 
-FQDN=$(echo ${19} | sed 's|rsync://||' | xargs -r dirname)
-
-if [ ! -f .rsync/rpki.ccr ]; then
-	rpkitouch -Cvd ".rsync/${FQDN}" -H "${FQDN}" /var/db/rpki-client/rpki.ccr
-	rpkitouch -c /var/db/rpki-client/rpki.ccr -H "${FQDN}" > ".rsync/${FQDN}/mfts.list"
+if [ -f "${CACHEDIR}/.rsync/${FQDN}-done" ]; then
+        exit 0;
 fi
+if [ -f "${CACHEDIR}/.rsync/${FQDN}-lock" ]; then
+        while true; do
+                sleep 1
+                if [ ! -f "${CACHEDIR}/.rsync/${FQDN}-lock" ]; then
+                        exit 0;
+                fi
+                if [ -f "${CACHEDIR}/.rsync/${FQDN}-done" ]; then
+                        exit 0;
+                fi
+        done
+fi
+touch "${CACHEDIR}/.rsync/${FQDN}-lock"
 
-#rm -rf .rsync/${FQDN}
-echo ${FQDN}
+
+if [ -f "${CCRDIR}/rpki.ccr" ]; then
+	rpkitouch -Cvd "${CACHEDIR}/.rsync" -H "${FQDN}" "${CCRDIR}/rpki.ccr"
+fi
+echo ${FQDN} XXX
 pwd
 exit 0
-
 CURL_OPTS="-A erik15 -4 -e ${FQDN} -f --compressed -s -R"
