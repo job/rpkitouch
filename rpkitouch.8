@@ -156,10 +156,11 @@ Can only be combined with
 Print the directory path derived from the SIA and the FileAndHashes contained
 in a Manifest's payload, followed by the Manifest's own filename.
 .It Fl R Ar out_ccr
-Output a reduced CCR in
+Output a merged \*(Am reduced CCR in
 .Ar out_ccr
-by removing all states except the ManifestState, and comparing and deduplicating
-ManifestInstances in the specified CCR file(s).
+by comparing and deduplicating ManifestInstances from the specified CCR file(s)
+and ommitting other CCR state fields.
+Useful for distributed deployments.
 .It Fl r Ar ccr_file
 Repair ROAIPAddressFamily sorting in
 .Ar ccr_file .

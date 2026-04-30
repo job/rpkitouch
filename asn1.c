@@ -217,6 +217,26 @@ mftinstance_free(struct mftinstance *mftinstance)
 	free(mftinstance);
 }
 
+static inline int
+mft_compare_seqnum(char *a, char *b)
+{
+	int r;
+
+	r = strlen(a) - strlen(b);
+	if (r > 0)
+		return 1;
+	if (r < 0)
+		return -1;
+
+	r = strcmp(a, b);
+	if (r > 0)
+		return 1;
+	if (r < 0)
+		return -1;
+
+	return 0;
+}
+
 /*
  * Insert new ManifestInstances into tree, or replacing an existing entry
  * if the existing entry's thisUpdate is older.
@@ -227,13 +247,23 @@ insert_mftinstance_tree(struct mftinstance **mi, struct mftinstance_tree *tree)
 {
 	struct mftinstance *found;
 
+	/*
+	 * Check if the mft instance at hand is 'more recent' than the
+	 * one in the RB tree, if so replace the in-tree version.
+	 */
 	if ((found = RB_INSERT(mftinstance_tree, tree, (*mi))) != NULL) {
-
 		/*
-		 * Check if the mft instance at hand is newer than the one
-		 * in the RB tree, if so replace the in-tree version.
+		 * RFC 9286, section 4.2.1:
+		 * manifestNumber: Each RP MUST verify that a purported "new"
+		 *   manifest contains a higher manifestNumber than previously
+		 *   validated manifests. If equal or lower use previously
+		 *   validated manifest.
+		 * thisUpdate: Each RP MUST verify that this field value is
+		 *   greater (more recent) than the most recent manifest it has
+		 *   validated.
 		 */
-		if ((*mi)->thisupdate > found->thisupdate) {
+		if (mft_compare_seqnum(found->seqnum, (*mi)->seqnum) == -1 &&
+		    (*mi)->thisupdate > found->thisupdate) {
 			RB_REMOVE(mftinstance_tree, tree, found);
 			mftinstance_free(found);
 
@@ -242,8 +272,6 @@ insert_mftinstance_tree(struct mftinstance **mi, struct mftinstance_tree *tree)
 			/* steal the resource from the ccr struct */
 			*mi = NULL;
 		}
-
-		/* XXX: should also compare seqnum */
 
 		return 0;
 	}
