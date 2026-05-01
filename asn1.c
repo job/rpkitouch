@@ -745,6 +745,7 @@ generate_reduced_ccr(struct mftinstance **mis, int count)
 	ManifestState *ms = NULL;
 	ManifestInstance *asn1_mi = NULL;
 	time_t mostrecent = 0;
+	char *mshash;
 	CanonicalCacheRepresentation *ccr = NULL;
 	ASN1_OBJECT *oid;
 	CCR_ContentInfo *ci = NULL;
@@ -768,6 +769,11 @@ generate_reduced_ccr(struct mftinstance **mis, int count)
 		errx(1, "ASN1_GENERALIZEDTIME_set");
 
 	hash_asn1_item(ms->hash, ASN1_ITEM_rptr(ManifestInstances), ms->mis);
+
+	if (!b64_encode(ms->hash->data, ms->hash->length, &mshash))
+		errx(1, "b64_encode");
+	printf("%s\n", mshash);
+	free(mshash);
 
 	if ((ccr = CanonicalCacheRepresentation_new()) == NULL)
 		errx(1, "CanonicalCacheRepresentation_new");
