@@ -404,7 +404,7 @@ main(int argc, char *argv[])
 
 		f = generate_reduced_ccr(mis, count);
 
-		write_file(reduce, f->content, f->content_len, 0);
+		write_file(reduce, f->content, f->content_len, f->signtime);
 
 		for (i = 0; i < count; i++)
 			mftinstance_free(mis[i]);

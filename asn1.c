@@ -744,7 +744,7 @@ generate_reduced_ccr(struct mftinstance **mis, int count)
 {
 	ManifestState *ms = NULL;
 	ManifestInstance *asn1_mi = NULL;
-	time_t mostrecent = 0;
+	time_t mostrecent = 0, producedat = 0;
 	char *mshash;
 	CanonicalCacheRepresentation *ccr = NULL;
 	ASN1_OBJECT *oid;
@@ -784,7 +784,8 @@ generate_reduced_ccr(struct mftinstance **mis, int count)
 	if (!X509_ALGOR_set0(ccr->hashAlg, oid, V_ASN1_UNDEF, NULL))
 		errx(1, "X509_ALGOR_set0");
 
-	if (ASN1_GENERALIZEDTIME_set(ccr->producedAt, time(NULL)) == NULL)
+	producedat = time(NULL);
+	if (ASN1_GENERALIZEDTIME_set(ccr->producedAt, producedat) == NULL)
 		errx(1, "ASN1_GENERALIZEDTIME_set");
 
 	ccr->mfts = ms;
@@ -804,6 +805,7 @@ generate_reduced_ccr(struct mftinstance **mis, int count)
 
 	f->name = NULL;
 	f->content = NULL;
+	f->signtime = producedat;
 	if ((f->content_len = i2d_CCR_ContentInfo(ci, &f->content)) <= 0)
 		errx(1, "i2d_CCR_ContentInfo");
 
