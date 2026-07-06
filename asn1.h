@@ -113,6 +113,8 @@ typedef struct {
 	ASN1_OCTET_STRING *index;
 } SegmentRef;
 
+DECLARE_STACK_OF(SegmentRef);
+
 #ifndef DEFINE_STACK_OF
 #define sk_SegmentRef_num(st) SKM_sk_num(SegmentRef, (st))
 #define sk_SegmentRef_new_null() SKM_sk_new_null(SegmentRef)
