@@ -16,6 +16,7 @@
 
 #include <sys/stat.h>
 
+#include <assert.h>
 #include <err.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -34,6 +35,7 @@
 ASN1_ITEM_EXP CCR_ContentInfo_it;
 ASN1_ITEM_EXP EI_ContentInfo_it;
 ASN1_ITEM_EXP EP_ContentInfo_it;
+ASN1_ITEM_EXP ESI_ContentInfo_it;
 ASN1_ITEM_EXP CanonicalCacheRepresentation_it;
 ASN1_ITEM_EXP ErikIndex_it;
 ASN1_ITEM_EXP PartitionRef_it;
@@ -66,6 +68,13 @@ ASN1_SEQUENCE(EP_ContentInfo) = {
 } ASN1_SEQUENCE_END(EP_ContentInfo);
 
 IMPLEMENT_ASN1_FUNCTIONS(EP_ContentInfo);
+
+ASN1_SEQUENCE(ESI_ContentInfo) = {
+	ASN1_SIMPLE(ESI_ContentInfo, contentType, ASN1_OBJECT),
+	ASN1_EXP(ESI_ContentInfo, content, ErikSegmentIndex, 0),
+} ASN1_SEQUENCE_END(ESI_ContentInfo);
+
+IMPLEMENT_ASN1_FUNCTIONS(ESI_ContentInfo);
 
 ASN1_SEQUENCE(CanonicalCacheRepresentation) = {
 	ASN1_EXP_OPT(CanonicalCacheRepresentation, version, ASN1_INTEGER, 0),
@@ -171,6 +180,25 @@ IMPLEMENT_ASN1_FUNCTIONS(ManifestRef);
 ASN1_ITEM_TEMPLATE(ManifestInstances) =
     ASN1_EX_TEMPLATE_TYPE(ASN1_TFLG_SEQUENCE_OF, 0, mis, ManifestInstance)
 ASN1_ITEM_TEMPLATE_END(ManifestInstances);
+
+ASN1_SEQUENCE(ErikSegmentIndex) = {
+	ASN1_EXP_OPT(ErikSegmentIndex, version, ASN1_INTEGER, 0),
+	ASN1_SIMPLE(ErikSegmentIndex, segmentScope, ASN1_IA5STRING),
+	ASN1_SIMPLE(ErikSegmentIndex, segmentTime, ASN1_GENERALIZEDTIME),
+	ASN1_SIMPLE(ErikSegmentIndex, hashAlg, X509_ALGOR),
+	ASN1_SEQUENCE_OF(ErikSegmentIndex, segmentList, SegmentRef),
+} ASN1_SEQUENCE_END(ErikSegmentIndex);
+
+IMPLEMENT_ASN1_FUNCTIONS(ErikSegmentIndex);
+
+ASN1_SEQUENCE(SegmentRef) = {
+	ASN1_SIMPLE(SegmentRef, segment, ASN1_GENERALIZEDTIME),
+	ASN1_SIMPLE(SegmentRef, index, ASN1_OCTET_STRING)
+} ASN1_SEQUENCE_END(SegmentRef);
+
+IMPLEMENT_ASN1_FUNCTIONS(SegmentRef);
+
+#define MAX_SEGMENT_REFS 36
 
 static inline int
 mftinstancecmp(const struct mftinstance *a, const struct mftinstance *b)
@@ -443,10 +471,8 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 	struct stat ni_st;
 	long long delta;
 
-	if (!noop) {
-		if (mkpathat(outdirfd, "erik/index") == -1)
-			err(1, "mkpathat %s", "erik/index");
-	}
+	if (mkpathat(outdirfd, "erik/index") == -1)
+		err(1, "mkpathat %s", "erik/index");
 
 	if (asprintf(&fqdn_fn, "erik/index/%s", fqdn) == -1)
 		err(1, NULL);
@@ -462,12 +488,6 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 		err(1, NULL);
 
 	oi->content = load_fileat(fqdn_fn, &oi->content_len, &oi->disktime);
-
-	memset(&ni_st, 0, sizeof(ni_st));
-
-	if (fstatat(outdirfd, ni_path, &ni_st, 0) != 0)
-		err(1, "fstatat %s", ni_path);
-
 	if (oi->content == NULL)
 		warnx("new erik index ptr: %s %s", fqdn_fn, ni_fn);
 	else {
@@ -479,6 +499,10 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 		if (!b64uri_encode(oi->hash, SHA256_DIGEST_LENGTH,
 		    &oi->name))
 			err(1, "b64uri_encode");
+
+		memset(&ni_st, 0, sizeof(ni_st));
+		if (fstatat(outdirfd, ni_path, &ni_st, 0) != 0)
+			err(1, "fstatat %s", ni_path);
 
 		delta = ni_st.st_mtime - oi->disktime;
 		warnx("erik index ptr changed: %s %s -> %s (d:%lld)",
@@ -497,7 +521,211 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 }
 
 static void
-finalize_ErikIndex(ErikIndex *ei, char *fqdn, time_t itime, uint64_t csize)
+update_segmentindex(char *fqdn, time_t indextime, time_t segmenttime,
+    unsigned char idxhash[SHA256_DIGEST_LENGTH])
+{
+	struct file *f;
+	const unsigned char *oder, *der;
+	ESI_ContentInfo *ci = NULL;
+	ErikSegmentIndex *esi_asn1;
+	time_t segtime = 0, srtime = 0;
+	ASN1_OBJECT *oid;
+	ASN1_IA5STRING *ia5;
+	ASN1_OCTET_STRING *aos;
+	SegmentRef *sr;
+	int refs_num = 0;
+
+	if (segmenttime == 0)
+		return;
+
+	assert(indextime != 0);
+
+	if ((aos = ASN1_OCTET_STRING_new()) == NULL)
+		errx(1, "ASN1_OCTET_STRING_new");
+
+	if (!ASN1_OCTET_STRING_set(aos, idxhash, SHA256_DIGEST_LENGTH))
+		errx(1, "ASN1_OCTET_STRING_set");
+
+	if (mkpathat(outdirfd, "erik/segmentindex"))
+		err(1, "mkpathat erik/segmentindex");
+
+	if ((f = calloc(1, sizeof(*f))) == NULL)
+		err(1, NULL);
+
+	if (asprintf(&f->name, "erik/segmentindex/%s", fqdn) == -1)
+		err(1, NULL);
+
+	f->content = load_fileat(f->name, &f->content_len, &f->disktime);
+
+	if (f->content != NULL) {
+		oder = der = f->content;
+		if ((ci = d2i_ESI_ContentInfo(NULL, &der, f->content_len)) == NULL) {
+			warnx("%s: d2i_ESI_ContentInfo failed", f->name);
+			goto new;
+		}
+		if (der != oder + f->content_len) {
+			warnx("%s: %td bytes trailing garbage", f->name,
+			    oder + f->content_len - der);
+			goto new;
+		}
+
+		if (OBJ_cmp(ci->contentType, esi_oid) != 0) {
+			char buf[128];
+
+			OBJ_obj2txt(buf, sizeof(buf), ci->contentType, 1);
+			warnx("%s: unexpected OID: got %s, want 1.3.6.1.4.1.41948.828",
+			    f->name, buf);
+			goto new;
+		}
+
+		esi_asn1 = ci->content;
+
+		if (esi_asn1->version != NULL) {
+			warnx("%s: version not 0", f->name);
+			goto new;
+		}
+
+		ia5 = esi_asn1->segmentScope;
+		if (ia5->length != (int)strlen(fqdn) ||
+		    (strncasecmp((char *)ia5->data, fqdn, strlen(fqdn)) != 0)) {
+			warnx("%s: wrong segmentScope (got %s, want %s)",
+			    f->name, (char *)ia5->data, fqdn);
+			goto new;
+		}
+
+		if (!asn1time_to_time(esi_asn1->segmentTime, &segtime, 1)) {
+			warnx("%s: failed to convert segmentTime", f->name);
+			goto new;
+		}
+		if (indextime != segtime) {
+			if (ASN1_GENERALIZEDTIME_set(esi_asn1->segmentTime,
+			    indextime) == NULL)
+				errx(1, "ASN1_GENERALIZEDTIME_set");
+		}
+
+		/* XXX: add check for esi_asn1->hashAlg */
+
+		refs_num = sk_SegmentRef_num(esi_asn1->segmentList);
+		if (refs_num < 1 || refs_num > MAX_SEGMENT_REFS) {
+			warnx("%s: malformed segmentList", f->name);
+			goto new;
+		}
+
+		/* XXX: add check for sorting */
+
+		sr = sk_SegmentRef_value(esi_asn1->segmentList, refs_num - 1);
+		if (sr == NULL)
+			errx(1, "sk_SegmentRef_value");
+
+		if (!asn1time_to_time(sr->segment, &srtime, 1)) {
+			warnx("%s: failed to convert SegmentRef segment",
+			    f->name);
+			goto new;
+		}
+		if (segmenttime == srtime) {
+			if (ASN1_OCTET_STRING_cmp(sr->index, aos) == 0) {
+				warnx("%s: nothing to update", f->name);
+				goto out;
+			} else {
+				ASN1_OCTET_STRING_free(sr->index);
+				sr->index = aos;
+			}
+		} else {
+			if ((sr = SegmentRef_new()) == NULL)
+				errx(1, "SegmentRef_new");
+
+			if (ASN1_GENERALIZEDTIME_set(sr->segment, segmenttime)
+			    == NULL)
+				errx(1, "ASN1_GENERALIZEDTIME_set");
+
+			sr->index = aos;
+
+			if (sk_SegmentRef_push(esi_asn1->segmentList, sr) <= 0)
+				errx(1, "sk_SegmentRef_push");
+		}
+
+		while (refs_num > MAX_SEGMENT_REFS) {
+			/* XXX: use sr to delete the old segment on disk? */
+			sr = sk_SegmentRef_shift(esi_asn1->segmentList);
+			SegmentRef_free(sr);
+			refs_num--;
+		}
+
+	} else {
+ new:
+		if (ci != NULL) {
+			ESI_ContentInfo_free(ci);
+			if ((ci = ESI_ContentInfo_new()) == NULL)
+				errx(1, "ESI_ContentInfo");
+
+			ASN1_OBJECT_free(ci->contentType);
+			if ((ci->contentType = OBJ_dup(esi_oid)) == NULL)
+				errx(1, "OBJ_dup");
+		}
+
+		if ((esi_asn1 = ErikSegmentIndex_new()) == NULL)
+			err(1, "ErikSegmentIndex_new");
+
+		if (!ASN1_STRING_set(esi_asn1->segmentScope, fqdn, -1))
+			errx(1, "ASN1_STRING_set");
+
+		if (ASN1_GENERALIZEDTIME_set(esi_asn1->segmentTime, indextime)
+		    == NULL)
+			errx(1, "ASN1_GENERALIZEDTIME_set");
+
+		if ((oid = OBJ_nid2obj(NID_sha256)) == NULL)
+			errx(1, "OBJ_nid2obj");
+
+		if (!X509_ALGOR_set0(esi_asn1->hashAlg, oid, V_ASN1_UNDEF, NULL))
+			errx(1, "X509_ALGOR_set0");
+
+		if ((esi_asn1->segmentList = sk_SegmentRef_new_null()) == NULL)
+			errx(1, "sk_SegmentRef_new_null");
+
+		if ((sr = SegmentRef_new()) == NULL)
+			errx(1, "SegmentRef_new");
+
+		if (ASN1_GENERALIZEDTIME_set(sr->segment, segmenttime) == NULL)
+			errx(1, "ASN1_GENERALIZEDTIME_set");
+
+		sr->index = aos;
+
+		if (sk_SegmentRef_push(esi_asn1->segmentList, sr) <= 0)
+			errx(1, "sk_SegmentRef_push");
+	}
+
+	ci->content = esi_asn1;
+
+	free(f->content);
+	f->content = NULL;
+	if ((f->content_len = i2d_ESI_ContentInfo(ci, &f->content)) <= 0)
+		errx(1, "i2d_ESI_ContentInfo");
+
+	if (verbose) {
+		int delay;
+		char *h;
+
+		delay = time(NULL) - indextime;
+
+		if (!b64uri_encode(idxhash, SHA256_DIGEST_LENGTH, &h))
+			err(1, "b64uri_encode");
+
+		warnx("added to %s segment:%lld index:%s (itime:%lld, d:%d)",
+		    f->name, (long long)segmenttime, h, (long long)indextime,
+		    delay);
+
+		free(h);
+	}
+
+	write_file(f->name, f->content, f->content_len, 0);
+ out:
+	ESI_ContentInfo_free(ci);
+	file_free(f);
+}
+
+static void
+finalize_ErikIndex(ErikIndex *ei, char *fqdn, time_t itime, uint64_t csize,
+    time_t segment)
 {
 	EI_ContentInfo *ci = NULL;
 	struct file *f;
@@ -531,14 +759,18 @@ finalize_ErikIndex(ErikIndex *ei, char *fqdn, time_t itime, uint64_t csize)
 	if (asprintf(&f->name, "erik index: %s", fqdn) == -1)
 		err(1, "asprintf");
 
-	if (store_by_hash(f, csize))
+	if (store_by_hash(f, 0) && !noop) {
 		update_index_ptr(fqdn, f->hash);
+		append_to_segment(fqdn, f, itime, segment);
+		update_segmentindex(fqdn, itime, segment, f->hash);
+	}
 
 	file_free(f);
 }
 
 static PartitionRef *
-finalize_ErikPartition(ErikPartition *ep, char *fqdn, int num, time_t ptime)
+finalize_ErikPartition(ErikPartition *ep, char *fqdn, int num, time_t ptime,
+    time_t segment)
 {
 	EP_ContentInfo *ci = NULL;
 	PartitionRef *pr = NULL;
@@ -573,7 +805,8 @@ finalize_ErikPartition(ErikPartition *ep, char *fqdn, int num, time_t ptime)
 	if (asprintf(&f->name, "erik partition: %s#%d", fqdn, num) == -1)
 		err(1, "asprintf");
 
-	store_by_hash(f, 0);
+	if (store_by_hash(f, 0) && !noop)
+		append_to_segment(fqdn, f, ptime, segment);
 
 	if ((pr = PartitionRef_new()) == NULL)
 		errx(1, "PartitionRef_new");
@@ -590,7 +823,8 @@ finalize_ErikPartition(ErikPartition *ep, char *fqdn, int num, time_t ptime)
 }
 
 void
-generate_erik_objects(struct mftinstance **mis, int count, char *single_fqdn)
+generate_erik_objects(struct mftinstance **mis, int count, char *single_fqdn,
+    time_t segment)
 {
 	struct mftinstance *mi;
 	char *prev_fqdn, *prev_aki;
@@ -627,12 +861,13 @@ generate_erik_objects(struct mftinstance **mis, int count, char *single_fqdn)
 		if (strcmp(prev_fqdn, mi->fqdn) != 0) {
 			num = sk_PartitionRef_num(ei->partitionList) + 1;
 
-			pr = finalize_ErikPartition(ep, prev_fqdn, num, ptime);
+			pr = finalize_ErikPartition(ep, prev_fqdn, num, ptime,
+			    segment);
 
 			if (sk_PartitionRef_push(ei->partitionList, pr) <= 0)
 				errx(1, "sk_PartitionRef_push");
 
-			finalize_ErikIndex(ei, prev_fqdn, itime, csize);
+			finalize_ErikIndex(ei, prev_fqdn, itime, csize, segment);
 
 			ei = start_ErikIndex(mi->fqdn);
 			itime = 0;
@@ -643,7 +878,8 @@ generate_erik_objects(struct mftinstance **mis, int count, char *single_fqdn)
 		} else if (strncmp(prev_aki, mi->aki, 2) != 0) {
 			num = sk_PartitionRef_num(ei->partitionList) + 1;
 
-			pr = finalize_ErikPartition(ep, prev_fqdn, num, ptime);
+			pr = finalize_ErikPartition(ep, prev_fqdn, num, ptime,
+			    segment);
 
 			if (sk_PartitionRef_push(ei->partitionList, pr) <= 0)
 				errx(1, "sk_PartitionRef_push");
@@ -671,10 +907,10 @@ generate_erik_objects(struct mftinstance **mis, int count, char *single_fqdn)
 		return;
 
 	num = sk_PartitionRef_num(ei->partitionList) + 1;
-	pr = finalize_ErikPartition(ep, prev_fqdn, num, ptime);
+	pr = finalize_ErikPartition(ep, prev_fqdn, num, ptime, segment);
 	if (sk_PartitionRef_push(ei->partitionList, pr) <= 0)
 		errx(1, "sk_PartitionRef_push");
-	finalize_ErikIndex(ei, mi->fqdn, itime, csize);
+	finalize_ErikIndex(ei, mi->fqdn, itime, csize, segment);
 }
 
 static int

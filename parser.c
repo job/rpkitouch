@@ -88,7 +88,7 @@ validate_asn1_hash(const char *fn, const char *descr,
 	return rc;
 }
 
-static int
+int
 asn1time_to_time(const ASN1_TIME *at, time_t *t, int expect_gen)
 {
 	struct tm tm;

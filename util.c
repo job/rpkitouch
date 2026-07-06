@@ -553,3 +553,39 @@ store_pack(struct file *m, char *crlhash)
 	file_free(pack);
 	file_free(crl);
 }
+
+void
+append_to_segment(char *fqdn, struct file *f, time_t index, time_t segment)
+{
+	int fd;
+	char *segdir, *segfn;
+
+	if (segment == 0)
+		return;
+
+	if (asprintf(&segdir, "erik/segment/%s", fqdn) == -1)
+		err(1, NULL);
+
+	if (mkpathat(outdirfd, segdir))
+		err(1, "mkpathat %s", segdir);
+
+	if (asprintf(&segfn, "erik/segment/%s/%lld", fqdn,
+	    (long long)segment) == -1)
+		err(1, NULL);
+
+	if (verbose)
+		warnx("appending %s %lld to %s", f->name, (long long)index, segfn);
+
+	fd = openat(outdirfd, segfn, O_WRONLY | O_CREAT | O_APPEND, 0644);
+	if (fd == -1)
+		err(1, "open %s", segfn);
+
+	if (write(fd, f->content, f->content_len) != f->content_len)
+		err(1, "write %s", segfn);
+
+	if (close(fd) != 0)
+		err(1, "close failed %s", segfn);
+
+	free(segdir);
+	free(segfn);
+}

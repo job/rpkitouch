@@ -35,6 +35,7 @@
 .Op Fl CnPpVv
 .Op Fl d Ar directory
 .Op Fl H Ar fqdn
+.Op Fl S Ar segment
 .Ar
 .Sh DESCRIPTION
 The
@@ -165,6 +166,10 @@ Useful for distributed deployments.
 Repair ROAIPAddressFamily sorting in
 .Ar ccr_file .
 Useful to rectify files produced by rpki-client 9.7.
+.It Fl S Ar segment
+Append Erik objects to the specified
+.Ar segment ,
+which must be provided as seconds since the unix epoch.
 .It Fl V
 Display the version number and exit.
 .It Fl v

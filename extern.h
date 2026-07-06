@@ -131,6 +131,7 @@ int repair_ccr(struct file *f);
 struct ccr *parse_ccr(struct file *f);
 struct mft *parse_manifest(struct file *f);
 void hash_asn1_item(ASN1_OCTET_STRING *, const ASN1_ITEM *, void *);
+int asn1time_to_time(const ASN1_TIME *, time_t *, int);
 
 time_t get_time_from_content(struct file *f);
 
@@ -139,6 +140,7 @@ void set_mtime(int, const char *, time_t);
 int store_by_hash(struct file *, uint64_t);
 int store_by_name(struct file *, struct mft *);
 void store_pack(struct file *, char *);
+void append_to_segment(char *, struct file *, time_t, time_t);
 
 void ccr_free(struct ccr *);
 void mft_free(struct mft *);
@@ -148,7 +150,7 @@ void file_free(struct file *);
 enum filetype detect_ftype_from_fn(char *);
 enum filetype detect_ftype_from_der(struct file *);
 int merge_ccrs(char **, struct mftinstance_tree *);
-void generate_erik_objects(struct mftinstance **, int, char *);
+void generate_erik_objects(struct mftinstance **, int, char *, time_t);
 struct file *generate_reduced_ccr(struct mftinstance **, int);
 void usage(void);
 
@@ -159,6 +161,7 @@ extern ASN1_OBJECT *sign_time_oid;
 extern ASN1_OBJECT *signedobj_oid;
 extern ASN1_OBJECT *eidx_oid;
 extern ASN1_OBJECT *epar_oid;
+extern ASN1_OBJECT *esi_oid;
 
 extern int noop;
 extern int verbose;

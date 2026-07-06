@@ -56,6 +56,7 @@ test: $(PROG)
 	diff tests/outcome-print-mft.txt tests/expected_outcome-print-mft.txt
 	mkdir -p tests/e
 	./rpkitouch -C -v -d tests/e tests/erik.ccr
+	-rm -rf tests/e/erik/segment
 	find tests/e -type f | xargs perl -le 'print((stat $$_)[9] . " " . (stat $$_)[7]. " $$_") for @ARGV' | LC_ALL=C sort -k3 | tee tests/outcome-erik.txt
 	diff tests/outcome-erik.txt tests/expected-outcome-erik.txt
 	mkdir -p tests/a
@@ -65,6 +66,10 @@ test: $(PROG)
 	./rpkitouch -v -P -d ./tests/c tests/c/named/chloe.sobornost.net/rpki/RIPE-nljobsnijders/yqgF26w2R0m5sRVZCrbvD5cM29g.mft
 	zcat tests/c/erik/pack/b-/yw/kpIopBXp5zBOBt13_H0McDKpPGJxRaLRpVTZ4jqb-yw | der2ascii > tests/a/output.pack
 	diff tests/a/output.pack tests/expected-outcome-uncompressed-pack.txt
+	rm tests/e/static/tJ/6U/DMb9NhqS-WHxSYIt7bdbvqy6c4mqeo5u4E8yhhUtJ6U
+	./rpkitouch -C -v -d tests/e -S 11111 tests/erik.ccr
+	rm tests/e/static/tJ/6U/DMb9NhqS-WHxSYIt7bdbvqy6c4mqeo5u4E8yhhUtJ6U
+	./rpkitouch -C -v -d tests/e -S 22222 tests/erik.ccr
 	echo OK
 
 clean:

@@ -28,7 +28,7 @@
 
 /*
  * Erik protocol elements
- * reference: draft-ietf-sidrops-rpki-erik-protocol-02
+ * reference: draft-ietf-sidrops-rpki-erik-protocol-05
  */
 
 extern ASN1_ITEM_EXP EI_ContentInfo_it;
@@ -107,6 +107,38 @@ DECLARE_ASN1_FUNCTIONS(ManifestRef);
 typedef STACK_OF(ManifestRef) ManifestRefs;
 
 DECLARE_ASN1_FUNCTIONS(ManifestRefs);
+
+typedef struct {
+	ASN1_GENERALIZEDTIME *segment;
+	ASN1_OCTET_STRING *index;
+} SegmentRef;
+
+#ifndef DEFINE_STACK_OF
+#define sk_SegmentRef_num(st) SKM_sk_num(SegmentRef, (st))
+#define sk_SegmentRef_new_null() SKM_sk_new_null(SegmentRef)
+#define sk_SegmentRef_push(st, i) SKM_sk_push(SegmentRef, (st), (i))
+#define sk_SegmentRef_shift(st) SKM_sk_shift(SegmentRef, (st))
+#define sk_SegmentRef_value(st, i) SKM_sk_value(SegmentRef, (st), (i))
+#endif
+
+DECLARE_ASN1_FUNCTIONS(SegmentRef);
+
+typedef struct {
+	ASN1_INTEGER *version;
+	ASN1_IA5STRING *segmentScope;
+	ASN1_GENERALIZEDTIME *segmentTime;
+	X509_ALGOR *hashAlg;
+	STACK_OF(SegmentRef) *segmentList;
+} ErikSegmentIndex;
+
+DECLARE_ASN1_FUNCTIONS(ErikSegmentIndex);
+
+typedef struct {
+	ASN1_OBJECT *contentType;
+	ErikSegmentIndex *content;
+} ESI_ContentInfo;
+
+DECLARE_ASN1_FUNCTIONS(ESI_ContentInfo);
 
 /*
  * Canonical Cache Representation (CCR)

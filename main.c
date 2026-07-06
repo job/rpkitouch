@@ -16,6 +16,7 @@
 */
 
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -64,6 +65,7 @@ ASN1_OBJECT *manifest_oid;
 ASN1_OBJECT *ccr_oid;
 ASN1_OBJECT *eidx_oid;
 ASN1_OBJECT *epar_oid;
+ASN1_OBJECT *esi_oid;
 ASN1_OBJECT *aspa_oid;
 ASN1_OBJECT *roa_oid;
 ASN1_OBJECT *spl_oid;
@@ -94,6 +96,10 @@ setup_oids(void) {
 		errx(1, "OBJ_txt2obj for %s failed", "spl_oid");
 	if ((tak_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.50", 1)) == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "tak_oid");
+
+	/* XXX: temp oid */
+	if ((esi_oid = OBJ_txt2obj("1.3.6.1.4.1.41948.828", 1)) == NULL)
+		errx(1, "OBJ_txt2obj for %s failed", "esi_oid");
 }
 
 static void
@@ -294,8 +300,10 @@ main(int argc, char *argv[])
 	struct mftinstance **mis = NULL;
 	struct ccr *ccr = NULL;
 	struct mft *mft = NULL;
+	char *ep;
+	time_t segment = 0;
 
-	while ((c = getopt(argc, argv, "Cc:d:H:hnPpR:r:Vv")) != -1)
+	while ((c = getopt(argc, argv, "Cc:d:H:hnPpR:r:S:Vv")) != -1)
 		switch (c) {
 		case 'C':
 			compare = 1;
@@ -325,8 +333,17 @@ main(int argc, char *argv[])
 		case 'r':
 			repair = optarg;
 			break;
+		case 'S':
+			errno = 0;
+			segment = strtoll(optarg, &ep, 10);
+			if (optarg[0] == '\0' || *ep != '\0')
+				err(1, "strtoll");
+			if (errno == ERANGE && (segment == LLONG_MAX ||
+			    segment == LLONG_MIN))
+				err(1, "strtoll");
+			break;
 		case 'V':
-			printf("version 1.8\n");
+			printf("version 1.9\n");
 			exit(0);
 		case 'v':
 			verbose = 1;
@@ -378,7 +395,7 @@ main(int argc, char *argv[])
 		qsort(mis, count, sizeof(mis[0]), fqdn_aki_hash_cmp);
 
 		if (outdir != NULL) {
-			generate_erik_objects(mis, count, single_fqdn);
+			generate_erik_objects(mis, count, single_fqdn, segment);
 		} else {
 			for (i = 0; i < count; i++) {
 				printf("aki:%s seqnum:%s tu:%lld %s %s\n",
@@ -461,7 +478,7 @@ main(int argc, char *argv[])
 		}
 		for (i = 0; i < ccr->mis_num; i++) {
 			if (single_fqdn != NULL) {
-				if (strncmp(ccr->mis[i]->sia, single_fqdn,
+				if (strncmp(ccr->mis[i]->fqdn, single_fqdn,
 				    strlen(single_fqdn)) != 0)
 					continue;
 			}
@@ -537,11 +554,13 @@ main(int argc, char *argv[])
 		}
 
 		/*
-		 * Optionally, store the object using the content
-		 * addressable scheme.
+		 * Optionally, store the object suitable for Erik protocol.
 		 */
-		if (outdir != NULL)
-			store_by_hash(f, 0);
+		if (outdir != NULL) {
+			if (store_by_hash(f, 0) && single_fqdn != NULL)
+				append_to_segment(single_fqdn, f, f->signtime,
+				    segment);
+		}
 
 		if (outdir != NULL && f->type == TYPE_MFT)
 			store_by_name(f, mft);
