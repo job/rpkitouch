@@ -139,7 +139,6 @@ void set_mtime(int, const char *, time_t);
 
 int store_by_hash(struct file *, uint64_t);
 int store_by_name(struct file *, struct mft *);
-void store_pack(struct file *, char *);
 void append_to_segment(char *, struct file *, time_t, time_t);
 
 void ccr_free(struct ccr *);

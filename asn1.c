@@ -653,15 +653,15 @@ update_segmentindex(char *fqdn, time_t indextime, time_t segmenttime,
 
 	} else {
  new:
-		if (ci != NULL) {
+		if (ci != NULL)
 			ESI_ContentInfo_free(ci);
-			if ((ci = ESI_ContentInfo_new()) == NULL)
-				errx(1, "ESI_ContentInfo");
 
-			ASN1_OBJECT_free(ci->contentType);
-			if ((ci->contentType = OBJ_dup(esi_oid)) == NULL)
-				errx(1, "OBJ_dup");
-		}
+		if ((ci = ESI_ContentInfo_new()) == NULL)
+			errx(1, "ESI_ContentInfo");
+
+		ASN1_OBJECT_free(ci->contentType);
+		if ((ci->contentType = OBJ_dup(esi_oid)) == NULL)
+			errx(1, "OBJ_dup");
 
 		if ((esi_asn1 = ErikSegmentIndex_new()) == NULL)
 			err(1, "ErikSegmentIndex_new");

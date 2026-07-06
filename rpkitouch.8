@@ -32,7 +32,7 @@
 .Op Fl n
 .Fl r Ar ccr_file
 .Nm rpkitouch
-.Op Fl CnPpVv
+.Op Fl CnpVv
 .Op Fl d Ar directory
 .Op Fl H Ar fqdn
 .Op Fl S Ar segment
@@ -148,11 +148,6 @@ and
 to see what
 .Nm
 would change.
-.It Fl P
-Pack manifests and the associated CRLs in gzip compressed form suitable for
-Erik Synchronisation.
-Can only be combined with
-.Fl d .
 .It Fl p
 Print the directory path derived from the SIA and the FileAndHashes contained
 in a Manifest's payload, followed by the Manifest's own filename.

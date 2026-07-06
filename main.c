@@ -34,7 +34,6 @@
 
 int compare = 0;
 int noop = 0;
-int pack = 0;
 int print = 0;
 int verbose = 0;
 int outdirfd;
@@ -303,7 +302,7 @@ main(int argc, char *argv[])
 	char *ep;
 	time_t segment = 0;
 
-	while ((c = getopt(argc, argv, "Cc:d:H:hnPpR:r:S:Vv")) != -1)
+	while ((c = getopt(argc, argv, "Cc:d:H:hnpR:r:S:Vv")) != -1)
 		switch (c) {
 		case 'C':
 			compare = 1;
@@ -319,9 +318,6 @@ main(int argc, char *argv[])
 			break;
 		case 'n':
 			noop = 1;
-			break;
-		case 'P':
-			pack = 1;
 			break;
 		case 'p':
 			noop = 1;
@@ -372,12 +368,6 @@ main(int argc, char *argv[])
 
 	if (ccr_file != NULL && outdir != NULL)
 		usage();
-
-	if (outdir == NULL && repair == NULL) {
-		if (pack) {
-			usage();
-		}
-	}
 
 	setup_oids();
 
@@ -565,9 +555,6 @@ main(int argc, char *argv[])
 		if (outdir != NULL && f->type == TYPE_MFT)
 			store_by_name(f, mft);
 
-		if (pack && f->type == TYPE_MFT)
-			store_pack(f, mft->crlhash);
-
 		if (f->type == TYPE_MFT) {
 			mft_free(mft);
 			mft = NULL;
@@ -583,7 +570,7 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	fprintf(stderr, "usage: rpkitouch [-CnPpVv] [-d dir] [-H fqdn] file ...\n");
+	fprintf(stderr, "usage: rpkitouch [-CnpVv] [-d dir] [-H fqdn] file ...\n");
 	fprintf(stderr, "       rpkitouch [-n] [-H fqdn] -c ccr_file\n");
 	fprintf(stderr, "       rpkitouch [-n] -R out_ccr ccr_file ...\n");
 	fprintf(stderr, "       rpkitouch [-n] -r ccr_file\n");

@@ -63,9 +63,6 @@ test: $(PROG)
 	./rpkitouch -R tests/a/output.ccr tests/erik.ccr tests/test.ccr
 	./rpkitouch -c tests/a/output.ccr > tests/a/output.list
 	diff tests/a/output.list tests/expected-outcome-reduced-ccr.list
-	./rpkitouch -v -P -d ./tests/c tests/c/named/chloe.sobornost.net/rpki/RIPE-nljobsnijders/yqgF26w2R0m5sRVZCrbvD5cM29g.mft
-	zcat tests/c/erik/pack/b-/yw/kpIopBXp5zBOBt13_H0McDKpPGJxRaLRpVTZ4jqb-yw | der2ascii > tests/a/output.pack
-	diff tests/a/output.pack tests/expected-outcome-uncompressed-pack.txt
 	rm tests/e/static/tJ/6U/DMb9NhqS-WHxSYIt7bdbvqy6c4mqeo5u4E8yhhUtJ6U
 	./rpkitouch -C -v -d tests/e -S 11111 tests/erik.ccr
 	rm tests/e/static/tJ/6U/DMb9NhqS-WHxSYIt7bdbvqy6c4mqeo5u4E8yhhUtJ6U
