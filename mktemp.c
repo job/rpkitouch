@@ -43,6 +43,7 @@
 #endif
 
 int mkstempat(int, char *);
+int mkstemplinkat(int, char *, char *);
 
 /*
  * The type of temporary files we can create.
@@ -222,4 +223,10 @@ int
 mkstempat(int fd, char *path)
 {
 	return mktemp_internalat(fd, path, 0, MKTEMP_FILE, 0, NULL, 0, 0);
+}
+
+int
+mkstemplinkat(int fd, char *path, char *link)
+{
+	return mktemp_internalat(fd, path, 0, MKTEMP_LINK, 0, link, 0, 0);
 }

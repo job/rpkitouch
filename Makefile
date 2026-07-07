@@ -57,7 +57,7 @@ test: $(PROG)
 	mkdir -p tests/e
 	./rpkitouch -C -v -d tests/e tests/erik.ccr
 	-rm -rf tests/e/erik/segment
-	find tests/e -type f | xargs perl -le 'print((stat $$_)[9] . " " . (stat $$_)[7]. " $$_") for @ARGV' | LC_ALL=C sort -k3 | tee tests/outcome-erik.txt
+	find tests/e -type f -or -type l | xargs perl -le 'print((stat $$_)[9] . " " . (stat $$_)[7]. " $$_") for @ARGV' | LC_ALL=C sort -k3 | tee tests/outcome-erik.txt
 	diff tests/outcome-erik.txt tests/expected-outcome-erik.txt
 	mkdir -p tests/a
 	./rpkitouch -R tests/a/output.ccr tests/erik.ccr tests/test.ccr

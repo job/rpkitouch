@@ -126,6 +126,7 @@ void write_file(char *, unsigned char *, off_t, time_t);
 
 int mkpathat(int, const char *);
 int mkstempat(int, char *);
+int mkstemplinkat(int, char *, char *);
 
 int repair_ccr(struct file *f);
 struct ccr *parse_ccr(struct file *f);

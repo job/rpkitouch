@@ -466,10 +466,7 @@ start_ErikPartition(void)
 static void
 update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 {
-	char *fqdn_fn, *ni_fn, *ni_path;
-	struct file *oi;
-	struct stat ni_st;
-	long long delta;
+	char *fqdn_fn, *ni_fn, *ni_path, *oi_fn, *oi_path, *tmp;
 
 	if (mkpathat(outdirfd, "erik/index") == -1)
 		err(1, "mkpathat %s", "erik/index");
@@ -480,44 +477,41 @@ update_index_ptr(char *fqdn, unsigned char hash[SHA256_DIGEST_LENGTH])
 	if (!b64uri_encode(hash, SHA256_DIGEST_LENGTH, &ni_fn))
 		err(1, "b64uri_encode");
 
-	if (asprintf(&ni_path, "static/%c%c/%c%c/%s", ni_fn[39], ni_fn[40],
-	    ni_fn[41], ni_fn[42], ni_fn) == -1)
+	if (asprintf(&ni_path, "../../static/%c%c/%c%c/%s", ni_fn[39],
+	    ni_fn[40], ni_fn[41], ni_fn[42], ni_fn) == -1)
 		err(1, NULL);
 
-	if ((oi = calloc(1, sizeof(*oi))) == NULL)
+	if ((oi_path = strdup(ni_path)) == NULL)
 		err(1, NULL);
 
-	oi->content = load_fileat(fqdn_fn, &oi->content_len, &oi->disktime);
-	if (oi->content == NULL)
+	errno = 0;
+	if (readlinkat(outdirfd, fqdn_fn, oi_path, strlen(oi_path) + 1) == -1
+	    && (errno != ENOENT && errno != EINVAL))
+		errx(1, "readlinkat");
+	if (errno == ENOENT || errno == EINVAL) {
 		warnx("new erik index ptr: %s %s", fqdn_fn, ni_fn);
+	} else if (strcmp(ni_path, oi_path) == 0)
+		goto out;
 	else {
-		SHA256(oi->content, oi->content_len, oi->hash);
-
-		if (memcmp(hash, oi->hash, SHA256_DIGEST_LENGTH) == 0)
-			goto out;
-
-		if (!b64uri_encode(oi->hash, SHA256_DIGEST_LENGTH,
-		    &oi->name))
-			err(1, "b64uri_encode");
-
-		memset(&ni_st, 0, sizeof(ni_st));
-		if (fstatat(outdirfd, ni_path, &ni_st, 0) != 0)
-			err(1, "fstatat %s", ni_path);
-
-		delta = ni_st.st_mtime - oi->disktime;
-		warnx("erik index ptr changed: %s %s -> %s (d:%lld)",
-		    fqdn_fn, oi->name, ni_fn, delta);
+		oi_fn = strrchr(oi_path, '/');
+		warnx("erik index ptr changed: %s %s -> %s", fqdn_fn, oi_fn,
+		    ni_fn);
 	}
 
-	if ((unlinkat(outdirfd, fqdn_fn, 0) == -1 && errno != ENOENT) ||
-	    linkat(outdirfd, ni_path, outdirfd, fqdn_fn, 0))
-		errx(1, "linkat %s %s", ni_path, fqdn_fn);
+	if (asprintf(&tmp, "erik/index/.%s.XXXXXXXXX", fqdn) == -1)
+		err(1, NULL);
+
+	if (mkstemplinkat(outdirfd, tmp, ni_path) == -1)
+		errx(1, "mkstemplinkat");
+
+	if (renameat(outdirfd, tmp, outdirfd, fqdn_fn) == -1)
+		errx(1, "renameat");
 
  out:
 	free(fqdn_fn);
 	free(ni_fn);
 	free(ni_path);
-	file_free(oi);
+	free(oi_path);
 }
 
 static void
