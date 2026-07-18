@@ -111,6 +111,7 @@ destroy_oids(void)
 	ASN1_OBJECT_free(ccr_oid);
 	ASN1_OBJECT_free(eidx_oid);
 	ASN1_OBJECT_free(epar_oid);
+	ASN1_OBJECT_free(esi_oid);
 }
 
 enum filetype
