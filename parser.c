@@ -528,6 +528,42 @@ get_erik_partitiontime(const char *fn, unsigned char *content, size_t len)
 	return time;
 }
 
+static time_t
+get_erik_segmentindextime(const char *fn, unsigned char *content, size_t len)
+{
+	const unsigned char *oder, *der;
+	ESI_ContentInfo *esi = NULL;
+	time_t time = 0;
+
+	oder = der = content;
+	if ((esi = d2i_ESI_ContentInfo(NULL, &der, len)) == NULL) {
+		warnx("%s: d2i_ESI_ContentInfo failed", fn);
+		goto out;
+	}
+	if (der != oder + len) {
+		warnx("%s: %td bytes trailing garbage", fn, oder + len - der);
+		goto out;
+	}
+
+	if (OBJ_cmp(esi->contentType, esi_oid) != 0) {
+		char buf[128];
+
+		OBJ_obj2txt(buf, sizeof(buf), esi->contentType, 1);
+		warnx("%s: unexpected OID: got %s, want "
+		    "1.3.6.1.4.1.41948.828", fn, buf);
+		goto out;
+	}
+
+	if (!asn1time_to_time(esi->content->segmentTime, &time, 1)) {
+		warnx("%s: failed to convert %s", fn, "segmentTime");
+		goto out;
+	}
+
+ out:
+	ESI_ContentInfo_free(esi);
+	return time;
+}
+
 time_t
 get_time_from_content(struct file *f)
 {
@@ -555,6 +591,9 @@ get_time_from_content(struct file *f)
 		break;
 	case TYPE_EPAR:
 		time = get_erik_partitiontime(name, content, len);
+		break;
+	case TYPE_ESI:
+		time = get_erik_segmentindextime(name, content, len);
 		break;
 	case TYPE_ASPA:
 	case TYPE_MFT:
@@ -1098,4 +1137,197 @@ repair_ccr(struct file *f)
 	file_free(repaired);
 
 	return rc;
+}
+
+void
+free_eidx(struct eidx *eidx)
+{
+	if (eidx == NULL)
+		return;
+
+	free(eidx->indexscope);
+	free(eidx->parrefs);
+	free(eidx);
+}
+
+/* XXX: feed in FQDN to check it's a plausible index? */
+struct eidx *
+parse_eidx(struct file *f)
+{
+	const unsigned char *oder, *der;
+	EI_ContentInfo *ei = NULL;
+	struct eidx *eidx = NULL;
+	const unsigned char *indexscope;
+	int indexscope_len, i;
+	int error = 1;
+
+	oder = der = f->content;
+	if ((ei = d2i_EI_ContentInfo(NULL, &der, f->content_len)) == NULL) {
+		warnx("%s: d2i_EI_ContentInfo failed", f->name);
+		goto out;
+	}
+	if (der != oder + f->content_len) {
+		warnx("%s: %td bytes trailing garbage", f->name,
+		    oder + f->content_len - der);
+		goto out;
+	}
+
+	if (OBJ_cmp(ei->contentType, eidx_oid) != 0) {
+		char buf[128];
+
+		OBJ_obj2txt(buf, sizeof(buf), ei->contentType, 1);
+		warnx("%s: unexpected OID: got %s, want "
+		    "1.2.840.113549.1.9.16.1.55", f->name, buf);
+		goto out;
+	}
+
+	if ((eidx = calloc(1, sizeof(*eidx))) == NULL)
+		err(1, NULL);
+
+	indexscope = ASN1_STRING_get0_data(ei->content->indexScope);
+	indexscope_len = ASN1_STRING_length(ei->content->indexScope);
+	if (indexscope == NULL) {
+		warnx("%s: ErikIndex missing indexScope", f->name);
+		goto out;
+	}
+	if ((eidx->indexscope = strndup((char *)indexscope, indexscope_len)) == NULL)
+		err(1, NULL);
+
+	if (!asn1time_to_time(ei->content->indexTime, &eidx->indextime, 1)) {
+		warnx("%s: failed to convert %s", f->name, "indexTime");
+		goto out;
+	}
+
+	eidx->parrefs_num = sk_PartitionRef_num(ei->content->partitionList);
+	if (eidx->parrefs_num <= 0 || eidx->parrefs_num > 256) {
+		warnx("%s: too many PartitionRefs", f->name);
+		goto out;
+	}
+
+	eidx->parrefs = calloc(eidx->parrefs_num, sizeof(eidx->parrefs[0]));
+	if (eidx->parrefs == NULL)
+		err(1, NULL);
+
+	for (i = 0; i < eidx->parrefs_num; i++) {
+		const PartitionRef *pr;
+
+		pr = sk_PartitionRef_value(ei->content->partitionList, i);
+
+		if (pr->hash->length != SHA256_DIGEST_LENGTH)
+			goto out;
+
+		if (!b64uri_encode(pr->hash->data, pr->hash->length,
+		    &eidx->parrefs[i].hash))
+			err(1, NULL);
+
+		if (!ASN1_INTEGER_get_uint64(&eidx->parrefs[i].size, pr->size))
+			errx(1, "ASN1_INTEGER_get_uint64");
+	}
+
+	error = 0;
+ out:
+	EI_ContentInfo_free(ei);
+	if (error) {
+		free_eidx(eidx);
+		eidx = NULL;
+	}
+	return eidx;
+}
+
+void
+free_esi(struct esi *esi)
+{
+	if (esi == NULL)
+		return;
+
+	free(esi->srefs);
+	free(esi->segmentscope);
+	free(esi);
+}
+
+/* XXX: feed in FQDN to check it's a plausible segmentindex? */
+struct esi *
+parse_esi(struct file *f)
+{
+	const unsigned char *oder, *der;
+	ESI_ContentInfo *esi_ci = NULL;
+	struct esi *esi = NULL;
+	const unsigned char *segmentscope;
+	int segmentscope_len, i;
+	int error = 1;
+
+	oder = der = f->content;
+	if ((esi_ci = d2i_ESI_ContentInfo(NULL, &der, f->content_len)) == NULL) {
+		warnx("%s: d2i_ESI_ContentInfo failed", f->name);
+		goto out;
+	}
+	if (der != oder + f->content_len) {
+		warnx("%s: %td bytes trailing garbage", f->name,
+		    oder + f->content_len - der);
+		goto out;
+	}
+
+	if (OBJ_cmp(esi_ci->contentType, esi_oid) != 0) {
+		char buf[128];
+
+		OBJ_obj2txt(buf, sizeof(buf), esi_ci->contentType, 1);
+		warnx("%s: unexpected OID: got %s, want "
+		    "1.3.6.1.4.1.41948.828", f->name, buf);
+		goto out;
+	}
+
+	if ((esi = calloc(1, sizeof(*esi))) == NULL)
+		err(1, NULL);
+
+	segmentscope = ASN1_STRING_get0_data(esi_ci->content->segmentScope);
+	segmentscope_len = ASN1_STRING_length(esi_ci->content->segmentScope);
+	if (segmentscope == NULL) {
+		warnx("%s: ErikSegmentIndex missing segmentScope", f->name);
+		goto out;
+	}
+	if ((esi->segmentscope = strndup((char *)segmentscope,
+	    segmentscope_len)) == NULL)
+		err(1, NULL);
+
+	if (!asn1time_to_time(esi_ci->content->segmentTime, &esi->segmenttime, 1)) {
+		warnx("%s: failed to convert %s", f->name, "segmentTime");
+		goto out;
+	}
+
+	esi->srefs_num = sk_SegmentRef_num(esi_ci->content->segmentList);
+	if (esi->srefs_num <= 0 || esi->srefs_num > 36) {
+		warnx("%s: too many SegmentRefs", f->name);
+		goto out;
+	}
+
+	esi->srefs = calloc(esi->srefs_num, sizeof(esi->srefs[0]));
+	if (esi->srefs == NULL)
+		err(1, NULL);
+
+	for (i = 0; i < esi->srefs_num; i++) {
+		const SegmentRef *sr;
+
+		sr = sk_SegmentRef_value(esi_ci->content->segmentList, i);
+
+		if (!asn1time_to_time(sr->segment, &esi->srefs[i].segment, 1)) {
+			warnx("%s: failed to convert segment", f->name);
+			goto out;
+		}
+
+		if (sr->index->length != SHA256_DIGEST_LENGTH)
+			goto out;
+
+		if (!b64uri_encode(sr->index->data, sr->index->length,
+		    &esi->srefs[i].index))
+			err(1, NULL);
+	}
+
+	error = 0;
+ out:
+	ESI_ContentInfo_free(esi_ci);
+	if (error) {
+		free_esi(esi);
+		esi = NULL;
+	}
+	return esi;
 }

@@ -41,6 +41,7 @@ enum filetype {
 	TYPE_TAL,
 	TYPE_EIDX,
 	TYPE_EPAR,
+	TYPE_ESI,
 	TYPE_UNKNOWN,
 };
 
@@ -115,6 +116,36 @@ struct roaipaddr {
 	long maxlen;
 };
 
+struct parref {
+	char *hash;
+	uint64_t size;
+};
+
+struct eidx {
+	char *indexscope;
+	time_t indextime;
+	struct parref *parrefs;
+	int parrefs_num;
+};
+
+struct epar {
+	time_t partime;
+	struct mftref *mftrefs;
+	int mftrefs_num;
+};
+
+struct sref {
+	time_t segment;
+	char *index;
+};
+
+struct esi {
+	char *segmentscope;
+	time_t segmenttime;
+	struct sref *srefs;
+	int srefs_num;
+};
+
 int b64uri_encode(const unsigned char *, size_t, char **);
 int b64_encode(const unsigned char *, size_t, char **);
 char *hex_encode(const unsigned char *, size_t);
@@ -128,9 +159,14 @@ int mkpathat(int, const char *);
 int mkstempat(int, char *);
 int mkstemplinkat(int, char *, char *);
 
-int repair_ccr(struct file *f);
-struct ccr *parse_ccr(struct file *f);
-struct mft *parse_manifest(struct file *f);
+int repair_ccr(struct file *);
+struct ccr *parse_ccr(struct file *);
+struct mft *parse_manifest(struct file *);
+struct eidx *parse_eidx(struct file *);
+void free_eidx(struct eidx *);
+struct esi *parse_esi(struct file *);
+void free_esi(struct esi *);
+
 void hash_asn1_item(ASN1_OCTET_STRING *, const ASN1_ITEM *, void *);
 int asn1time_to_time(const ASN1_TIME *, time_t *, int);
 

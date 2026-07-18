@@ -121,10 +121,8 @@ detect_ftype_from_fn(char *fn)
 	size_t fn_len, i;
 
 	fn_len = strlen(fn);
-	if (fn_len < 5) {
-		warnx("%s: unsupported file", fn);
+	if (fn_len < 5)
 		goto out;
-	}
 
 	for (i = 0; i < sizeof(ext_tab) / sizeof(ext_tab[0]); i++) {
 		if (strcasecmp(fn + (fn_len - 4), ext_tab[i].ext) == 0) {
@@ -161,6 +159,10 @@ detect_ftype_from_der(struct file *f)
 			}
 			if (OBJ_cmp(obj, epar_oid) == 0) {
 				ftype = TYPE_EPAR;
+				goto out;
+			}
+			if (OBJ_cmp(obj, esi_oid) == 0) {
+				ftype = TYPE_ESI;
 				goto out;
 			}
 		}
@@ -300,6 +302,8 @@ main(int argc, char *argv[])
 	struct mftinstance **mis = NULL;
 	struct ccr *ccr = NULL;
 	struct mft *mft = NULL;
+	struct eidx *eidx = NULL;
+	struct esi *esi = NULL;
 	char *ep;
 	time_t segment = 0;
 
@@ -518,16 +522,46 @@ main(int argc, char *argv[])
 				if (detect_ftype_from_fn(mft->files[i].fn)
 				    == TYPE_CRL)
 					mft->crlhash = mft->files[i].hash;
-				if (!print)
-					continue;
-				printf("%s/%s\n", mft->sia_dirname, mft->files[i].fn);
+				if (print) {
+					printf("%s/%s\n", mft->sia_dirname,
+					    mft->files[i].fn);
+				}
 			}
 			if (print)
 				printf("%s\n", mft->sia + RSYNC_PROTO_LEN);
-		}
-		if (f->type == TYPE_EIDX || f->type == TYPE_EPAR) {
-			if (print)
-				printf("%s %lld\n", f->name, (long long)f->signtime);
+		} else if (print) {
+			switch (f->type) {
+			case TYPE_EIDX:
+				if ((eidx = parse_eidx(f)) == NULL)
+					errx(1, "parse_eidx");
+				if (verbose)
+					printf("Index %s %lld\n", eidx->indexscope,
+					    (long long)eidx->indextime);
+				for (i = 0; i < eidx->parrefs_num; i++)
+					printf("%s\n", eidx->parrefs[i].hash);
+				free_eidx(eidx);
+				eidx = NULL;
+				break;
+			case TYPE_EPAR:
+				printf("Partition %s %lld\n", f->name, (long long)f->signtime);
+				break;
+			case TYPE_ESI:
+				if ((esi = parse_esi(f)) == NULL)
+					errx(1, "parse_esi");
+				if (verbose)
+					printf("SegmentIndex %s %lld\n",
+					    esi->segmentscope,
+					    (long long)esi->segmenttime);
+				for (i = 0; i < esi->srefs_num; i++)
+					printf("%lld %s\n",
+					    (long long)esi->srefs[i].segment,
+					    esi->srefs[i].index);
+				free_esi(esi);
+				esi = NULL;
+				break;
+			default:
+				break;
+			}
 		}
 
 		/*

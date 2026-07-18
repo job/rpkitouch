@@ -33,10 +33,13 @@
 
 extern ASN1_ITEM_EXP EI_ContentInfo_it;
 extern ASN1_ITEM_EXP EP_ContentInfo_it;
+extern ASN1_ITEM_EXP ESI_ContentInfo_it;
 extern ASN1_ITEM_EXP ErikIndex_it;
 extern ASN1_ITEM_EXP PartitionRef_it;
 extern ASN1_ITEM_EXP ErikPartition_it;
 extern ASN1_ITEM_EXP ManifestRef_it;
+extern ASN1_ITEM_EXP ErikSegmentIndex_it;
+extern ASN1_ITEM_EXP SegmentRef_it;
 
 typedef struct {
 	ASN1_INTEGER *version;
@@ -65,6 +68,7 @@ DECLARE_STACK_OF(PartitionRef);
 #ifndef DEFINE_STACK_OF
 #define sk_PartitionRef_num(st) SKM_sk_num(PartitionRef, (st))
 #define sk_PartitionRef_push(st, i) SKM_sk_push(PartitionRef, (st), (i))
+#define sk_PartitionRef_value(st, i) SKM_sk_value(PartitionRef, (st), (i))
 #endif
 
 DECLARE_ASN1_FUNCTIONS(PartitionRef);

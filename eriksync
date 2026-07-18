@@ -15,7 +15,8 @@
 
 set -xe
 
-FQDN=$(echo ${18} | sed 's|rsync://||' | xargs -r dirname)
+#FQDN=$(echo ${18} | sed 's|rsync://||' | xargs -r dirname)
+FQDN=chloe.sobornost.net
 
 CURL_CMD="curl -A eriksync -e ${FQDN} -f --compressed -s -R"
 RELAY=miso.sobornost.net
