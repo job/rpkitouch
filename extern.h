@@ -166,6 +166,7 @@ struct eidx *parse_eidx(struct file *);
 void free_eidx(struct eidx *);
 struct esi *parse_esi(struct file *);
 void free_esi(struct esi *);
+int split_objs(struct file *);
 
 void hash_asn1_item(ASN1_OCTET_STRING *, const ASN1_ITEM *, void *);
 int asn1time_to_time(const ASN1_TIME *, time_t *, int);

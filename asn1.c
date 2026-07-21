@@ -567,8 +567,8 @@ update_segmentindex(char *fqdn, time_t indextime, time_t segmenttime,
 			char buf[128];
 
 			OBJ_obj2txt(buf, sizeof(buf), ci->contentType, 1);
-			warnx("%s: unexpected OID: got %s, want 1.3.6.1.4.1.41948.828",
-			    f->name, buf);
+			warnx("%s: unexpected OID: got %s, want "
+			    "1.2.840.113549.1.9.16.1.59", f->name, buf);
 			goto new;
 		}
 

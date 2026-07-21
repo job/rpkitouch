@@ -16,12 +16,13 @@
 set -xe
 
 #FQDN=$(echo ${18} | sed 's|rsync://||' | xargs -r dirname)
-FQDN=chloe.sobornost.net
+FQDN=rpki.afrinic.net
 
-CURL_CMD="curl -A eriksync -e ${FQDN} -f --compressed -s -R"
-RELAY=miso.sobornost.net
+CURL_CMD="curl -A eriksync -e ${FQDN} -f --compressed -Z"
+RELAY=http://miso.sobornost.net
 CACHEDIR=/var/cache/rpki-client
 CCRDIR=/var/db/rpki-client
+LAST_RUN="$(stat -f %m ${CCRDIR}/rpki.ccr)"
 
 _exit() {
 	rv=$?
@@ -56,10 +57,26 @@ touch "${CACHEDIR}/.rsync/${FQDN}-lock"
 
 rpkitouch -Cvd "${CACHEDIR}/.rsync" -H "${FQDN}" "${CCRDIR}/rpki.ccr"
 
-echo Fetching index for ${FQDN}
+echo Fetching ErikIndex for ${FQDN}
 ${CURL_CMD} -o ${CACHEDIR}/.rsync/erik/index/${FQDN}.new ${RELAY}/.well-known/erik/index/${FQDN}
-if [ "$(sha256 -q ${CACHEDIR}/.rsync/erik/index/${FQDN}.new)" = "$(sha256 -q ${CACHEDIR}/.rsync/erik/index/${FQDN}.new)" ]; then
+if [ "$(sha256 -q ${CACHEDIR}/.rsync/erik/index/${FQDN})" = "$(sha256 -q ${CACHEDIR}/.rsync/erik/index/${FQDN}.new)" ]; then
 	echo "${FQDN} is in sync, marking as done"
 	mv ${CACHEDIR}/.rsync/${FQDN}-lock ${CACHEDIR}/.rsync/${FQDN}-done
 	exit 0
 fi
+
+echo Fetching SegmentIndex for ${FQDN}
+${CURL_CMD} -o ${CACHEDIR}/.rsync/erik/${FQDN}.esi ${RELAY}/.well-known/erik/segmentindex/${FQDN}
+rpkitouch -S ${LAST_RUN} -p ${CACHEDIR}/.rsync/erik/${FQDN}.esi | while read line; do
+	echo ${RELAY}/.well-known/erik/segment/${FQDN}/${line}
+done | xargs -r ${CURL_CMD} > ${CACHEDIR}/.rsync/erik/index/${FQDN}.segs
+
+h2f() {
+	echo "$1" | sed 's|\(.*\)\(..\)\(..\)$|static/\2/\3/\1\2\3|'
+}
+
+rpkitouch -p ${CACHEDIR}/.rsync/erik/index/${FQDN}.new | while read line; do
+	if [ ! -f "$(h2f ${line})" ]; then
+		echo ${RELAY}/.well-known/ni/sha-256/${line}
+	fi
+done | xargs -r ${CURL_CMD} > ${CACHEDIR}/.rsync/erik/index/${FQDN}.parts

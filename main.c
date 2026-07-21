@@ -95,9 +95,7 @@ setup_oids(void) {
 		errx(1, "OBJ_txt2obj for %s failed", "spl_oid");
 	if ((tak_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.50", 1)) == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "tak_oid");
-
-	/* XXX: temp oid */
-	if ((esi_oid = OBJ_txt2obj("1.3.6.1.4.1.41948.828", 1)) == NULL)
+	if ((esi_oid = OBJ_txt2obj("1.2.840.113549.1.9.16.1.59", 1)) == NULL)
 		errx(1, "OBJ_txt2obj for %s failed", "esi_oid");
 }
 
@@ -294,7 +292,7 @@ load_mftinstances_from_ccr(char *argv[], int *count)
 int
 main(int argc, char *argv[])
 {
-	int c, count = 0, i, rc = 0;
+	int c, count = 0, i, rc = 0, split = 0;
 	char *ccr_file = NULL, *outdir = NULL, *reduce = NULL, *repair = NULL;
 	char *single_fqdn = NULL;
 	struct file *f;
@@ -307,7 +305,7 @@ main(int argc, char *argv[])
 	char *ep;
 	time_t segment = 0;
 
-	while ((c = getopt(argc, argv, "Cc:d:H:hnpR:r:S:Vv")) != -1)
+	while ((c = getopt(argc, argv, "Cc:d:H:hnpR:r:S:sVv")) != -1)
 		switch (c) {
 		case 'C':
 			compare = 1;
@@ -342,6 +340,9 @@ main(int argc, char *argv[])
 			if (errno == ERANGE && (segment == LLONG_MAX ||
 			    segment == LLONG_MIN))
 				err(1, "strtoll");
+			break;
+		case 's':
+			split = 1;
 			break;
 		case 'V':
 			printf("version 1.9\n");
@@ -485,6 +486,23 @@ main(int argc, char *argv[])
 		ccr_free(ccr);
 	}
 
+	if (split) {
+		if ((f = calloc(1, sizeof(*f))) == NULL)
+			err(1, NULL);
+
+		if ((f->name = strdup(*argv)) == NULL)
+			err(1, NULL);
+
+		f->content = load_file(f->name, &f->content_len, &f->disktime);
+		if (f->content == NULL)
+			errx(1, "%s: load_file failed", f->name);
+
+		if (!split_objs(f))
+			errx(1, "split_objs");
+
+		goto out;
+	}
+
 	for (; *argv != NULL; ++argv) {
 		if ((f = calloc(1, sizeof(*f))) == NULL)
 			err(1, NULL);
@@ -499,6 +517,7 @@ main(int argc, char *argv[])
 			errx(1, "%s: load_file failed", f->name);
 
 		f->content = fc;
+
 		SHA256(f->content, f->content_len, f->hash);
 
 		if (f->type == TYPE_UNKNOWN)
@@ -552,10 +571,17 @@ main(int argc, char *argv[])
 					printf("SegmentIndex %s %lld\n",
 					    esi->segmentscope,
 					    (long long)esi->segmenttime);
-				for (i = 0; i < esi->srefs_num; i++)
-					printf("%lld %s\n",
-					    (long long)esi->srefs[i].segment,
-					    esi->srefs[i].index);
+				for (i = 0; i < esi->srefs_num; i++) {
+					if (segment) {
+						if (segment < esi->srefs[i].segment)
+							printf("%lld\n",
+							    esi->srefs[i].segment);
+					} else {
+						printf("%lld %s\n",
+						    (long long)esi->srefs[i].segment,
+						    esi->srefs[i].index);
+					}
+				}
 				free_esi(esi);
 				esi = NULL;
 				break;
@@ -598,6 +624,7 @@ main(int argc, char *argv[])
 		f = NULL;
 	}
 
+ out:
 	destroy_oids();
 	return rc;
 }
@@ -605,7 +632,7 @@ main(int argc, char *argv[])
 void
 usage(void)
 {
-	fprintf(stderr, "usage: rpkitouch [-CnpVv] [-d dir] [-H fqdn] file ...\n");
+	fprintf(stderr, "usage: rpkitouch [-CnpsVv] [-d dir] [-H fqdn] [-S segment] file ...\n");
 	fprintf(stderr, "       rpkitouch [-n] [-H fqdn] -c ccr_file\n");
 	fprintf(stderr, "       rpkitouch [-n] -R out_ccr ccr_file ...\n");
 	fprintf(stderr, "       rpkitouch [-n] -r ccr_file\n");

@@ -550,7 +550,7 @@ get_erik_segmentindextime(const char *fn, unsigned char *content, size_t len)
 
 		OBJ_obj2txt(buf, sizeof(buf), esi->contentType, 1);
 		warnx("%s: unexpected OID: got %s, want "
-		    "1.3.6.1.4.1.41948.828", fn, buf);
+		    "1.2.840.113549.1.9.16.1.59", fn, buf);
 		goto out;
 	}
 
@@ -1330,4 +1330,10 @@ parse_esi(struct file *f)
 		esi = NULL;
 	}
 	return esi;
+}
+
+int
+split_objs(struct file *f)
+{
+	return 0;
 }
