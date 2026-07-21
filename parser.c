@@ -1272,7 +1272,7 @@ parse_esi(struct file *f)
 
 		OBJ_obj2txt(buf, sizeof(buf), esi_ci->contentType, 1);
 		warnx("%s: unexpected OID: got %s, want "
-		    "1.3.6.1.4.1.41948.828", f->name, buf);
+		    "1.2.840.113549.1.9.16.1.59", f->name, buf);
 		goto out;
 	}
 
