@@ -17,9 +17,12 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 */
 
+#include <sys/queue.h>
+
 #include <assert.h>
 #include <ctype.h>
 #include <err.h>
+#include <errno.h>
 #include <fcntl.h>
 #include <libgen.h>
 #include <stdio.h>
@@ -1332,8 +1335,93 @@ parse_esi(struct file *f)
 	return esi;
 }
 
+struct hashloc {
+	LIST_ENTRY(hashloc) entry;
+	char *hash;
+	char *loc;
+};
+
+LIST_HEAD(hashloc_list, hashloc);
+
+static struct hashloc_list hll = LIST_HEAD_INITIALIZER(hll);
+
 int
 split_objs(struct file *f)
 {
-	return 0;
+	const unsigned char *cbuf, *objp;
+	ASN1_SEQUENCE_ANY *as;
+	size_t len, obj_len;
+	struct file *newfile;
+	struct mft *mft = NULL;
+	struct hashloc *hl;
+	int i, rc = 0;
+
+	cbuf = f->content;
+	len = f->content_len;
+	do {
+		objp = cbuf;
+		if ((as = d2i_ASN1_SEQUENCE_ANY(NULL, &cbuf, len)) == NULL) {
+			warnx("malformed DER object");
+			goto out;
+		}
+		ASN1_item_free((ASN1_VALUE *)as, &ASN1_SEQUENCE_ANY_it);
+		as = NULL;
+
+		obj_len = cbuf - objp;
+		len -= obj_len;
+
+		if ((newfile = calloc(1, sizeof(*newfile))) == NULL)
+			err(1, NULL);
+
+		if ((newfile->content = calloc(1, obj_len)) == NULL)
+			err(1, NULL);
+
+		memcpy(newfile->content, objp, obj_len);
+		newfile->content_len = obj_len;
+
+		newfile->type = detect_ftype_from_der(newfile);
+
+		if (newfile->type == TYPE_MFT) {
+			if ((mft = parse_manifest(newfile)) == NULL) {
+				warnx("parse_manifest");
+				file_free(newfile);
+				continue;
+			}
+			for (i = 0; i < mft->fh_num; i++) {
+				if ((hl = calloc(1, sizeof(*hl))) == NULL)
+					err(1, NULL);
+
+				char *b = mft->files[i].hash;
+
+				if (asprintf(&hl->hash, "static/%c%c/%c%c/%s",
+				    b[39], b[40], b[41], b[42], b) == -1)
+					err(1, NULL);
+
+				if (asprintf(&hl->loc, "named/%s/%s",
+				    mft->sia_dirname, mft->files[i].fn) == -1)
+					err(1, NULL);
+
+				LIST_INSERT_HEAD(&hll, hl, entry);
+			}
+			store_by_name(newfile, mft);
+		} else {
+			SHA256(newfile->content, newfile->content_len,
+			    newfile->hash);
+			newfile->signtime = get_time_from_content(newfile);
+			store_by_hash(newfile, 0);
+		}
+
+	} while (cbuf != f->content + f->content_len);
+
+	LIST_FOREACH(hl, &hll, entry) {
+		if (renameat(outdirfd, hl->hash, outdirfd, hl->loc) == -1) {
+			if (errno != ENOENT)
+				warn("renameat %s %s", hl->hash, hl->loc);
+		}
+	}
+
+	rc = 1;
+ out:
+	file_free(f);
+	return rc;
 }

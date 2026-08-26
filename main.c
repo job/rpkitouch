@@ -292,8 +292,9 @@ load_mftinstances_from_ccr(char *argv[], int *count)
 int
 main(int argc, char *argv[])
 {
-	int c, count = 0, i, rc = 0, split = 0;
+	int c, count = 0, i, rc = 0;
 	char *ccr_file = NULL, *outdir = NULL, *reduce = NULL, *repair = NULL;
+	char *splitfile = NULL;
 	char *single_fqdn = NULL;
 	struct file *f;
 	unsigned char *fc;
@@ -305,7 +306,7 @@ main(int argc, char *argv[])
 	char *ep;
 	time_t segment = 0;
 
-	while ((c = getopt(argc, argv, "Cc:d:H:hnpR:r:S:sVv")) != -1)
+	while ((c = getopt(argc, argv, "Cc:d:H:hnpR:r:S:s:Vv")) != -1)
 		switch (c) {
 		case 'C':
 			compare = 1;
@@ -342,7 +343,7 @@ main(int argc, char *argv[])
 				err(1, "strtoll");
 			break;
 		case 's':
-			split = 1;
+			splitfile = optarg;
 			break;
 		case 'V':
 			printf("version 1.9\n");
@@ -373,6 +374,9 @@ main(int argc, char *argv[])
 		usage();
 
 	if (ccr_file != NULL && outdir != NULL)
+		usage();
+
+	if (splitfile != NULL && outdir == NULL)
 		usage();
 
 	setup_oids();
@@ -486,11 +490,11 @@ main(int argc, char *argv[])
 		ccr_free(ccr);
 	}
 
-	if (split) {
+	if (splitfile != NULL) {
 		if ((f = calloc(1, sizeof(*f))) == NULL)
 			err(1, NULL);
 
-		if ((f->name = strdup(*argv)) == NULL)
+		if ((f->name = strdup(splitfile)) == NULL)
 			err(1, NULL);
 
 		f->content = load_file(f->name, &f->content_len, &f->disktime);
@@ -636,5 +640,6 @@ usage(void)
 	fprintf(stderr, "       rpkitouch [-n] [-H fqdn] -c ccr_file\n");
 	fprintf(stderr, "       rpkitouch [-n] -R out_ccr ccr_file ...\n");
 	fprintf(stderr, "       rpkitouch [-n] -r ccr_file\n");
+	fprintf(stderr, "       rpkitouch -s infile outdir\n");
 	exit(1);
 }

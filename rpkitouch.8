@@ -21,6 +21,12 @@
 .Nd set file modification times to internal RPKI timestamps
 .Sh SYNOPSIS
 .Nm rpkitouch
+.Op Fl CnpVv
+.Op Fl d Ar directory
+.Op Fl H Ar fqdn
+.Op Fl S Ar segment
+.Ar
+.Nm rpkitouch
 .Op Fl n
 .Op Fl H Ar fqdn
 .Fl c Ar ccr_file
@@ -31,12 +37,9 @@
 .Nm rpkitouch
 .Op Fl n
 .Fl r Ar ccr_file
-.Nm rpkitouch
-.Op Fl CnpVv
-.Op Fl d Ar directory
-.Op Fl H Ar fqdn
-.Op Fl S Ar segment
-.Ar
+.Nm
+.Fl d Ar directory
+.Fl s Ar infile
 .Sh DESCRIPTION
 The
 .Nm
@@ -167,6 +170,13 @@ Useful to rectify files produced by rpki-client 9.7.
 Append Erik objects to the specified
 .Ar segment ,
 which must be provided as seconds since the unix epoch.
+.It Fl s Ar infile
+Split concatenated sequence of objects in
+.Ar infile
+into the
+.Ar directory
+specified with
+.Fl d .
 .It Fl V
 Display the version number and exit.
 .It Fl v
