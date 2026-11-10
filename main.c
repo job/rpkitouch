@@ -579,7 +579,7 @@ main(int argc, char *argv[])
 					if (segment) {
 						if (segment < esi->srefs[i].segment)
 							printf("%lld\n",
-							    esi->srefs[i].segment);
+							    (long long)esi->srefs[i].segment);
 					} else {
 						printf("%lld %s\n",
 						    (long long)esi->srefs[i].segment,
