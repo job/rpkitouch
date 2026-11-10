@@ -717,12 +717,21 @@ update_segmentindex(char *fqdn, time_t indextime, time_t segmenttime,
 	file_free(f);
 }
 
+static int
+partref_cmp(const PartitionRef *const *a, const PartitionRef *const *b)
+{
+	return ASN1_STRING_cmp((*a)->hash, (*b)->hash);
+}
+
 static void
 finalize_ErikIndex(ErikIndex *ei, char *fqdn, time_t itime, uint64_t csize,
     time_t segment)
 {
 	EI_ContentInfo *ci = NULL;
 	struct file *f;
+
+	(void)sk_PartitionRef_set_cmp_func(ei->partitionList, partref_cmp);
+	sk_PartitionRef_sort(ei->partitionList);
 
 	if (ASN1_GENERALIZEDTIME_set(ei->indexTime, itime) == NULL)
 		errx(1, "ASN1_GENERALIZEDTIME_set");

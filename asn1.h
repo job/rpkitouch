@@ -69,6 +69,9 @@ DECLARE_STACK_OF(PartitionRef);
 #define sk_PartitionRef_num(st) SKM_sk_num(PartitionRef, (st))
 #define sk_PartitionRef_push(st, i) SKM_sk_push(PartitionRef, (st), (i))
 #define sk_PartitionRef_value(st, i) SKM_sk_value(PartitionRef, (st), (i))
+#define sk_PartitionRef_sort(st) SKM_sk_sort(PartitionRef, (st))
+#define sk_PartitionRef_set_cmp_func(sk, cmp) \
+    SKM_sk_set_cmp_func(PartitionRef, (sk), (cmp))
 #endif
 
 DECLARE_ASN1_FUNCTIONS(PartitionRef);
