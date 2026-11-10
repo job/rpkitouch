@@ -1364,7 +1364,7 @@ split_objs(struct file *f)
 			warnx("malformed DER object");
 			goto out;
 		}
-		ASN1_item_free((ASN1_VALUE *)as, &ASN1_SEQUENCE_ANY_it);
+		ASN1_item_free((ASN1_VALUE *)as, ASN1_ITEM_rptr(ASN1_SEQUENCE_ANY));
 		as = NULL;
 
 		obj_len = cbuf - objp;
